@@ -1,0 +1,20 @@
+# The Pilot in the target layout (Changes to the Pilot): what "Converter and
+# Content repos in the new layout" (ticket 15) and "Convert API Platform Cloud
+# and AI Gateway" (ticket 16) write to <repo>/<slug>/docspace.yaml on main.
+# test/compose.test.mjs composes it with navigation/ to prove the model.
+schemaVersion: 1
+slug: identity-platform
+displayName: Identity Platform Cloud
+formerNames: [Asgardeo]
+editionNames:
+  cloud: Identity Platform Cloud
+home: identity-platform
+owners:
+  team: identity-platform-docs
+repo: wso2/docs-identity-platform
+editLinks: false
+issues:
+  repo: wso2/docs-is
+editions:
+  - id: cloud
+    parts: [identity-server]

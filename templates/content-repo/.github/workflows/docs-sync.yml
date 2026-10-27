@@ -1,0 +1,62 @@
+# Docs sync (optional): copied from tharindulak/test-docs-platform templates/content-repo/.
+# Generated content (Extension points for product teams) is made upstream,
+# in the product's own CI, and committed here as data by a bot pull request;
+# the build reads only what is committed. This workflow runs the Platform's
+# OpenAPI sync (spec-sync.yml): it copies a spec from a product repo over
+# its copy in a Doc space and opens, or updates, one PR with the diff.
+#
+# As written it runs only when started by hand (Actions > Docs sync > Run
+# workflow), so it does nothing until a team uses it. To sync one API every
+# night, uncomment `schedule` and the `nightly` job and fill in its paths.
+# Delete this file if the repo has no generated content.
+name: Docs sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      product-repo:
+        description: Product repo with the original spec, e.g. wso2/carbon-apimgt
+        type: string
+        required: true
+      product-ref:
+        description: Its branch or tag
+        type: string
+        default: main
+      product-spec-path:
+        description: The spec's path in the product repo
+        type: string
+        required: true
+      content-spec-path:
+        description: "The spec's path here, under its Doc space: <doc space>/docs/reference/apis/<api>/openapi.yaml"
+        type: string
+        required: true
+      base-branch:
+        description: "The branch the PR targets: main, or <doc space>/release/<version>"
+        type: string
+        default: main
+  # schedule:
+  #   - cron: '0 3 * * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  by-hand:
+    if: github.event_name == 'workflow_dispatch'
+    uses: tharindulak/test-docs-platform/.github/workflows/spec-sync.yml@v1
+    with:
+      product-repo: ${{ inputs.product-repo }}
+      product-ref: ${{ inputs.product-ref }}
+      product-spec-path: ${{ inputs.product-spec-path }}
+      content-spec-path: ${{ inputs.content-spec-path }}
+      base-branch: ${{ inputs.base-branch }}
+
+  # nightly:
+  #   if: github.event_name == 'schedule'
+  #   uses: tharindulak/test-docs-platform/.github/workflows/spec-sync.yml@v1
+  #   with:
+  #     product-repo: wso2/carbon-apimgt
+  #     product-spec-path: components/apimgt/org.wso2.carbon.apimgt.rest.api.publisher.v1/src/main/resources/publisher-api.yaml
+  #     content-spec-path: api-manager/docs/reference/apis/publisher/openapi.yaml
+  #     base-branch: api-manager/release/4.7.0

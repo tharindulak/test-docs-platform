@@ -1,0 +1,103 @@
+# The Platform's own deployments release themselves (Landing and Contribute):
+#   - Contribute (standards/contribute/, a Doc space of this repo) releases
+#     when a change on main reaches anything its build reads: the next
+#     cloud-<YYYY.MM.DD>.<n> tag on this repo, then Release docs for it,
+#     exactly as a Content repo's docs.yml tags and dispatches;
+#   - the Landing deployment releases when the Platform navigation (or its
+#     start paths, chrome/landing.yaml) changes:
+#     Release docs with scope landing, built from the Platform alone.
+# The path filter is the union of lib/platform-release.mjs's CONTRIBUTE_PATHS
+# and LANDING_PATHS; `wso2-release platform-changes` sorts out which.
+# A Platform release also rebuilds both (Release docs, scope all).
+name: Platform deployments
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - standards/**
+      - site/**
+      - plugins/**
+      - chrome/**
+      - lib/**
+      - bin/**
+      - schemas/**
+      - navigation/**
+      - chrome/landing.yaml
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      contribute: ${{ steps.changes.outputs.contribute }}
+      landing: ${{ steps.changes.outputs.landing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # By hand (Run workflow) there is no base: both release.
+      - id: changes
+        name: What this change releases
+        env:
+          BEFORE: ${{ github.event_name == 'push' && github.event.before || '' }}
+        run: node bin/wso2-release.mjs platform-changes --base "$BEFORE" --head "$GITHUB_SHA" --github-output "$GITHUB_OUTPUT"
+
+  contribute:
+    needs: plan
+    if: needs.plan.outputs.contribute == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # push the Cloud tag
+      actions: write    # dispatch Release docs
+    concurrency:
+      group: docs-tag-contribute
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # A tag pushed with the workflow token starts no workflow, so the
+      # release is dispatched right after (workflow_dispatch is the exception).
+      - id: tag
+        name: Create the next Cloud tag
+        run: |
+          prefix="cloud-$(date -u +%Y.%m.%d)."
+          n=$(git tag --list "${prefix}*" | sed "s|^${prefix//./\\.}||" | sort -n | tail -1)
+          tag="${prefix}$(( ${n:-0} + 1 ))"
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "refs/tags/$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Release Contribute
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh workflow run release.yml --ref "$TAG" -f repo="$GITHUB_REPOSITORY" -f tag="$TAG"
+          echo "Dispatched Release docs for Contribute at $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+  landing:
+    needs: plan
+    if: needs.plan.outputs.landing == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write    # dispatch Release docs
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Release the Landing deployment
+        run: |
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f scope=landing
+          echo "Dispatched Release docs for the Landing deployment" >> "$GITHUB_STEP_SUMMARY"

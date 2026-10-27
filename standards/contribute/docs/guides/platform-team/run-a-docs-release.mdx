@@ -1,0 +1,153 @@
+---
+title: Follow and run a Docs release
+description: Follow a Docs release from its tag to live Docs deployments, start one or a rebuild by hand, and run every step yourself to rehearse it.
+type: how-to
+sidebar_position: 5
+---
+
+Docs releases start themselves: a merge to `main` makes a Cloud release, and a team's **Release docs** run makes a version release. Follow them when one fails, start one by hand when a run must be repeated, and rebuild Docs deployments after a Platform change. [The release pipeline](../../concepts/platform-team/release-pipeline.mdx) explains each step.
+
+## Prerequisites
+
+- You're on the Platform team, with permission to run workflows in `wso2/docs-platform`.
+- The GitHub CLI, signed in, for starting runs.
+- To run the steps yourself: [WSO2 Docs running locally](run-it-locally.mdx).
+
+## Follow a release
+
+1. In the Content repository, open the **Docs** run of the merge or of **Release docs**. Its tag job made the tag, and its release job's summary names the Docs bundle with its sha256. The tag's GitHub Release holds the bundle. Until intake is built, start **Release docs** for the tag by hand (below).
+2. In `wso2/docs-platform`, open **Actions** > **Release docs**. The run is named `Release docs: <repo> <tag>`, such as `Release docs: wso2/docs-api-platform ai-gateway/1.2.0-docs.3`.
+3. Read the **plan** job's output. Its `flip` line lists the Docs deployments the tag makes, such as `ai-gateway/latest=1.2.0-docs.3 ai-gateway/1.2.0=1.2.0-docs.3`.
+4. Each build job is named `<doc space>/<segment>`. Its summary gives the build time. A failed step names the check and the page.
+5. The **finalize-staging** job's summary lists each Docs deployment with its release and staging address, then the crawl gate's and the search index's results.
+
+## Start a release by hand
+
+Re-run a failed run from its page, with **Re-run all jobs**, when the cause is fixed outside the Content repository. To release a tag again, or a tag pushed by hand:
+
+```bash
+gh workflow run release.yml --repo wso2/docs-platform --ref v1 -f repo=wso2/docs-sandbox -f tag=1.0.0-docs.1
+```
+
+The run builds the tag as it is. Uploading a release folder that is already complete does nothing, so repeating a release that went live only flips again.
+
+## Rebuild Docs deployments
+
+Rebuild every deployed Edition of one Doc space, or of every Doc space whose Content repository pins the Platform major you run at (`--ref v1`: those that pin `v1`), from the tags they run now:
+
+```bash
+gh workflow run release.yml --repo wso2/docs-platform --ref v1 -f scope=docspace -f space=identity-server
+gh workflow run release.yml --repo wso2/docs-platform --ref v1 -f scope=all
+```
+
+Each rebuild gets release id `<release>.r<run id>`, such as `1.0.0-docs.1.r9001`. A Platform release rebuilds the Docs deployments pinned to its major on its own. See [Release the Platform](release-the-platform.mdx).
+
+## Run a release by hand
+
+These are the commands the workflows run, in order, for Sandbox 1.0.0. Run them against [WSO2 Docs running locally](run-it-locally.mdx) to rehearse a release, or to see why one fails. Run them in the Platform checkout, with the clones in `R`:
+
+```bash
+R=~/wso2-docs-local/repos
+```
+
+1. Make the tag, as the Content repository's **Release docs** run does. `spaces` gives the branch and the tag's prefix:
+
+   ```bash
+   node bin/wso2-docs.mjs spaces $R/docs-sandbox --release "" --version 1.0.0
+   git -C $R/docs-sandbox tag 1.0.0-docs.1 release/1.0.0
+   ```
+
+2. Compose every Content repository's `main` and store it, then plan from the stored copy:
+
+   ```bash
+   node bin/wso2-release.mjs compose --content $R --storage s3://docs-staging
+   node bin/wso2-release.mjs plan --repo wso2/docs-sandbox --tag 1.0.0-docs.1 --storage s3://docs-staging > plan.json
+   node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json
+   node bin/wso2-release.mjs status --storage s3://docs-staging > state.json
+   ```
+
+   `state.json` is what is deployed now. The builds take it so that the menus in each page list only deployed Doc spaces, plus the one being built, as the live menus do. Without it, a menu entry for a Doc space that has no Docs release yet fails the crawl gate.
+
+3. For each Docs deployment in `plan.json`, the latest twin first, check out the tag and build the Doc space's directory (`dir`). An Edition other than the latest twin takes the latest twin's page list, for its canonicals:
+
+   ```bash
+   git -C $R/docs-sandbox checkout 1.0.0-docs.1
+   node bin/wso2-docs.mjs build $R/docs-sandbox/sandbox --edition 1.0.0 --as-latest --env production --manifest composed.json --deployed state.json --out build-latest
+   node bin/wso2-docs.mjs build $R/docs-sandbox/sandbox --edition 1.0.0 --env production --manifest composed.json --deployed state.json --latest-pages build-latest/_platform/pages.json --out build-100
+   ```
+
+4. Check each build, and upload it to its release folder:
+
+   ```bash
+   node bin/wso2-release.mjs route-lists --storage s3://docs-staging --policy composed.json --out routes
+   node bin/wso2-release.mjs check --dir build-100 --space sandbox --segment 1.0.0 --edition 1.0.0
+   node bin/wso2-docs.mjs check $R/docs-sandbox/sandbox --release --edition 1.0.0 --manifest composed.json --build-dir build-100 --routes routes
+   node bin/wso2-release.mjs publish --storage s3://docs-staging --dir build-100 --space sandbox --segment 1.0.0 --edition 1.0.0 --tag 1.0.0-docs.1 --source-repo wso2/docs-sandbox
+   ```
+
+   Do the same for `build-latest` with `--segment latest`.
+
+5. Flip both Docs deployments in one write, then the redirect table, the crawl gate, search and the clean-up:
+
+   ```bash
+   node bin/wso2-release.mjs flip --storage s3://docs-staging --env staging --deploy "sandbox/latest=1.0.0-docs.1 sandbox/1.0.0=1.0.0-docs.1" --chrome chrome/chrome.json
+   node bin/wso2-release.mjs redirects --storage s3://docs-staging --kv local:http://127.0.0.1:4721
+   node bin/wso2-release.mjs crawl --storage s3://docs-staging --host http://127.0.0.1:4720 --deploy "sandbox/latest=1.0.0-docs.1 sandbox/1.0.0=1.0.0-docs.1"
+   node bin/wso2-release.mjs search-index --env local --storage s3://docs-staging --deploy "sandbox/latest=1.0.0-docs.1 sandbox/1.0.0=1.0.0-docs.1"
+   node bin/wso2-release.mjs gc --storage s3://docs-staging
+   ```
+
+A family Cloud is the same, with one deployment: `plan --repo wso2/docs-identity-platform --tag identity-platform/cloud-2026.10.26.1` plans `identity-platform/cloud`, and `build $R/docs-identity-platform/identity-platform --edition cloud` builds Identity Server's Cloud part into it from the same checkout.
+
+## Release Contribute or the Landing page
+
+Both release themselves from the **Platform deployments** workflow, when a change merges to the Platform's `main`:
+
+| Deployment | Released when the merge changes | How |
+|---|---|---|
+| **Contribute**, the Doc space in `standards/contribute/` | Anything its build reads: `standards/`, `site/`, `plugins/`, `chrome/`, `lib/`, `bin/`, `schemas/`, `navigation/`, `package.json` or `package-lock.json` | Makes the next Cloud tag on the Platform repository, such as `cloud-2026.10.27.1`, and starts **Release docs** for it, as a Content repository's `docs.yml` does |
+| **The Landing deployment** | `navigation/` or `chrome/landing.yaml` | Starts **Release docs** with scope `landing`: it builds the Landing deployment from the Platform alone, under release id `landing-<YYYY.MM.DD>.<run id>`, then flips, crawls and promotes it as any Docs deployment |
+
+A Platform release rebuilds both too. To release either by hand, run **Platform deployments** with **Run workflow**, which releases both, or start one:
+
+```bash
+gh workflow run release.yml --repo wso2/docs-platform --ref main -f scope=landing
+gh workflow run release.yml --repo wso2/docs-platform --ref cloud-2026.10.27.1 -f repo=wso2/docs-platform -f tag=cloud-2026.10.27.1
+```
+
+The second needs the Cloud tag on `main` first. To rehearse the Landing deployment's release on [WSO2 Docs running locally](run-it-locally.mdx), the commands its build job runs:
+
+```bash
+node bin/wso2-release.mjs plan --scope landing --rebuild-id 1 --storage s3://docs-staging
+node bin/wso2-release.mjs status --storage s3://docs-staging > state.json
+node bin/wso2-docs.mjs build --landing --env production --manifest composed.json --deployed state.json --out build-landing
+node bin/wso2-release.mjs check --dir build-landing --space _landing --segment _ --edition _
+node bin/wso2-release.mjs publish --storage s3://docs-staging --dir build-landing --space _landing --segment _ --edition _ --tag landing-2026.10.27.1
+node bin/wso2-release.mjs flip --storage s3://docs-staging --env staging --deploy _landing/_=landing-2026.10.27.1
+```
+
+## Verify
+
+1. `node bin/wso2-release.mjs status --storage s3://docs-staging` shows each Docs deployment's `release`, `tag` and `deployedAt`, with the releases it pointed at before in `previous`.
+2. A page of each Docs deployment answers with an `x-docs-release` header that names its new folder, such as `sandbox/1.0.0/1.0.0-docs.1`.
+3. For a release of the newest version, `/<doc space>/latest/` serves it too. For a Cloud part, `/<part>/cloud/` redirects into its platform's tree, such as `/identity-server/cloud/` to `/identity-platform/cloud/identity-server/`.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Plan: `Edition <v> of <doc space> is not in the manifest policy; add it by PR first` | The Edition isn't on the Content repository's `main` yet, or compose failed and kept the last good copy. Read the plan job's compose step. |
+| Plan: `… is pinned to <tag> in its docspace.yaml; remove the pin to release <tag>` | The Edition is held. Its team removes `pin` when it may move again. |
+| Plan: `<repo> holds several Doc spaces …: its tags are <doc space>/<tag>` | The tag has no Doc space prefix. Tag again with the prefix. |
+| Plan: `<part>'s Cloud is its Cloud part of <platform>` | A Cloud part has no Cloud tag. Release its platform's Cloud tag. |
+| A build job fails | Nothing went live. Fix the page in the Content repository: its next merge or **Release docs** run makes a new tag. |
+| `Release <x> is missing or incomplete; publish it first` | An upload was interrupted. Re-run the run: the upload starts again. |
+| The crawl gate fails | The flip stands on staging, and the release isn't promoted. Fix the links it lists. Links to Doc spaces not deployed in that environment fail until they are. |
+| `finalize-staging` waits with `waiting for the state lock, held by …` | Another run, or someone running a command by hand, is writing the state. It goes on when that finishes. After 45 minutes it fails: see who holds the lock with `node bin/wso2-release.mjs state-lock --storage s3://docs-staging`, and re-run the run. |
+| Flip: `<deployment> stays on <release>, published after <release>; roll back to go back` | A newer release of that Docs deployment went live first, so this older run doesn't move it back. To go back on purpose, [roll back](roll-back-a-release.mdx). |
+| Search index warnings | The release is live. The search index catches up at the next weekly check, or [repair it now](run-the-search-index.mdx#check-and-repair-the-index). |
+
+## Next steps
+
+- [Roll back a Docs release](roll-back-a-release.mdx)
+- [Platform workflows](../../reference/platform-team/workflows.mdx)

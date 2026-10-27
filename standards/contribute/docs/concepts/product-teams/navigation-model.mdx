@@ -1,0 +1,110 @@
+---
+title: How WSO2 Docs is organized
+description: The products menu, Docs sections, Doc spaces, Editions and Cloud parts, and the one address every page has.
+type: concept
+sidebar_position: 1
+---
+
+WSO2 Docs is one documentation experience for every WSO2 product. Readers find a product in the products menu. The product opens in its Docs section, a left menu over one or more Doc spaces. Each Doc space has one or more Editions, and the reader picks one in the version selector.
+
+## How it works
+
+The Identity Platform, as the Pilot has it:
+
+```text
+Products menu
+└── Identity Platform                        Product family
+    ├── Identity Platform Cloud              the family's Cloud, always first
+    ├── Identity Server                      a product
+    └── Security Token Service               a product with no docs yet: opens the family Cloud
+
+Identity Platform Documentation              Docs section: the left menu
+├── Identity Platform Cloud                  Doc space identity-platform: Cloud only
+│   └── Identity Server                      Cloud part: identity-server's main line
+└── Identity Server              [7.3.0 ▾]   Doc space identity-server: 7.3.0, 7.2.0
+```
+
+### The products menu
+
+The products menu groups products by Product family, in the order and with the names of the wso2.com header: Agent Platform, API Platform, Integration Platform, Identity Platform and Engineering Platform. Two groups follow that are not Product families: Solutions and Other.
+
+Each group lists, in order:
+
+1. the family's Cloud, such as Identity Platform Cloud;
+2. the products its Docs section lists, with the labels and order the section manifest gives;
+3. products not on WSO2 Docs yet, which open their old site (↗);
+4. the section's links out (↗).
+
+The products button names the product being read. Choosing a product opens it where its version selector opens: Cloud where it has Cloud, else its newest release. The Landing page draws the same list, with a short description per group and Cloud and Self-hosted links per product.
+
+### Docs sections
+
+A Docs section is where a choice in the products menu takes the reader: one left menu, such as Identity Platform Documentation. Each Product family has one by default. A section has no pages of its own. Its overview and get-started pages belong to the family-level Doc space.
+
+The menu shows the Doc space being read open, with its own page tree. Every other Doc space is one line: its name, and its version dropdown on the right when the section gives it one. The section's links out follow, each with ↗.
+
+A Doc space has one home Docs section. Other sections may borrow it. For example, Agent Platform may list AI Gateway, whose home is API Platform. A reader who comes through Agent Platform keeps that section for the browser session. A reader who arrives from search, a bookmark or another site sees the home section.
+
+### Doc spaces and Editions
+
+A Doc space is one product's documentation, or a Product family's Cloud documentation. Each lives in one directory of one Content repository and is owned by one team.
+
+An Edition is one choice in a Doc space's version dropdown:
+
+- **Cloud**: the Cloud docs, released from the main line. Where a Doc space has Cloud, Cloud is its latest Edition and the one readers open first.
+- **A Self-hosted version**, such as Identity Server 7.3.0, released from its own branch. Versions are exact (`7.3.0`) or dates (`2026.09.24`).
+
+A Legacy version is a version whose docs are still on its old site. It is listed under "Older versions (old site)" and is not an Edition.
+
+### Family Cloud and Cloud parts
+
+Every Product family has a family-level, Cloud-only Doc space named "Family Cloud", such as API Platform Cloud. Its Cloud tree holds each product's Cloud docs as a Cloud part. For example, AI Gateway's Cloud docs are a part of API Platform Cloud.
+
+The component's own Doc space keeps only its Self-hosted versions. Its "Cloud" choice opens its part of the platform's tree. Until the platform's Cloud tree has its first Docs deployment, the component has only its Self-hosted versions: its products-menu entry, its line in the section menu and its bare address open its newest release, and its version selector lists no Cloud. Inside a Cloud part, the header acts for the component: the products button reads "AI Gateway", and the version selector lists AI Gateway's Editions.
+
+A Cloud part comes from the component's main line, in the same Content repository as its platform. So the whole Cloud tree is built from one commit.
+
+### Unlisted Doc spaces
+
+An Unlisted Doc space is hosted in WSO2 Docs but is in no products menu and no Docs section. Readers reach it only from links, such as its product's console. Bijira and Devant are Unlisted while they retire. Unlisted pages carry `noindex`, stay out of the sitemap index, and search finds them only from inside the Doc space.
+
+Contribute, the Doc space you're reading, is Unlisted but indexed: it is in no menu, but search engines and WSO2 Docs search find it.
+
+## One address per page
+
+Every page has one address, wherever it is listed: `docs.wso2.com/<doc space>/<edition>/<page>/`. The Docs section and the family never appear in it.
+
+| What | Address |
+|---|---|
+| A Self-hosted page | `/identity-server/7.3.0/<page>/` |
+| The same page in the newest release, which moves with each release | `/identity-server/latest/<page>/` |
+| A family Cloud page | `/identity-platform/cloud/<page>/` |
+| A Cloud part page | `/identity-platform/cloud/identity-server/<page>/` |
+| A page of an unversioned Doc space, such as Contribute | `/contribute/<page>/` |
+
+`/latest/` is always the newest release, never Cloud. Cloud keeps `/cloud/`. Search engines index both.
+
+These addresses redirect with a 302:
+
+| Address | Goes to |
+|---|---|
+| `/identity-server/` | `/identity-platform/cloud/identity-server/`, where its selector opens |
+| `/ai-gateway/` | `/api-platform/cloud/ai-gateway/` |
+| `/api-manager/` | `/api-manager/latest/`, because API Manager has no Cloud |
+| `/ai-gateway/cloud/<page>/` | `/api-platform/cloud/ai-gateway/<page>/` |
+| `/api-platform/latest/<page>/` | `/api-platform/cloud/<page>/`, because a Cloud-only Doc space has no `/latest/` copy |
+
+Slugs are permanent once a Doc space is public. A rename after that is a redirect.
+
+## Limits
+
+- A Cloud part comes only from a Doc space in its platform's own Content repository.
+- A Cloud part belongs to one platform.
+- A Doc space's Editions are listed in the order its manifest gives. They are never sorted.
+
+## Related
+
+- [Version selectors and notices](version-selectors.mdx)
+- [Manifests and the compose step](manifests-and-compose.mdx)
+- [Place your Doc space in the navigation](../../guides/product-teams/place-your-doc-space.mdx)
+- [Branches, tags and addresses](../../reference/product-teams/branches-tags-addresses.mdx)

@@ -1,0 +1,12 @@
+# The {edition.*} variables of __TITLE__: one block for Cloud, one for every
+# Self-hosted version ({version} is filled in). Pages write
+# {edition.productName}, and each Edition's build puts in its own value.
+# Edition markers (<Edition only="cloud">) limit a passage to some Editions.
+cloud:
+  displayName: __TITLE__ Cloud
+  productName: WSO2 __TITLE__
+  consoleUrl: https://console.example.com
+self-hosted:
+  displayName: __TITLE__ {version}
+  productName: WSO2 __TITLE__
+  consoleUrl: https://localhost:9443/console

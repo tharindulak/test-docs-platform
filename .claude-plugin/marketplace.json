@@ -1,0 +1,11 @@
+{
+  "name": "wso2-docs",
+  "owner": { "name": "WSO2 Docs Platform" },
+  "plugins": [
+    {
+      "name": "wso2-docs",
+      "source": "./",
+      "description": "WSO2 Docs author skills: Check my changes and Write a page."
+    }
+  ]
+}

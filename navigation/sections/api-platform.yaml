@@ -1,0 +1,31 @@
+# Docs section manifest: API Platform. Kept by the section's team
+# (.github/CODEOWNERS). It sets the products-menu entries and the menu's order
+# and version-in only; names come from the Doc space manifests.
+# Schema: schemas/section.schema.json.
+schemaVersion: 1
+id: api-platform
+title: API Platform Documentation
+owners:
+  team: api-platform-docs
+
+# The products menu, labelled and ordered as wso2.com's header lists API
+# Platform. API Gateway, AI Workspace and API Portal & MCP Hub join as their
+# Doc spaces are converted (their Cloud pages wait in API Platform Cloud's
+# api-gateway/, ai-workspace/ and api-portal/ groups until then); API Control
+# Plane joins once its page in API Platform Cloud is chosen.
+products:
+  - label: API Manager
+    opens: { docSpace: api-manager }
+  - label: AI Gateway
+    opens: { docSpace: ai-gateway }
+  - label: Monetization
+    opens: { docSpace: api-platform, page: guides/monetization/ }
+
+# The one shape: the family Cloud first, then the products.
+menu:
+  - docSpace: api-platform   # Cloud only, with AI Gateway as its Cloud part: its version is chosen in the header
+    version-in: header
+  - docSpace: api-manager
+    version-in: menu
+  - docSpace: ai-gateway
+    version-in: menu

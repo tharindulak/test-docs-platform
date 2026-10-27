@@ -1,0 +1,38 @@
+# The Platform's own checks: unit and end-to-end tests (including the local
+# edge), the workflow linter and a dry-run bundle of the Edge Worker.
+name: CI
+
+on:
+  pull_request:
+  push:
+    # releases/v<major>: fixes to an older Platform major, which
+    # platform-release.yml releases only once CI passed on the commit.
+    branches: [main, 'releases/**']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12 "$RUNNER_TEMP"
+          echo "ACTIONLINT=$RUNNER_TEMP/actionlint" >> "$GITHUB_ENV"
+      - name: Install Vale (the check tests run it)
+        run: |
+          curl -sSfL https://github.com/errata-ai/vale/releases/download/v3.24.0/vale_3.24.0_Linux_64-bit.tar.gz | tar xz -C "$RUNNER_TEMP" vale
+          echo "WSO2_DOCS_VALE=$RUNNER_TEMP/vale" >> "$GITHUB_ENV"
+      - run: npm test
+      - name: Edge Worker bundles for both environments
+        run: |
+          npx wrangler deploy --dry-run -c worker/wrangler.jsonc --env staging --outdir "$RUNNER_TEMP/edge-staging"
+          npx wrangler deploy --dry-run -c worker/wrangler.jsonc --env production --outdir "$RUNNER_TEMP/edge-production"

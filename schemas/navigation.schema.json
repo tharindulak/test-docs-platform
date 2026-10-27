@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.wso2.com/schemas/navigation.schema.json",
+  "title": "Platform navigation file",
+  "description": "navigation/navigation.yaml, kept by the Platform team: the family order, the Solutions and Other groups, the environments, the list of Docs sections and the Content repos the compose step reads. Fields are only ever added.",
+  "type": "object",
+  "required": ["schemaVersion", "owners", "platformRepo", "families", "groups", "environments", "sections", "contentRepos"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "owners": {
+      "type": "object",
+      "required": ["team"],
+      "additionalProperties": false,
+      "properties": { "team": { "type": "string", "minLength": 1 } }
+    },
+    "platformRepo": { "$ref": "#/$defs/repo" },
+    "families": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/group" }, "description": "Product families, in the order of wso2.com's header, named exactly as wso2.com names them." },
+    "groups": { "type": "array", "items": { "$ref": "#/$defs/group" }, "description": "The groups after the families that are not Product families (Solutions, Other)." },
+    "environments": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
+    "sections": {
+      "type": "array",
+      "description": "Every Docs section, each with its manifest at navigation/sections/<id>.yaml, and the family or group it belongs to.",
+      "items": {
+        "type": "object",
+        "required": ["id", "in"],
+        "additionalProperties": false,
+        "properties": { "id": { "$ref": "#/$defs/slug" }, "in": { "$ref": "#/$defs/slug" } }
+      }
+    },
+    "contentRepos": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The repos whose main line holds Doc space manifests, each at <path>/<slug>/docspace.yaml.",
+      "items": {
+        "type": "object",
+        "required": ["repo"],
+        "additionalProperties": false,
+        "properties": {
+          "repo": { "$ref": "#/$defs/repo" },
+          "path": { "type": "string", "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$", "description": "The directory holding the Doc space directories. Default: the repo root." }
+        }
+      }
+    },
+    "notYetOnWso2Docs": {
+      "type": "object",
+      "description": "Products not on WSO2 Docs yet, listed in the catalog with their old site until their Doc space manifest replaces the entry.",
+      "propertyNames": { "$ref": "#/$defs/slug" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["displayName", "in", "model", "legacyUrl"],
+        "additionalProperties": false,
+        "properties": {
+          "displayName": { "type": "string", "minLength": 1 },
+          "in": { "$ref": "#/$defs/slug", "description": "The family or group." },
+          "model": { "enum": ["cloud-plus-versions", "versions-only", "cloud-only", "unversioned", "links-out"] },
+          "formerNames": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "legacyUrl": { "type": "string", "pattern": "^https?://[^\\s]+$" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "repo": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$" },
+    "group": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 160, "description": "One sentence for the Landing page, shown under the group's name." }
+      }
+    }
+  }
+}

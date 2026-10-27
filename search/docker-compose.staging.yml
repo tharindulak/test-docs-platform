@@ -1,0 +1,20 @@
+# The Pilot's single Typesense container at search-staging.docs.wso2.com,
+# behind Cloudflare (Platform build and deploy pipeline, item 10). CORS allows
+# only the staging host. The admin key comes from the host's environment and
+# lives otherwise only in the Platform repo's staging environment.
+# PENDING INFRA (ticket 15): the host, its TLS and the Cloudflare route.
+name: wso2-docs-search-staging
+services:
+  typesense:
+    image: typesense/typesense:30.2
+    restart: unless-stopped
+    command: >-
+      --data-dir /data --api-key=${TYPESENSE_ADMIN_KEY:?set TYPESENSE_ADMIN_KEY}
+      --enable-cors --cors-domains=https://docs-staging.wso2.com
+      --enable-search-analytics=true --analytics-dir /data/analytics --analytics-flush-interval 300
+    ports:
+      - "127.0.0.1:8108:8108"
+    volumes:
+      - typesense-staging:/data
+volumes:
+  typesense-staging:

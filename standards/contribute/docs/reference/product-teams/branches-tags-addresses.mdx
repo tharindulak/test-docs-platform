@@ -1,0 +1,86 @@
+---
+title: Branches, tags and addresses
+description: The branch and tag names of a Content repository, what each branch builds, and the address and redirect rules of WSO2 Docs.
+type: reference
+sidebar_position: 3
+---
+
+This page lists the branch and tag names a Content repository uses, the Edition each branch builds, and the address rules of WSO2 Docs.
+
+## Branches
+
+| Branch | Builds | Notes |
+|---|---|---|
+| `main` | Cloud, for a Doc space with a Cloud Edition | Every merge that touches the Doc space makes a Cloud release |
+| `main` | Its part of the family Cloud tree, for a Cloud part | A merge releases the platform's Cloud |
+| `main` | `next`, for a Doc space with Self-hosted versions only | Preview only, never published |
+| `main` | The only Edition, for an unversioned Doc space | Such as Contribute |
+| `<doc space>/release/<version>` | That Self-hosted version | A copy of the whole repository. Pull requests may change only `<doc space>/`. |
+| `release/<version>` | That Self-hosted version | Only in a repository with one Doc space |
+
+The branch ruleset in `.github/branch-ruleset.json` (from the Platform's `templates/content-repo/`) covers `main`, `release/*` and `*/release/*`.
+
+## Tags
+
+| Tag | Example | Made by |
+|---|---|---|
+| `<doc space>/<version>-docs.<n>` | `ai-gateway/2026.09.24-docs.1` | **Release docs**, on the version's branch |
+| `<doc space>/cloud-<YYYY.MM.DD>.<n>` | `identity-platform/cloud-2026.10.26.1` | A merge to `main` |
+| `<version>-docs.<n>`, `cloud-<YYYY.MM.DD>.<n>` | `1.0.0-docs.1` | The same, in a repository with one Doc space |
+
+- `<n>` counts up from 1 for each release of that version or day.
+- A Cloud part has no Cloud tag. A change to it makes its platform's tag.
+- Each new tag of an Edition goes live when it is released, unless the Doc space manifest pins the Edition to another tag.
+
+## Docs deployments a tag makes
+
+| Tag | Docs deployments |
+|---|---|
+| A tag of the first Self-hosted Edition in manifest order | `/<doc space>/<version>/` and `/<doc space>/latest/` |
+| A tag of any other Self-hosted Edition | `/<doc space>/<version>/` |
+| A family Cloud's Cloud tag | `/<platform>/cloud/`, with every Cloud part at `/<platform>/cloud/<part>/` |
+| A Cloud tag of a Doc space without parts | `/<doc space>/cloud/` |
+
+## Addresses
+
+| Page | Address |
+|---|---|
+| A Self-hosted page | `/<doc space>/<version>/<page>/` |
+| The newest release | `/<doc space>/latest/<page>/` |
+| A Cloud page | `/<doc space>/cloud/<page>/` |
+| A Cloud part page | `/<platform>/cloud/<part>/<page>/` |
+| An unversioned page | `/<doc space>/<page>/` |
+
+Page titles are "page | Edition | WSO2 Docs". A Cloud part's pages name the component's Cloud, such as "Guardrails | AI Gateway Cloud | WSO2 Docs". Canonicals:
+
+- Cloud and Cloud part pages are their own canonical.
+- A Self-hosted page that is also in the newest release has `/<doc space>/latest/<page>/` as its canonical, following a page move if there was one.
+- A page only in an older version is its own canonical.
+
+## Redirects
+
+| From | To | Status |
+|---|---|---|
+| `/<doc space>/`, a bare product address | Where the version selector opens: Cloud, the Cloud part in its platform's tree once that tree is deployed, else `/latest/` | 302 |
+| `/<part>/cloud/<page>/` | `/<platform>/cloud/<part>/<page>/` | 302 |
+| `/<cloud-only doc space>/latest/<page>/` | `/<cloud-only doc space>/cloud/<page>/` | 302 |
+| A page in a Doc space's `redirects.yaml` | Its new page | 301 |
+
+## Links between Doc spaces
+
+| Write | Resolves to |
+|---|---|
+| `docs:identity-server/7.3.0/<page>/` | That version's page |
+| `docs:identity-server/latest/<page>/` | The page in the newest release |
+| `docs:identity-server/cloud/<page>/` | The Cloud part page, `/identity-platform/cloud/identity-server/<page>/` |
+| `docs:api-platform/latest/` | `/api-platform/cloud/`, because API Platform Cloud is Cloud only |
+
+## Indexing
+
+| Doc space | Search engines | Sitemap index |
+|---|---|---|
+| Listed | Indexed | Listed |
+| Unlisted (`listed: false`) | `noindex` | Left out |
+| Unlisted and `indexed: true` | Indexed | Listed |
+
+Staging carries `noindex` everywhere.

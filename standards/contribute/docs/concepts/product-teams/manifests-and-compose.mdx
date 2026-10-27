@@ -1,0 +1,83 @@
+---
+title: Manifests and the compose step
+description: The three manifests that describe WSO2 Docs navigation, who owns each, and how the compose step merges them into the Deployment manifest.
+type: concept
+sidebar_position: 3
+---
+
+Each team describes its own part of WSO2 Docs in its own manifest. The Platform's compose step checks every manifest and merges them into one Deployment manifest. Nothing else about navigation is kept centrally.
+
+## How it works
+
+### Three manifests
+
+| Manifest | File | Kept by | Holds |
+|---|---|---|---|
+| Doc space manifest | `<doc space>/docspace.yaml` on the Content repository's `main` | The Doc space's team | Names, Editions and their branches, Legacy versions, `latest`, the home Docs section, Cloud parts, notices, owners |
+| Docs section manifest | `navigation/sections/<id>.yaml` in the Platform repository | The section's team, through `.github/CODEOWNERS` | The section title, its products-menu entries, and its menu: which Doc spaces, in what order, with `version-in`, plus links out |
+| Platform navigation file | `navigation/navigation.yaml` in the Platform repository | The Platform team | The family order, the Solutions and Other groups and their descriptions, the environments, the list of sections and the Content repositories to read |
+
+All three are YAML with `schemaVersion: 1`, checked against the JSON Schemas in the Platform's `schemas/`. Fields are only ever added, so deployments built long ago keep reading the merged manifest.
+
+A section sets only where a Doc space appears and how its version is chosen. Names always come from the Doc space manifest. The one exception is a products-menu `label`, which is written as wso2.com writes it.
+
+Only the copy of `docspace.yaml` on `main` counts. Copies on release branches are ignored.
+
+### The compose step
+
+```text
+docs-identity-platform  identity-platform/docspace.yaml ─┐
+                        identity-server/docspace.yaml ───┤
+docs-api-platform       api-platform/docspace.yaml ──────┤
+                        api-manager/docspace.yaml ───────┤
+                        ai-gateway/docspace.yaml ────────┼──▶ compose ──▶ manifest.json
+docs-platform           navigation/navigation.yaml ──────┤        │
+                        navigation/sections/*.yaml ──────┘        └──▶ the menus and selectors of every Docs deployment
+```
+
+The compose step (`wso2-release compose` in the Platform) reads the Platform navigation file, every section manifest and the `docspace.yaml` of every Doc space on each Content repository's `main`. It validates them, merges them and publishes the result as `docs.wso2.com/manifest.json`. The release pipeline adds the deployed Docs release of each Edition.
+
+It runs:
+
+- on every pull request to the Platform that changes `navigation/`, `schemas/` or Contribute's manifest, against the latest merged manifest;
+- on every pull request to a Content repository's `main`, against the published `manifest.json`, with the repository's Doc space manifests as the pull request has them;
+- on every manifest change merged to the Platform's `main`;
+- before every Docs release, after reading every Content repository's `main`.
+
+So a merged change to `docspace.yaml` reaches the Deployment manifest at the next compose. A merge to `main` that touches a Doc space with Cloud, or a Cloud part, makes a Cloud release straight away. A Doc space without Cloud waits for the next Docs release of any Doc space, or the next manifest change in the Platform.
+
+Every error names its file and its owning team. A pull request is blocked only by errors in the files it changes. Errors already on `main` are listed as "not caused by this change". On a Content repository's pull request, each error also shows on its file.
+
+`preview` and `check` compose the same way, from the published manifest and your working copy, so you see the result before you push. You need no checkout of another repository.
+
+### A new Doc space
+
+A section may list a Doc space that doesn't exist yet. Compose warns (`unknown-docspace`) and keeps the entry hidden until the Doc space is published. So a new Doc space gets in in this order:
+
+1. The home section's team lists it. That pull request passes with the warning.
+2. The Doc space's own pull request passes `home-not-listing`, because its home section lists it, and merges.
+3. Its first Docs release publishes it, and the entry appears.
+
+The published manifest hides any section entry whose Doc space has no Docs deployment yet, so a reader never gets a menu line that leads nowhere.
+
+When `main` breaks anyway, for example when two pull requests each pass alone, the last good manifest stays published. Both owning teams are alerted. A release that needs the new manifest waits until it composes again.
+
+### At runtime
+
+Every Docs deployment bakes in its own page tree and a snapshot of the Deployment manifest, so the server-rendered page always has a complete menu. In the browser, the page fetches the live `manifest.json` and redraws only what changed: the section menu, names, version lists and notices. So a new version, a menu change or a notice reaches pages built long ago, with no rebuild.
+
+### Borrowing
+
+A Doc space's home section must list it. Any other section may also list it without asking. The compose report tells the Doc space's team which sections borrow it.
+
+## Limits
+
+- The compose check of a Content repository's pull request starts from the published manifest, so it sees other teams' changes once they are published. Set `WSO2_DOCS_CONTENT_REPOS` to test a change across several repositories at once. See [Preview and check a Doc space](../../guides/product-teams/preview-a-doc-space.mdx#check-a-manifest-change).
+- Only the Platform team adds Product families, groups, Docs sections and Content repositories.
+- An Unlisted Doc space has no home section, and no section may list it.
+
+## Related
+
+- [Write your Doc space manifest](../../guides/product-teams/write-the-manifest.mdx)
+- [Place your Doc space in the navigation](../../guides/product-teams/place-your-doc-space.mdx)
+- [Manifest checks](../../reference/product-teams/manifest-checks.mdx)

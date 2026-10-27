@@ -1,0 +1,79 @@
+---
+title: What the Platform team runs
+description: What the Platform team keeps and runs for WSO2 Docs, how the work is shared with product and section teams, and where WSO2 Docs keeps its state.
+type: concept
+sidebar_position: 1
+---
+
+The Platform team keeps the Platform, the one codebase that builds every Docs deployment, and runs the services WSO2 Docs is served from. Product teams keep their Content repositories and Doc space manifests, and section teams keep their Docs section manifests. Everything else is the Platform team's.
+
+## How it works
+
+### What the team keeps
+
+| Part | Where | What it is |
+|---|---|---|
+| The Platform | `wso2/docs-platform` | The site tooling, theme and Platform chrome, the CLIs (`wso2-docs`, `wso2-release`, `wso2-reports`), the converter and the tests |
+| The Platform navigation file | `navigation/navigation.yaml` | The Product families and groups, their order and descriptions, the environments, the list of Docs sections, the Content repositories compose reads, and the products not on WSO2 Docs yet |
+| The schemas | `schemas/` | The three manifests and the data files |
+| The workflows | `.github/workflows/` | The release pipeline, compose, the checks Content repositories call, the Edge Worker deploy and the report jobs |
+| The template | `templates/content-repo/`, `templates/section-manifest.yaml` | What `wso2-docs init` writes, and the start of a new Docs section |
+| The Edge Worker | `worker/` | The only edge configuration: routing, redirects, headers and the MCP endpoint |
+| The standards and Contribute | `standards/` | The documentation standards, the component catalogue and this Doc space |
+| The Landing deployment | `chrome/landing.yaml`, built with `wso2-docs build --landing` | The page at `docs.wso2.com/` |
+
+### What the team runs
+
+| Service | One per | Holds |
+|---|---|---|
+| A storage bucket | Environment: staging and production | Every release folder, the deployment state, the stored composed manifest and the runtime files the Edge Worker serves |
+| A redirect table | Environment | Every page move and legacy URL of every live Docs deployment, in Workers KV |
+| A search collection | Environment | The search records of every live Docs deployment except `/latest/` |
+| The Edge Worker | Environment | Serves the bucket at the environment's host |
+| A previews bucket | Staging only | Pull request previews, kept 14 days |
+| GitHub settings | Repository | Rulesets, secrets and variables, the GitHub App that opens Branch cut pull requests |
+
+Production is off for the Pilot. Every job that writes to production runs only when the repository variable `DOCS_PRODUCTION_ENABLED` is `true`, so staging is the only environment for now.
+
+### Who does what
+
+| Task | Done by |
+|---|---|
+| Write pages, open pull requests | Writers, in the Content repository |
+| Keep a Doc space manifest, release a Self-hosted version | The Doc space's team |
+| Keep a Docs section manifest | The section's team, through the Platform's `.github/CODEOWNERS` |
+| Add a Product family, a group, a Docs section or a Content repository | The Platform team |
+| Review navigation pull requests, compose failures and extension proposals | The Platform team |
+| Run the release pipeline, roll back, take down a Docs deployment | The Platform team (Cloud releases and version releases start themselves) |
+| Release the Platform | The Platform team |
+
+A Docs release needs no work from the Platform team when it goes well. The team steps in when a check fails, a compose fails, or a release must be undone.
+
+### Where the state is
+
+Each environment's bucket is the only place that says what is live:
+
+```text
+docs-staging/
+├── _releases/<doc space>/<edition|latest|_>/<release>/   one immutable folder per Docs release of a Docs deployment
+├── _platform/state.json           which release each Docs deployment points at, with its history
+├── _platform/state.lock           while a command writes the state: who holds the one queue
+├── _platform/composed.json        the last good composed Deployment manifest
+├── _platform/redirect-table.json  the redirect table last written to Workers KV
+├── manifest.json                  the published Deployment manifest: composed manifest plus state
+├── chrome.json  sitemap.xml  llms.txt
+```
+
+Going live, rolling back and taking a Docs deployment down are all writes to `state.json`, followed by a new `manifest.json`. No build is ever changed after it is uploaded. See [Storage, state and runtime files](../../reference/platform-team/storage-and-runtime-files.mdx).
+
+## Limits
+
+- Hosting isn't decided. Hosts, the Cloudflare account, bucket credentials and the search host are placeholders. See [Secrets, variables and hosting values](../../reference/platform-team/secrets-and-variables.mdx#hosting-values).
+- The Platform team holds every credential that writes to a bucket, the redirect table or a search collection. Content repositories hold only the GitHub App's key, a read token while repositories are private, and the previews bucket's credential.
+- Nothing posts to owners yet. Release summaries, compose alerts and reports are in each workflow run's summary and annotations, until a channel is chosen.
+
+## Related
+
+- [The release pipeline](release-pipeline.mdx)
+- [Manifests and the compose step](../product-teams/manifests-and-compose.mdx)
+- [Platform workflows](../../reference/platform-team/workflows.mdx)

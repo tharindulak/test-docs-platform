@@ -1,0 +1,4 @@
+# Extra words for the spelling check in Contribute (one per line)
+Miniflare
+docspace
+npmjs

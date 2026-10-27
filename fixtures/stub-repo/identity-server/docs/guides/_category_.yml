@@ -1,0 +1,6 @@
+label: Guides
+position: 2
+description: Task guides for the most common setups.
+# Also exported as one file, guides.md (AI/LLM-friendly docs).
+customProps:
+  export: single

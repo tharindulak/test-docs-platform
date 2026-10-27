@@ -1,0 +1,55 @@
+---
+title: Show a notice to readers
+description: Show a banner on some Editions of your Doc space, until a date, from the Doc space manifest and with no rebuild.
+type: how-to
+sidebar_position: 6
+---
+
+A team notice is a banner in the page area of your Doc space. It is declared in the Doc space manifest and shown at runtime, so adding, changing or removing one needs no rebuild.
+
+## Prerequisites
+
+- Edit rights on your Doc space manifest, through a pull request to `main`.
+
+## Add the notice
+
+1. Add an entry to `notices` in `docspace.yaml`:
+
+   ```yaml
+   notices:
+     - text: Identity Server 7.2.0 reaches end of support on 31 March 2027.
+       level: info
+       editions: [7.2.0]
+       until: 2027-03-31
+   ```
+
+2. Set the fields:
+
+   | Field | Required | What it does |
+   |---|---|---|
+   | `text` | Yes | The notice, as plain text |
+   | `level` | Yes | `info` or `warning` |
+   | `editions` | No | The Editions it shows on. Default: every Edition. A Cloud part's `cloud` counts. |
+   | `until` | No | The last day it shows, in UTC, as a date such as `2027-03-31`, quoted or not |
+
+3. Open a pull request against `main` and merge it.
+
+The notice shows from the next published Deployment manifest. On a Cloud part's pages, the family Cloud's notices show as well as the part's own.
+
+## Verify
+
+Open a page in one of the Editions. The notice sits below the title, above the page actions.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `schema`: `notices.0.until: must match pattern` | Write the date as `YYYY-MM-DD`, such as `2027-03-31`. |
+| `unknown-edition` | The notice names an Edition the Doc space doesn't have, or a Legacy version. |
+| `notice-ended` (warning) | The `until` date has passed and the notice no longer shows. Remove it. |
+| No notice on the page | Notices need JavaScript and come only from the published manifest. Check that compose passed after your merge. |
+
+## Next steps
+
+- [Version selectors and notices](../../concepts/product-teams/version-selectors.mdx)
+- [Doc space manifest](../../reference/product-teams/doc-space-manifest.mdx)

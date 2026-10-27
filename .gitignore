@@ -1,0 +1,7 @@
+node_modules/
+.docusaurus/
+build/
+.cache/
+.wrangler/
+.claude/worktrees/
+edge.pid

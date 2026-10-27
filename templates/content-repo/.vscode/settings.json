@@ -1,0 +1,25 @@
+// Platform-managed (Content writer experience): copied from wso2/docs-platform
+// templates/content-repo/ and kept current by the Platform bot. Edit it there.
+// One set of editor settings for every Doc space directory in the repo.
+{
+  "files.associations": {
+    "*.mdx": "mdx"
+  },
+  // Each Doc space's manifest, checked as you type against the schema the
+  // compose step uses (schemas/ in wso2/docs-platform).
+  "yaml.schemas": {
+    "https://docs.wso2.com/schemas/docspace.schema.json": ["*/docspace.yaml"]
+  },
+  "[mdx]": {
+    "editor.wordWrap": "on"
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on"
+  },
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  // The converter's run reports (Pilot repos) are not content.
+  "search.exclude": {
+    "**/.migration": true
+  }
+}

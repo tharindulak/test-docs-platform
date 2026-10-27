@@ -1,0 +1,97 @@
+---
+title: Storage, state and runtime files
+description: The layout of each environment's bucket, the fields of the deployment state and release records, the two manifests and the redirect table.
+type: reference
+sidebar_position: 4
+---
+
+This page lists what each environment's bucket holds, with the fields of each file the pipeline writes. Buckets are `docs-staging` and `docs-prod`. Pull request previews are in their own bucket, `docs-previews`.
+
+## Bucket layout
+
+| Key | Written by | What it is |
+|---|---|---|
+| `_releases/<doc space>/<segment>/<release>/…` | `publish` | One build of one Docs deployment, never changed |
+| `_releases/…/<release>/_platform/release.json` | `publish`, last | Marks the folder complete |
+| `_platform/state.json` | `flip`, `rollback`, `retire` | Which release each Docs deployment points at |
+| `_platform/state.lock` | `flip`, `rollback`, `retire`, `manifest`, `redirects`, `gc`, while they run | The state lock: who is writing the state now (`owner`, `command`, `acquiredAt`, `expiresAt`). Absent when no one is. |
+| `_platform/composed.json` | `compose --storage` | The last good composed Deployment manifest |
+| `_platform/redirect-table.json` | `redirects` | The table last written to Workers KV, so the next run writes only the difference |
+| `manifest.json` | `flip`, `rollback`, `retire`, `manifest` | The published Deployment manifest |
+| `sitemap.xml` | The same | The sitemap index |
+| `llms.txt` | The same | The root `llms.txt`, listing every Doc space |
+| `chrome.json` | `flip` or `manifest` with `--chrome` | The runtime chrome content |
+
+`<segment>` is an Edition id, `latest` for the latest twin, or `_` for a Docs deployment with no Edition: an unversioned Doc space such as Contribute, and the Landing deployment, `_landing/_/`. Previews are at `<doc space>/pr-<n>/<edition>/` in the previews bucket.
+
+## In a release folder
+
+| File | What it holds |
+|---|---|
+| `_platform/release.json` | `docSpace`, `segment`, `edition`, `tag` (the full tag), `release`, `publishedAt`, `files`, `bytes`, `platformVersion`, `source.repo`, `source.sha` |
+| `_platform/edition.json` | What the build was: `docSpace`, `edition`, `asLatest`, `baseUrl`, `builtAt`, `platformVersion`, a family Cloud's `parts`, and `showMarkers: true` for a preview build with markers, which a release refuses |
+| `_platform/pages.json` | Every page's path: the crawl gate, `route-lists` and older versions' canonicals read it |
+| `_platform/redirects.json` | The Docs deployment's redirects, `{ from, to, status }`, compiled into the redirect table |
+| `_platform/search-records.json` | The search records the index step reads |
+| `_platform/markdown.json` | The Markdown twins, checked before upload |
+
+## Deployment state
+
+`_platform/state.json`:
+
+| Field | Type | Description |
+|---|---|---|
+| `schema` | `1` | The format version |
+| `environment` | string | `staging` or `production`. A flip with another environment is refused. |
+| `updatedAt` | date-time | The last write |
+| `deployments.<doc space>/<segment>.release` | string | The release folder it serves |
+| `deployments.….tag` | string | That release's tag |
+| `deployments.….edition` | string | The Edition, also for `latest` |
+| `deployments.….deployedAt` | date-time | When it was flipped to |
+| `deployments.….previous` | list | Up to 20 releases it served before, newest first |
+
+```json
+{
+  "schema": 1,
+  "environment": "staging",
+  "deployments": {
+    "sandbox/1.0.0": { "release": "1.0.0-docs.1", "tag": "1.0.0-docs.1", "edition": "1.0.0", "deployedAt": "2026-10-26T13:43:51.766Z", "previous": ["1.0.0-docs.2"] }
+  }
+}
+```
+
+## Release ids
+
+| Release | Id | Example |
+|---|---|---|
+| A version tag | The tag without its Doc space prefix | `ai-gateway/1.2.0-docs.3` → `1.2.0-docs.3` |
+| A Cloud tag | The same | `identity-platform/cloud-2026.10.26.1` → `cloud-2026.10.26.1` |
+| A rebuild | The deployed release's id, then `.r<run id>` | `1.0.0-docs.1.r9001` |
+| The Landing deployment | `landing-`, the date, then the run id | `landing-2026.10.27.9002` |
+
+## The two manifests
+
+| Field | `_platform/composed.json` | `manifest.json` |
+|---|---|---|
+| `docSpaces.<slug>`: names, `model`, `status`, `latest`, `home`, `listed`, `indexed`, `sections`, `cloud`, `notices`, `owners`, `repo`, `issues`, `editLinks` | Yes | Yes |
+| `docSpaces.<slug>.editions[]`: `id`, `status`, `legacyUrl`, `parts` | Yes | Yes, plus each deployed Edition's `tag` |
+| `docSpaces.<slug>.editions[]`: `branch`, `pin` | Yes | No |
+| `docSpaces.<slug>`: `tagPrefix`, `environments`, `source` | Yes | No |
+| `docSpaces.<slug>.deployments` | No | Yes: each segment's `release`, `tag` and `edition` |
+| `sections.<id>`: `title`, `in`, `family`, `menu`, `products`, `owners` | Yes | Yes. Entries for Doc spaces not deployed in this environment move to `pending`. |
+| `productsMenu`, `families`, `environments` | Yes | Yes |
+| `sources` | Yes: the inputs as read | No |
+| `composedAt` | Yes | No |
+| `environment`, `generatedAt`, `landing` | No | Yes |
+
+A Doc space whose `environments` leaves out this environment, such as the Sandbox on production, is not in its `manifest.json`.
+
+## Redirect table
+
+Workers KV holds one key per redirect source: the path on the WSO2 Docs host, or the host and path of a legacy host, such as `is.docs.wso2.com/en/7.3.0/guides/mfa/`. Each value is `{"to": "<path>", "status": 301}`. When two Docs deployments map one source differently, a pinned Edition wins over a latest twin, otherwise the first kept, and `redirects` prints each clash as a warning.
+
+## Related
+
+- [The release pipeline](../../concepts/platform-team/release-pipeline.mdx)
+- [Compose and the published manifest](../../concepts/platform-team/published-manifest.mdx)
+- [The wso2-release command](release-cli.mdx)

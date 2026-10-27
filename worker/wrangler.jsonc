@@ -1,0 +1,93 @@
+// The WSO2 Docs Edge Worker (worker/src/index.mjs).
+//
+// PENDING INFRA (ticket 15, Confirm docs hosting facts with WSO2 infra):
+// the account ID, the KV namespace IDs, the zone and the routes below are
+// placeholders. Nothing here has been deployed. CI passes the account through
+// CLOUDFLARE_ACCOUNT_ID and the token through CLOUDFLARE_API_TOKEN.
+//
+// Top level = local development (`npm run edge:dev`); env.staging and
+// env.production are what `wrangler deploy --env <name>` ships.
+//
+// The 301 targets for old Confluence paths on docs.wso2.com (/display/...,
+// /pages/viewpage.action, /download/attachments/...) are CONFLUENCE_TARGETS
+// in src/confluence.mjs, the one place to change them.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "wso2-docs-edge",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "vars": {
+    "ENVIRONMENT": "local",
+    "NOINDEX_ALL": "true",
+    "DOCS_HOST": "localhost",
+    "LEGACY_HOSTS": "",
+    "MANIFEST_TTL_SECONDS": "0",
+    "HTML_MAX_AGE": "0",
+    "AI_CRAWLERS": "allow",
+    "MCP_ENABLED": "true",
+    "TYPESENSE_HOST": "",
+    "TYPESENSE_COLLECTION": ""
+  },
+  "r2_buckets": [{ "binding": "DOCS", "bucket_name": "docs-local" }],
+  "kv_namespaces": [{ "binding": "REDIRECTS", "id": "local-redirects" }],
+  "analytics_engine_datasets": [
+    { "binding": "FEEDBACK", "dataset": "docs_feedback_local" },
+    { "binding": "NOT_FOUND", "dataset": "docs_not_found_local" }
+  ],
+  "env": {
+    "staging": {
+      // Interim assumption: staging host docs-staging.wso2.com on the wso2.com zone.
+      "routes": [{ "pattern": "docs-staging.wso2.com/*", "zone_name": "wso2.com" }],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "NOINDEX_ALL": "true",
+        "DOCS_HOST": "docs-staging.wso2.com",
+        "LEGACY_HOSTS": "",
+        "MANIFEST_TTL_SECONDS": "30",
+        "HTML_MAX_AGE": "60",
+        "AI_CRAWLERS": "allow",
+        // The MCP endpoint runs on staging only during the Pilot. Search for it
+        // needs the secret TYPESENSE_SEARCH_KEY (wrangler secret put, search-only key).
+        "MCP_ENABLED": "true",
+        "TYPESENSE_HOST": "https://search-staging.docs.wso2.com",
+        "TYPESENSE_COLLECTION": "wso2docs-staging"
+      },
+      "r2_buckets": [
+        { "binding": "DOCS", "bucket_name": "docs-staging" },
+        // Separate bucket, so the preview-only credential cannot touch releases.
+        // Lifecycle rule (set with the bucket): delete objects after 14 days.
+        { "binding": "PREVIEWS", "bucket_name": "docs-previews" }
+      ],
+      "kv_namespaces": [{ "binding": "REDIRECTS", "id": "PENDING_INFRA_STAGING_REDIRECTS_KV_ID" }],
+      "analytics_engine_datasets": [
+        { "binding": "FEEDBACK", "dataset": "docs_feedback_staging" },
+        { "binding": "NOT_FOUND", "dataset": "docs_not_found_staging" }
+      ]
+    },
+    "production": {
+      // Legacy hosts (is.docs.wso2.com, apim.docs.wso2.com, ...) get routes and
+      // LEGACY_HOSTS only at production cutover, which is out of scope.
+      "routes": [{ "pattern": "docs.wso2.com/*", "zone_name": "wso2.com" }],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "NOINDEX_ALL": "false",
+        "DOCS_HOST": "docs.wso2.com",
+        "LEGACY_HOSTS": "",
+        "MANIFEST_TTL_SECONDS": "30",
+        "HTML_MAX_AGE": "300",
+        // Training-use policy is open with the owners; "disallow" turns AI crawlers away.
+        "AI_CRAWLERS": "allow",
+        "MCP_ENABLED": "false",
+        "TYPESENSE_HOST": "",
+        "TYPESENSE_COLLECTION": ""
+      },
+      "r2_buckets": [{ "binding": "DOCS", "bucket_name": "docs-prod" }],
+      "kv_namespaces": [{ "binding": "REDIRECTS", "id": "PENDING_INFRA_PRODUCTION_REDIRECTS_KV_ID" }],
+      "analytics_engine_datasets": [
+        { "binding": "FEEDBACK", "dataset": "docs_feedback" },
+        { "binding": "NOT_FOUND", "dataset": "docs_not_found" }
+      ]
+    }
+  }
+}

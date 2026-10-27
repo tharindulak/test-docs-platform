@@ -1,0 +1,46 @@
+# The PR check for team manifests in the Platform (Manifests and the compose
+# step): compose against the latest merged manifest (main's inputs: the
+# Platform's main plus every Content repo's main line) with this PR's
+# navigation/, section manifests and Platform Doc spaces in their place.
+# Every error names its file and owning team; only errors in files this PR
+# changes block it. No secrets: PR code runs here.
+name: Compose check
+
+on:
+  pull_request:
+    paths:
+      - navigation/**
+      - schemas/**
+      - standards/contribute/docspace.yaml
+      - lib/compose.mjs
+      - lib/compose-command.mjs
+      - lib/schemas.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out every Content repo's main line
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content"
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      # Written even when main has errors (two PRs that each passed alone):
+      # the PR check then lists them as not caused by this PR.
+      - name: Compose the latest merged manifest (main)
+        run: |
+          git worktree add "$RUNNER_TEMP/main" "origin/${{ github.base_ref }}"
+          node bin/wso2-release.mjs compose --as-base --navigation "$RUNNER_TEMP/main/navigation" --content "$RUNNER_TEMP/content" \
+            --platform-root "$RUNNER_TEMP/main" --out "$RUNNER_TEMP/base.json"
+      - name: Compose this PR against it
+        run: node bin/wso2-release.mjs compose --pr --base "$RUNNER_TEMP/base.json" --report compose-report.json

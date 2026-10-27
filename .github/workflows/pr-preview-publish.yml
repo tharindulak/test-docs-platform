@@ -1,0 +1,80 @@
+# PR preview, part 2 of 2 (reusable; called from a Content repo's
+# docs-preview-publish.yml on workflow_run). Publishes the
+# `docs-preview-<doc space>` artifacts of a finished PR build (one per Doc
+# space the PR touched) to
+#   https://docs-staging.wso2.com/_preview/<space>/pr-<n>/<edition>/
+# The artifact is untrusted data from a possibly forked PR: nothing in it is
+# executed, its fields are validated by bin/wso2-release.mjs, and the
+# credential can write only the docs-previews bucket (PENDING INFRA, ticket 15).
+name: Docs PR preview publish
+
+on:
+  workflow_call:
+    inputs:
+      run-id:
+        description: The finished PR build run (github.event.workflow_run.id)
+        type: string
+        required: true
+      head-sha:
+        description: Its head commit (github.event.workflow_run.head_sha)
+        type: string
+        required: true
+      platform-ref:
+        type: string
+        default: v1
+    secrets:
+      DOCS_PREVIEW_R2_ACCESS_KEY_ID:
+        required: true
+      DOCS_PREVIEW_R2_SECRET_ACCESS_KEY:
+        required: true
+
+permissions:
+  actions: read
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the Platform (trusted code only)
+        uses: actions/checkout@v4
+        with:
+          repository: tharindulak/test-docs-platform
+          ref: ${{ inputs.platform-ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Download the preview builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: docs-preview-*
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/preview
+      # One build per Doc space the PR touched, each in its own folder.
+      - name: Validate, publish and link each preview
+        env:
+          ROOT: ${{ runner.temp }}/preview
+          HEAD_SHA: ${{ inputs.head-sha }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.DOCS_PREVIEW_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.DOCS_PREVIEW_R2_SECRET_ACCESS_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          links=()
+          for meta in "$ROOT"/docs-preview-*/preview.json; do
+            dir=$(dirname "$meta")
+            pr=$(jq -r .pr "$meta"); sha=$(jq -r .sha "$meta"); space=$(jq -r .space "$meta"); edition=$(jq -r .edition "$meta")
+            [[ "$pr" =~ ^[0-9]+$ ]] || { echo "::error::bad PR number"; exit 1; }
+            [[ "$space" =~ ^[a-z0-9-]+$ && "$edition" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "::error::bad Doc space or Edition"; exit 1; }
+            [ "$sha" = "$HEAD_SHA" ] || { echo "::error::artifact is not from the run's head commit"; exit 1; }
+            [ "$(basename "$dir")" = "docs-preview-$space" ] || { echo "::error::artifact name does not match its Doc space"; exit 1; }
+            node bin/wso2-release.mjs preview --storage s3://docs-previews --dir "$dir/site" --space "$space" --pr "$pr" --edition "$edition"
+            links+=("- $space: https://docs-staging.wso2.com/_preview/$space/pr-$pr/$edition/")
+          done
+          [ ${#links[@]} -gt 0 ] || { echo "No preview builds to publish"; exit 0; }
+          printf 'Docs preview:\n%s\n' "$(printf '%s\n' "${links[@]}")" > "$RUNNER_TEMP/comment.md"
+          gh pr comment "$pr" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none --body-file "$RUNNER_TEMP/comment.md"

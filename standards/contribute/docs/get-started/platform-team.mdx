@@ -1,0 +1,57 @@
+---
+title: Guide for running WSO2 Docs
+description: How the Platform team runs WSO2 Docs, from the navigation and new teams to Docs releases, Platform releases, search and extensions.
+type: concept
+sidebar_position: 5
+---
+
+This guide is for the Platform team, the team that keeps the Platform and runs WSO2 Docs for every product team. It is the companion of the [developer guide for product teams](product-teams.mdx). That guide explains the model and what a product team does. This one covers what only the Platform team does: the navigation, onboarding, the release pipeline, Platform releases, search and extensions.
+
+Read the developer guide's concepts first. This guide doesn't repeat them.
+
+The guide uses the Pilot's real Doc spaces as examples: Identity Platform Cloud and Identity Server in `docs-identity-platform`, API Platform Cloud, API Manager and AI Gateway in `docs-api-platform`, and the Sandbox in `docs-sandbox`. Every command on these pages is the one the workflows run, and each how-to says whether it can be rehearsed on your own computer.
+
+## Hosting values
+
+WSO2 Docs isn't hosted yet. Where a page needs a hosting value, it shows a placeholder, such as `<staging-host>`. [Secrets, variables and hosting values](../reference/platform-team/secrets-and-variables.mdx#hosting-values) lists each placeholder, the value the code assumes for now, and where to change it. The Cloudflare deploy runbook fills them in.
+
+## How the guide is arranged
+
+| Concept | What it explains |
+|---|---|
+| [What the Platform team runs](../concepts/platform-team/what-the-platform-team-runs.mdx) | What the team keeps, who does what, and where WSO2 Docs keeps its state |
+| [The release pipeline](../concepts/platform-team/release-pipeline.mdx) | How a Docs release goes from a tag to live Docs deployments, and what a rebuild is |
+| [Compose and the published manifest](../concepts/platform-team/published-manifest.mdx) | The stored composed manifest, the published `manifest.json`, and the last good copy |
+| [Platform releases](../concepts/platform-team/platform-releases.mdx) | The Platform's version, what a Platform release rebuilds, and the caches |
+| [Search in operation](../concepts/platform-team/search-operations.mdx) | The search collections, their records, the keys and the consistency check |
+
+| How-to | The task |
+|---|---|
+| [Run WSO2 Docs locally](../guides/platform-team/run-it-locally.mdx) | The Edge Worker, its storage and search on your computer, for rehearsing everything else |
+| [Change the navigation](../guides/platform-team/change-the-navigation.mdx) | Families, groups, Docs sections, products not on WSO2 Docs yet and link entries |
+| [Review a navigation pull request](../guides/platform-team/review-a-navigation-change.mdx) | A Docs section manifest change from a section's team |
+| [Onboard a team](../guides/platform-team/onboard-a-team.mdx) | A new Content repository or a new Doc space, owners, rulesets, secrets, and the order of merges |
+| [Follow and run a Docs release](../guides/platform-team/run-a-docs-release.mdx) | A Docs release end to end, a release by hand, and a rebuild |
+| [Roll back a Docs release](../guides/platform-team/roll-back-a-release.mdx) | Point a Docs deployment back at an earlier release, and hold it there |
+| [End an Edition or send it back to its old site](../guides/platform-team/end-an-edition.mdx) | End of life, Legacy versions and taking a Docs deployment down |
+| [Fix a failed compose](../guides/platform-team/fix-a-failed-compose.mdx) | Compose on `main`, the compose report, and composing on demand |
+| [Release the Platform](../guides/platform-team/release-the-platform.mdx) | Version the Platform, rebuild every Docs deployment, and update Content repositories |
+| [Run the search index](../guides/platform-team/run-the-search-index.mdx) | Set up a collection, make keys, index, check and repair |
+| [Add an extension to the Platform](../guides/platform-team/add-an-extension.mdx) | Review an extension proposal and add a component or Page layout to the catalogue |
+
+| Reference | What it lists |
+|---|---|
+| [Platform workflows](../reference/platform-team/workflows.mdx) | Every workflow in the Platform and in a Content repository: trigger, what it does, what it needs |
+| [Secrets, variables and hosting values](../reference/platform-team/secrets-and-variables.mdx) | Every secret and variable, where it is set, and the hosting placeholders |
+| [The wso2-release command](../reference/platform-team/release-cli.mdx) | Every command of the release pipeline's CLI, the local edge and the report jobs |
+| [Storage, state and runtime files](../reference/platform-team/storage-and-runtime-files.mdx) | The bucket layout, the deployment state, the manifests and the redirect table |
+
+## Where the guide lives
+
+Like the developer guide, this guide has one copy: these pages, published at `docs.wso2.com/contribute/`, from `standards/contribute/` in the Platform repository. The Platform's README links here. To change the guide, open a pull request against `standards/contribute/` in `wso2/docs-platform`.
+
+## Related
+
+- [Developer guide for product teams](product-teams.mdx)
+- [Contribute to WSO2 Docs](../index.mdx)
+- [The wso2-docs command](../reference/cli.mdx)

@@ -1,0 +1,42 @@
+---
+title: Protect the main and release branches
+description: Make the Docs check required on main and release branches so that no change merges without passing the blocking checks.
+type: how-to
+sidebar_position: 1
+---
+
+The blocking checks only stop a merge when branch protection requires them. Set this up once per Content repository.
+
+## Prerequisites
+
+- You're an administrator of the Content repository.
+- The repository has the Platform's `.github/workflows/docs.yml` and has run it on at least one pull request, so GitHub knows the check's name.
+
+## Add the ruleset
+
+1. Find the ruleset at `.github/branch-ruleset.json` in the repository's root. `npx @wso2/docs init` writes it there from the Platform's template, `templates/content-repo/.github/branch-ruleset.json`.
+2. Create the ruleset with the GitHub CLI:
+
+   ```bash
+   gh api --method POST repos/wso2/docs-sandbox/rulesets --input .github/branch-ruleset.json
+   ```
+
+   Or, in the repository's **Settings**, select **Rules** > **Rulesets** > **New ruleset** > **Import a ruleset** and choose the file.
+
+The ruleset covers `main`, `release/*` and `*/release/*`. It:
+
+- requires a pull request with one approval from a code owner;
+- requires the **preview / checks** status check to pass, on an up-to-date branch;
+- blocks force pushes and branch deletion.
+
+## Protect the tags
+
+Docs release tags are made only by the **Release docs** workflow. Add a tag ruleset that restricts creating `*-docs.*`, `cloud-*`, `*/*-docs.*` and `*/cloud-*` tags to the workflow's GitHub App.
+
+## Verify
+
+Open a pull request with a broken link. The **Merge** button stays disabled until the **preview / checks** status check passes.
+
+## Next steps
+
+- [Override a policy check](override-a-check.mdx)

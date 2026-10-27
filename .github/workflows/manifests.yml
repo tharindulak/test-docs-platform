@@ -1,0 +1,112 @@
+# A merged change to the team manifests in the Platform (trigger table,
+# ticket 11; Manifests and the compose step):
+#   - compose validates navigation/, every section manifest and every Doc space
+#     manifest, and stores the composed Deployment manifest. If it fails, the
+#     last good copy stays published, the job fails and its annotations name
+#     the owning teams to alert; releases that need the new manifest wait;
+#   - every change republishes manifest.json and the sitemap index (end of
+#     life, legacy URLs and names need nothing else: the edge adds noindex);
+#   - a new Edition or a moved `latest` also rebuilds that Doc space.
+# Content repos reach the same compose step through release.yml (ticket 17).
+# The Platform team runs it by hand (Run workflow) to compose now, for
+# example after a Content repo's docspace.yaml change (end of life, a Legacy
+# version, a notice) in a Doc space with no Cloud release to carry it.
+name: Manifests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - navigation/**
+      - schemas/**
+      - standards/contribute/docspace.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    # No concurrency group: GitHub keeps one waiting run per group and cancels
+    # an older waiting one. Each state-writing command waits its turn on the
+    # bucket's state lock instead (lib/state-lock.mjs).
+    env:
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out every Content repo's main line
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content"
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      # On a push: the previous commit composed with today's Content repos, so
+      # only this change's rebuilds are made. By hand: the stored last good
+      # copy, so whatever changed since the last compose is rebuilt.
+      - name: Compose the previous commit, for the rebuild diff
+        if: github.event_name == 'push'
+        run: |
+          git worktree add "$RUNNER_TEMP/prev" HEAD~1
+          node bin/wso2-release.mjs compose --navigation "$RUNNER_TEMP/prev/navigation" --content "$RUNNER_TEMP/content" \
+            --platform-root "$RUNNER_TEMP/prev" --out "$RUNNER_TEMP/old.json" || echo '{}' > "$RUNNER_TEMP/old.json"
+      - name: The last good composed manifest, for the rebuild diff
+        if: github.event_name != 'push'
+        run: node bin/wso2-release.mjs composed --storage s3://docs-staging --out "$RUNNER_TEMP/old.json" || echo '{}' > "$RUNNER_TEMP/old.json"
+      - name: Compose (keeps the last good manifest on failure)
+        run: node bin/wso2-release.mjs compose --content "$RUNNER_TEMP/content" --storage s3://docs-staging --out composed.json --report compose-report.json
+      - name: Republish the runtime files
+        run: node bin/wso2-release.mjs manifest --storage s3://docs-staging --env staging --policy composed.json
+      - name: Rebuild Doc spaces whose Editions or latest changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node bin/wso2-release.mjs policy-diff --old "$RUNNER_TEMP/old.json" --policy composed.json > diff.json
+          cat diff.json
+          for space in $(jq -r '.rebuild[]' diff.json); do
+            gh workflow run release.yml --ref "$GITHUB_REF_NAME" -f scope=docspace -f space="$space"
+          done
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose
+          path: |
+            composed.json
+            compose-report.json
+          if-no-files-found: ignore
+
+  # OFF for the Pilot (no production cutover). Production republishes the
+  # manifest staging just composed (as release.yml's promote job flips with
+  # it), so both environments read one composed copy.
+  production:
+    needs: staging
+    if: vars.DOCS_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    # No concurrency group: GitHub keeps one waiting run per group and cancels
+    # an older waiting one. Each state-writing command waits its turn on the
+    # bucket's state lock instead (lib/state-lock.mjs).
+    env:
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The composed manifest staging stored
+        run: node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json
+      - name: Republish the runtime files
+        run: node bin/wso2-release.mjs manifest --storage s3://docs-prod --env production --policy composed.json

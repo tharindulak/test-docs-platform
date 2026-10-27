@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "header": {
+    "links": [
+      { "label": "Support", "href": "https://wso2.com/support/" },
+      { "label": "wso2.com", "href": "https://wso2.com/" }
+    ]
+  },
+  "announcement": null,
+  "footer": {
+    "columns": [
+      {
+        "title": "Docs",
+        "links": [
+          { "label": "All products", "href": "/" },
+          { "label": "Contribute", "href": "/contribute/" },
+          { "label": "Support and lifecycle", "href": "https://wso2.com/products/support-matrix/" }
+        ]
+      },
+      {
+        "title": "Community",
+        "links": [
+          { "label": "GitHub", "href": "https://github.com/wso2" },
+          { "label": "Discord", "href": "https://discord.com/invite/wso2" },
+          { "label": "Training", "href": "https://wso2.com/training" }
+        ]
+      },
+      {
+        "title": "WSO2",
+        "links": [
+          { "label": "wso2.com", "href": "https://wso2.com/" },
+          { "label": "Support", "href": "https://wso2.com/support/" },
+          { "label": "Contact us", "href": "https://wso2.com/contact/" }
+        ]
+      }
+    ],
+    "legal": [
+      { "label": "Privacy policy", "href": "https://wso2.com/privacy-policy" },
+      { "label": "Cookie policy", "href": "https://wso2.com/cookie-policy/" },
+      { "label": "Terms of use", "href": "https://wso2.com/terms-of-use/" }
+    ],
+    "copyright": "© {year} WSO2 LLC. All rights reserved."
+  },
+  "feedback": {
+    "endpoint": "/api/feedback"
+  }
+}

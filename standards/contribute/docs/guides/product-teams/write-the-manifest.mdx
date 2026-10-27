@@ -1,0 +1,92 @@
+---
+title: Write your Doc space manifest
+description: Describe your Doc space in its Doc space manifest, with its names, Editions, branches, Legacy versions, home Docs section and owners.
+type: how-to
+sidebar_position: 2
+---
+
+The Doc space manifest, `<doc space>/docspace.yaml`, tells WSO2 Docs what your Doc space is called, which Editions it has and where each one's source is. Only the copy on `main` counts.
+
+## Prerequisites
+
+- A Doc space directory. See [Start a Doc space](start-a-doc-space.mdx).
+- Edit rights on the Content repository's `main` (through a pull request).
+
+## Write the manifest
+
+This is AI Gateway's manifest in `docs-api-platform`:
+
+```yaml
+schemaVersion: 1
+slug: ai-gateway
+displayName: AI Gateway
+editionNames:
+  selfHosted: AI Gateway {version}
+home: api-platform
+cloud:
+  in: api-platform
+owners:
+  team: api-platform-docs
+repo: wso2/docs-api-platform
+issues:
+  repo: wso2/docs-api-platform
+editions:
+  - id: 1.2.0
+  - id: 2026.09.24
+legacyVersions:
+  - id: 1.1.0
+    url: https://wso2.com/api-platform/docs/ai-gateway/1.1.0/
+```
+
+1. Set `slug` to the directory's name, and `displayName` to the product's name as wso2.com writes it.
+2. Name the Editions in `editionNames`: `cloud`, such as "Identity Platform Cloud", and `selfHosted`, with `{version}` where the version goes. Add `brand` if Cloud has a brand of its own, and `formerNames` for old names readers still search for.
+3. List the Editions in `editions`, in the order the version selector shows them:
+   - your own Cloud first, as `- id: cloud`;
+   - then each Self-hosted version, newest first, as an exact version (`7.3.0`) or a date (`2026.09.24`).
+
+   The order is never sorted for you. The first Self-hosted Edition is also built as `/latest/`.
+4. If your Cloud docs are a Cloud part of a family Cloud, don't list `cloud`. Set `cloud: { in: <platform> }` instead, and ask the platform's team to add your slug to `parts` on their Cloud Edition. Both sides must point at each other.
+5. Leave out `branch` when the default fits: `main` for Cloud, and `<doc space>/release/<version>` in a repository with several Doc spaces. Set it only for another branch name.
+6. Add each version still on its old site to `legacyVersions`, with its `url`.
+7. Set the home Docs section in `home`, such as `api-platform`. For an Unlisted Doc space, set `listed: false` instead.
+8. Set `owners.team`, `repo` and `issues.repo`. `issues.repo` is where "Report an issue" opens. Set `editLinks: false` if your pages are generated and must not be edited in place.
+
+Leave out `latest` unless `/latest/` must stay on an older release for a while. Leave out `model`: the compose step works it out from the Editions.
+
+See [Doc space manifest](../../reference/product-teams/doc-space-manifest.mdx) for every field.
+
+## Hold or end an Edition
+
+- To hold an Edition on one Docs release, add `pin` with that release's tag:
+
+  ```yaml
+  editions:
+    - id: 1.2.0
+      pin: ai-gateway/1.2.0-docs.2
+  ```
+
+  While the pin is there, a Docs release of any other tag of that Edition is refused. To go back to an earlier release now, ask the Platform team to roll it back, then pin it. See [Roll back a Docs release](../platform-team/roll-back-a-release.mdx). Remove `pin` to release from the branch again.
+
+- When a version reaches end of life, add `status: end-of-life` to its Edition. It stays readable, shows the end-of-life notice and is found only by This Edition search.
+
+## Verify
+
+1. Open `docspace.yaml` in VS Code. With the repository's recommended extensions, the editor underlines any field the schema doesn't allow.
+2. Run `npx @wso2/docs check <doc space>`. Its **Doc space manifest** check composes your file with the published Deployment manifest, as your pull request's compose check will. See [Check a manifest change](preview-a-doc-space.mdx#check-a-manifest-change).
+
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `home-not-listing` | The home section doesn't list your Doc space yet. Ask its team to add you. Their change merges first; then your pull request passes. |
+| `cloud-part` | Your `cloud.in` and the platform's `parts` don't match. Fix both sides in one repository. |
+| `branch-prefix` | In a repository with several Doc spaces, every release branch starts with `<doc space>/`. |
+| `pin` | A pin must be one of this Edition's tags, such as `ai-gateway/1.2.0-docs.2`. |
+
+See [Manifest checks](../../reference/product-teams/manifest-checks.mdx) for every error.
+
+## Next steps
+
+- [Place your Doc space in the navigation](place-your-doc-space.mdx)
+- [Show a notice to readers](show-a-notice.mdx)
+- [Add and release a Self-hosted version](add-a-version.mdx)

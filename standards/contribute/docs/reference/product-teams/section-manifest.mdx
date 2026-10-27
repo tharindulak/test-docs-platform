@@ -1,0 +1,97 @@
+---
+title: Docs section manifest
+description: Every field of a Docs section manifest and of the Platform navigation file, with types, defaults and examples.
+type: reference
+sidebar_position: 2
+---
+
+This page lists every field of a Docs section manifest, `navigation/sections/<id>.yaml`, and of the Platform navigation file, `navigation/navigation.yaml`. Both are in `wso2/docs-platform`. Their schemas are `schemas/section.schema.json` and `schemas/navigation.schema.json`. A new section starts from `templates/section-manifest.yaml` in the Platform, a commented sample with a borrowed Doc space and a link entry.
+
+## Section fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `schemaVersion` | `1` | required | The manifest format version |
+| `id` | slug | required | The section id. The file is named `<id>.yaml`. |
+| `title` | string | required | The section menu's title, such as "API Platform Documentation" |
+| `owners.team` | string | required | The section's team. `.github/CODEOWNERS` names it for the file too. |
+| `products` | list of products-menu entries | none | The products-menu entries, in wso2.com's order |
+| `menu` | list of menu entries | required | The left menu, in order: the family Cloud first, then the products, and links out |
+
+### Products-menu entries
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `label` | string | required | The product's name exactly as wso2.com writes it |
+| `opens.docSpace` | slug | required | The Doc space it opens, where its version selector opens |
+| `opens.edition` | Edition id | none | Opens this Edition instead |
+| `opens.page` | page path | none | Opens one page in the Doc space, such as `guides/monetization/` |
+
+### Menu entries
+
+A Doc space entry:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `docSpace` | slug | required | The Doc space. Its name comes from its own manifest. A slug that is no Doc space yet is a warning: the entry stays hidden until that Doc space is published. |
+| `version-in` | `header` or `menu` | `menu` with two or more Editions, else `header` | `menu` also gives the entry its own version dropdown. A Cloud part counts as one Edition. |
+
+A link entry, shown with ↗:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `label` | string | required | The link text, unique in the menu |
+| `url` | URL | required | A page outside WSO2 Docs |
+
+## Platform navigation file
+
+Kept by the Platform team.
+
+| Field | Type | Description |
+|---|---|---|
+| `schemaVersion` | `1` | The format version |
+| `owners.team` | string | The Platform team |
+| `platformRepo` | `owner/name` | The Platform repository |
+| `families` | list of `{ id, name, description }` | The Product families, in the order of wso2.com's header, named as wso2.com names them |
+| `groups` | list of `{ id, name, description }` | The groups after the families: Solutions and Other |
+| `environments` | list of ids | `staging`, `production` |
+| `sections` | list of `{ id, in }` | Every Docs section and the family or group it belongs to |
+| `contentRepos` | list of `{ repo, path }` | The Content repositories compose reads. `path` is the folder that holds the Doc space directories, default the root. |
+| `notYetOnWso2Docs` | map of slug to `{ displayName, in, model, legacyUrl, formerNames }` | Products not on WSO2 Docs yet, listed with their old site. When the product's Doc space is coming, the Platform team removes its entry in the same pull request that lists the Doc space in its section. |
+
+A family's or group's `description` is one sentence of at most 160 characters. The Landing page shows it under the name.
+
+## Examples
+
+Identity Platform Documentation:
+
+```yaml
+schemaVersion: 1
+id: identity-platform
+title: Identity Platform Documentation
+owners:
+  team: identity-platform-docs
+products:
+  - label: Identity Server
+    opens: { docSpace: identity-server }
+  - label: Security Token Service
+    opens: { docSpace: identity-platform }
+menu:
+  - docSpace: identity-platform
+    version-in: header
+  - docSpace: identity-server
+    version-in: menu
+```
+
+A section that borrows AI Gateway, whose home is API Platform:
+
+```yaml
+schemaVersion: 1
+id: agent-platform
+title: Agent Platform Documentation
+owners:
+  team: agent-platform-docs
+menu:
+  - docSpace: agent-platform
+  - docSpace: ai-gateway
+```

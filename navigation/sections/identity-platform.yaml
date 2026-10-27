@@ -1,0 +1,27 @@
+# Docs section manifest: Identity Platform. Kept by the section's team
+# (.github/CODEOWNERS). It sets the products-menu entries and the menu's order
+# and version-in only; names come from the Doc space manifests.
+# Schema: schemas/section.schema.json.
+schemaVersion: 1
+id: identity-platform
+title: Identity Platform Documentation
+owners:
+  team: identity-platform-docs
+
+# The products menu, labelled and ordered as wso2.com's header lists Identity
+# Platform. Agent ID joins when its Cloud part exists.
+products:
+  - label: Identity Server
+    opens: { docSpace: identity-server }
+  # No docs yet: opens the Identity Platform Cloud home (Platform-by-platform
+  # walkthrough). The compose report warns that the label differs from the
+  # Doc space's name, as intended.
+  - label: Security Token Service
+    opens: { docSpace: identity-platform }
+
+# The one shape: the family Cloud first, then the products.
+menu:
+  - docSpace: identity-platform   # Cloud only: its version is chosen in the header
+    version-in: header
+  - docSpace: identity-server
+    version-in: menu

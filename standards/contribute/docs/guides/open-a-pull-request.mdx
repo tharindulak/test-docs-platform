@@ -1,0 +1,46 @@
+---
+title: Open a pull request
+description: Open a pull request, review the preview and fix what the checks flag.
+type: how-to
+sidebar_position: 5
+---
+
+Every change to WSO2 Docs goes through a pull request. The checks and a preview build run on it.
+
+## Prerequisites
+
+- Your change is on a branch, and you've [checked it](check-your-changes.mdx).
+
+## Open the pull request
+
+1. Push your branch:
+
+   ```bash
+   git push -u origin my-change
+   ```
+
+2. On GitHub, open a pull request against `main`. Open it against a `release/<version>` branch only for content that no longer exists on `main`.
+3. Say what you changed and why in the description.
+
+## Review the preview
+
+After about 5 to 10 minutes, a comment links to the preview of the Edition your pull request targets. It shows Edition markers as your local preview does: every `<Edition>` block is outlined with its label, pages limited to other Editions are included with their limit at the top, and **Preview as** in the toolbar shows the page as another Edition renders it. You can check every Edition from one URL.
+
+The published Docs deployment never shows markers. The checks run on a separate build without them, so a broken link fails the checks but still shows in the preview.
+
+## Fix what the checks flag
+
+The **preview / checks** status on the pull request runs the same checks as `npx @wso2/docs check`. On a pull request to `main`, it also runs the compose check, which composes your Doc space manifests with the published Deployment manifest and shows each error on its file.
+
+- A failed blocking check stops the merge. Open the check's summary, fix each finding and push again.
+- Warnings appear as annotations on the lines you changed. They don't stop the merge.
+
+A Doc space owner can override a policy check (redirect coverage, image size or marker versions) when there's a good reason. See [Override a policy check](owners/override-a-check.mdx). Checks that break the build can't be overridden.
+
+## Verify
+
+The pull request shows **preview / checks** as passed, and a reviewer approves it.
+
+## Next steps
+
+- [Backport a fix](backport-a-fix.mdx)

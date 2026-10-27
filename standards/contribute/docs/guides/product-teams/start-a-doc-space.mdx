@@ -1,0 +1,104 @@
+---
+title: Start a Doc space
+description: Write a new Doc space directory with wso2-docs init, in a new Content repository or next to the Doc spaces of an existing one.
+type: how-to
+sidebar_position: 1
+---
+
+Start a Doc space with `npx @wso2/docs init <slug>`. The command writes the Doc space's directory from the Platform's template, `templates/content-repo/`. In an empty repository, it also writes the shared root files.
+
+## Prerequisites
+
+- Your computer is [set up](../../get-started/set-up.mdx).
+- A slug, agreed with the Platform team: lowercase words joined by hyphens, such as `api-portal`. It names the directory and the address, `docs.wso2.com/api-portal/`. It can't change once the Doc space is public.
+- The Content repository to hold it. A product in a Product family with a Cloud tree joins the family's repository, such as `docs-api-platform`, because a Cloud part must be in its platform's repository. Agree a new repository with the Platform team first. Its name is `docs-<family or product>`.
+- The Docs section that will be its home, and the team that keeps that section's manifest.
+
+## Write the directory
+
+1. Open a terminal in the repository's root, on a new branch from `main`. For a new repository, start it first:
+
+   ```bash
+   git init -b main docs-agent-platform
+   cd docs-agent-platform
+   ```
+
+2. Run `init` with the slug, the home section and the Editions:
+
+   ```bash
+   npx @wso2/docs init agent-manager --title "Agent Manager" --home agent-platform --cloud --self-hosted 1.0.0
+   ```
+
+   | Option | What it sets | Default |
+   |---|---|---|
+   | `--title` | `displayName`, the name readers see | Made from the slug |
+   | `--home` | `home`, the home Docs section | The home of the repository's other Doc spaces |
+   | `--cloud` | A Cloud Edition, built from `main` | On, unless you give only `--self-hosted` |
+   | `--self-hosted <version>` | A first Self-hosted Edition, such as `1.0.0` | None |
+   | `--team` | `owners.team` | The repository's team, else `<slug>-docs` |
+   | `--github <owner/name>` | `repo` and `issues.repo` | The repository's, its `origin` remote, else `wso2/<folder name>` |
+   | `--repo <path>` | The repository's root, if you aren't in it | The current folder |
+
+   For a Cloud part of a family Cloud, such as a product in `docs-api-platform`, leave out `--cloud` and set `cloud.in` in `docspace.yaml`, as its comment says.
+
+   It stops without writing anything if the directory already exists. At the end it prints the lines to ask your home section's team for.
+
+3. Look at what it wrote:
+
+   | Path | What it holds |
+   |---|---|
+   | `agent-manager/docspace.yaml` | The Doc space manifest, with a comment on every field |
+   | `agent-manager/editions.yaml` | The `{edition.*}` variables for Cloud and Self-hosted |
+   | `agent-manager/redirects.yaml` | Empty lists of page moves and legacy URLs |
+   | `agent-manager/docs/` | The skeleton folders, each with a sample page of its Page type. The home page is an overview, and `reference/catalog/` is a sample catalog with its data file. Both layouts are optional. |
+   | `agent-manager/partials/` | A sample partial, imported by the sample how-to |
+   | `agent-manager/assets/` | Empty `cloud/` and `self-hosted/` folders for Edition-only files |
+   | `README.md` and `CODEOWNERS` | In a new repository, written. In an existing one, a row and a line for the new directory are added. |
+   | `.github/` and `.vscode/` | The Platform's workflows, branch ruleset and editor settings. In an existing repository, brought up to date. |
+
+   The files at the root are the ones the converter writes for converted repositories, so every Content repository has the same ones. Running `init` again for another slug changes nothing else at the root.
+
+4. Fill in `docspace.yaml`. See [Write your Doc space manifest](write-the-manifest.mdx).
+5. Replace the sample pages with your own, and delete the samples you don't need.
+
+## Add a Doc space to a repository with one
+
+A repository that holds several Doc spaces needs prefixed release branches and tags. If the repository had one Doc space with `release/<version>` branches, `init` prints the command to rename each one, such as:
+
+```bash
+git branch -m release/7.3.0 identity-server/release/7.3.0
+```
+
+Push the renamed branches and update any `branch` or `pin` in the first Doc space's manifest. Its new Docs release tags are prefixed too, such as `identity-server/7.3.0-docs.4`.
+
+## Get it into WSO2 Docs
+
+Merge in this order:
+
+1. The home section's team lists the Doc space in its section manifest, with the lines `init` printed. See [Place your Doc space in the navigation](place-your-doc-space.mdx). The Platform's compose check warns `unknown-docspace` and passes: the entry stays hidden until the Doc space is published. If the product is listed as not on WSO2 Docs yet, the same pull request removes its `notYetOnWso2Docs` entry. For a new repository, the Platform team also adds it to `contentRepos` in `navigation/navigation.yaml`.
+2. Open your pull request with the new directory. Its compose check composes your `docspace.yaml` with the published manifest, now with the section's entry, so `home-not-listing` passes. The checks and a preview build run for the Doc space.
+3. Merge it. A Doc space with Cloud gets its first Cloud release at once. A Self-hosted version waits for its release branch and **Release docs**. See [Add and release a Self-hosted version](add-a-version.mdx). The menu entry appears with the first Docs deployment.
+
+## Verify
+
+1. Preview the new Doc space:
+
+   ```bash
+   npx @wso2/docs preview agent-manager
+   ```
+
+   The sample home page opens. The preview needs no other checkout: it composes your repository's manifests with the published Deployment manifest.
+
+2. Run the checks:
+
+   ```bash
+   npx @wso2/docs check agent-manager
+   ```
+
+   The last line says `Result: pass`. Until step 1 of the merges is published, the **Doc space manifest** check reports `home-not-listing`.
+
+## Next steps
+
+- [Write your Doc space manifest](write-the-manifest.mdx)
+- [Place your Doc space in the navigation](place-your-doc-space.mdx)
+- [Protect the main and release branches](../owners/branch-protection.mdx)

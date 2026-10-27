@@ -1,0 +1,40 @@
+---
+title: Backport a fix
+description: Bring a fix that merged to main into an older version, with a pull request to that version's release branch.
+type: how-to
+sidebar_position: 6
+---
+
+Fixes go to `main` first, which publishes the Cloud docs. To bring the same fix to an older version, open a second pull request against that version's release branch.
+
+## Prerequisites
+
+- Your pull request against `main` is merged.
+- The version's release branch, such as `identity-server/release/7.3.0`.
+
+## Open the backport pull request
+
+1. Make a branch from the release branch:
+
+   ```bash
+   git fetch origin
+   git switch -c fix-mfa-7.3.0 origin/identity-server/release/7.3.0
+   ```
+
+2. Apply the commit from `main`:
+
+   ```bash
+   git cherry-pick <commit>
+   ```
+
+   If it doesn't apply cleanly, make the change by hand. A release branch builds only its own Doc space directory, so keep the change inside it.
+
+3. Push the branch and open a pull request against `identity-server/release/7.3.0`.
+
+## Verify
+
+The backport pull request passes its checks and merges. The fix reaches readers of that version with its next Docs release, which the release owner publishes.
+
+## Next steps
+
+- [Release docs for a version](owners/release-docs.mdx) (Doc space owners)

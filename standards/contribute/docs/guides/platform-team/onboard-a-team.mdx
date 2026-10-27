@@ -1,0 +1,103 @@
+---
+title: Onboard a team
+description: Bring a product team onto WSO2 Docs, with a new Content repository or a new Doc space in an existing one, its owners, rulesets, secrets and the order of merges.
+type: how-to
+sidebar_position: 4
+---
+
+A team joins WSO2 Docs with a Doc space: in a new Content repository, or as one more directory in an existing one. The team writes the Doc space with `wso2-docs init`, as [Start a Doc space](../product-teams/start-a-doc-space.mdx) explains. The Platform team does the rest: the repository, its owners and settings, and the Platform side of the navigation.
+
+This page uses Agent Manager as the example: a new Doc space in a new repository, `docs-agent-platform`, with a new Docs section, Agent Platform Documentation.
+
+## Prerequisites
+
+- You're on the Platform team, with admin rights in the `wso2` GitHub organization for a new repository. Creating a repository is an outward action: get the go-ahead first.
+- Agreed with the team:
+  - the slug, such as `agent-manager`, which can't change once the Doc space is public;
+  - the home Docs section, such as `agent-platform`, and who keeps it;
+  - the Editions it starts with: Cloud, a first Self-hosted version, or both;
+  - the GitHub teams that own the Doc space and the section, such as `@wso2/agent-platform-docs`.
+
+## Choose the repository
+
+| The Doc space is | It goes in |
+|---|---|
+| A product whose Cloud is a Cloud part of its family's Cloud, such as AI Gateway in API Platform Cloud | The family's repository, such as `docs-api-platform`. A Cloud part must be in its platform's repository. |
+| Another product of a family that already has a repository | That repository, when its team agrees to share it |
+| A product with no repository to join | A new repository, `docs-<family or product>` |
+
+## Set up a new Content repository
+
+1. Create `wso2/docs-agent-platform` with a first commit on `main`, such as a README. Compose clones each repository's `main`, so a repository without one breaks compose for everyone.
+2. Give the Doc space's team write access, and the Platform team admin.
+3. Give the repository the Platform's GitHub App, with contents and pull requests write. Releases need no App: `docs.yml` publishes each tag's Docs bundle with the workflow token. After a Branch cut, `docs.yml` pushes the `branch-cut/` branch and opens its pull request on `main` with the App's token, because a pull request opened with the workflow token runs no checks. The repository needs only the App's ID and key, below.
+4. Set the repository's secrets and variables:
+
+   | Name | Kind | Value |
+   |---|---|---|
+   | `DOCS_PLATFORM_APP_ID` | Variable | The GitHub App's ID |
+   | `DOCS_PLATFORM_APP_KEY` | Secret | The GitHub App's private key |
+   | `DOCS_PLATFORM_READ_TOKEN` | Secret | A read-only token for `wso2/docs-platform`, while it is private |
+   | `DOCS_PREVIEW_R2_ACCESS_KEY_ID`, `DOCS_PREVIEW_R2_SECRET_ACCESS_KEY` | Secret | The previews bucket's credential, which can write nothing else |
+   | `R2_ENDPOINT` | Variable | `<r2-endpoint>`, for publishing previews |
+   | `DOCS_PUBLISHED_MANIFEST` | Variable, optional | `https://<staging-host>/manifest.json`, if the compose check should read another host |
+
+   See [Secrets, variables and hosting values](../../reference/platform-team/secrets-and-variables.mdx#content-repositories).
+5. Turn on immutable releases (**Settings** > **General** > **Releases**), so a published Docs bundle can't change. A repository owned by a person, such as a fork, gets no tag ruleset, because Actions can't bypass one there.
+
+5. Give the Platform's `CONTENT_READ_TOKEN` read access to the new repository, while repositories are private. The Platform's workflows clone it with that token.
+
+## Add a Doc space to an existing repository
+
+1. The team runs `npx @wso2/docs init <slug>` in the repository, on a branch from `main`. It adds the directory, a README row and a `CODEOWNERS` line, and brings the root files up to date.
+2. If the repository had one Doc space with `release/<version>` branches, `init` prints a `git branch -m` command for each. Rename them before the next release: in a repository with several Doc spaces, **Release docs** tags `<slug>/release/<version>`, and the compose step blocks a `branch:` without the prefix (`branch-prefix`).
+
+## Set the owners
+
+| File | Line | Who approves changes |
+|---|---|---|
+| `CODEOWNERS` in the Content repository, written by `init` | `/agent-manager/ @wso2/agent-platform-docs`, and `/.github/ @wso2/docs-platform` | The Doc space's team for its directory, the Platform team for the workflows |
+| `agent-manager/docspace.yaml` | `owners.team: agent-platform-docs` | The team named in compose's errors and alerts |
+| `.github/CODEOWNERS` in the Platform | `/navigation/sections/agent-platform.yaml @wso2/agent-platform-docs` | The section's team |
+
+## Get it into the navigation
+
+### The order of merges
+
+1. **The Platform pull request.** In `wso2/docs-platform`:
+   - for a new repository, add it to `contentRepos` in `navigation/navigation.yaml`;
+   - for a new section, add it as [Change the navigation](change-the-navigation.mdx#add-a-docs-section) says;
+   - list the Doc space in its home section's `products` and `menu`, with the lines `init` printed;
+   - remove the product's `notYetOnWso2Docs` entry, if it has one.
+
+   Its compose check passes with `unknown-docspace` warnings. Merge it. The entries wait in the section's `pending`.
+
+2. **The team's pull request.** The new directory, on a branch of the Content repository. Its compose check composes `docspace.yaml` with the published manifest, so `home-not-listing` passes now. Merge it once its checks pass.
+3. **The first Docs release.** A Doc space with Cloud gets its first Cloud release from the merge. A Self-hosted version waits for its release branch and **Release docs**. The menu entry appears when the first Docs deployment is flipped.
+
+### Protect the branches
+
+After the first pull request has run `docs.yml`, so GitHub knows the **preview / checks** status, import the branch ruleset and add the tag ruleset. See [Protect the main and release branches](../owners/branch-protection.mdx).
+
+## Verify
+
+1. Before the first release, `<staging-host>/manifest.json` has the Doc space under `docSpaces`, and its section entries under `sections.agent-platform.pending`.
+2. After it, `sections.agent-platform.menu` lists `agent-manager`, and `productsMenu` has Agent Manager under Agent Platform.
+3. `<staging-host>/agent-manager/` redirects to `/agent-manager/cloud/`.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| The team's compose check fails on `home-not-listing` | The Platform pull request isn't merged and published yet. Merge it first, then re-run the check. |
+| `compose: wso2/<repo> has no Doc space on WSO2 Docs yet` | A note, not an error: check that `contentRepos` lists the repository before its first release |
+| Plan fails: `No Doc space in the manifest policy has repo "wso2/<repo>"` | The release composed without the repository: it isn't in `contentRepos`, or compose failed and kept the last good copy |
+| Every compose fails after the Platform pull request | A repository in `contentRepos` has no `main`, or the read token can't reach it |
+| `duplicate` … `notYetOnWso2Docs` | Remove the product's `notYetOnWso2Docs` entry |
+| `branch-prefix` | Rename the release branches to `<slug>/release/<version>` |
+
+## Next steps
+
+- [Review a navigation pull request](review-a-navigation-change.mdx)
+- [Follow and run a Docs release](run-a-docs-release.mdx)
+- [Start a Doc space](../product-teams/start-a-doc-space.mdx)

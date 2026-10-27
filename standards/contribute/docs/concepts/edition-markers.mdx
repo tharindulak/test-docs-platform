@@ -1,0 +1,44 @@
+---
+title: Edition markers
+description: How one page serves Cloud and every self-hosted version, and what each Edition marker means.
+type: concept
+sidebar_position: 2
+---
+
+An Edition is one choice in a Doc space's version dropdown: its Cloud docs, or one self-hosted version. An Edition marker limits a page, a section or a phrase to some Editions. Each Edition is built on its own. Content marked for other Editions is removed before the page is built, so it never reaches the table of contents or search.
+
+## How it works
+
+The main line of a Content repository holds the Cloud docs. When a self-hosted version reaches code freeze, its branch, such as `identity-server/release/7.4.0`, is cut from `main`. The branch is a plain copy: markers survive the cut, so the same marker decides what each branch shows:
+
+| Marker | Cloud | Self-hosted 7.3.0 | Self-hosted 7.4.0 |
+|---|---|---|---|
+| `only="cloud"` | Shown | Hidden | Hidden |
+| `only="self-hosted"` | Hidden | Shown | Shown |
+| `selfHostedFrom="7.4.0"` | Shown | Hidden | Shown |
+| `selfHostedFrom="next"` | Shown | Hidden | Hidden |
+
+`next` means no release is committed yet. Content marked `next` stays out of every version until its release owner gives it one.
+
+## After a Branch cut
+
+A Branch cut, made with `npx @wso2/docs branch-cut <doc space> <version>` or by creating the branch on GitHub, does two things besides the branch:
+
+- **It removes the markers the new version covers from `main`.** A `selfHostedFrom` marker of that version or an older one no longer limits anything on `main`, because every later version is cut from `main` too. `<Edition selfHostedFrom="7.4.0">` is unwrapped into plain shared content, `only="self-hosted" selfHostedFrom="7.4.0"` keeps only `only="self-hosted"`, and a page's `selfHostedFrom: 7.4.0` line goes. The change is a commit on its own branch, `branch-cut/<doc space>/<version>`, for a pull request to `main`. When the branch is created on GitHub, the Docs workflow opens that pull request itself. The release branch keeps its markers.
+- **It writes the branch cut report.** The report lists what is still `next`, what ships in the version, what is held for a later version, and every marker change on `main`. Content still marked `next` stays out of the new version. The release owner decides on each `next` block: to ship it, change `next` to the version on the release branch and remove the marker on `main`; to hold it, leave it.
+
+Markers for newer versions, `next`, Cloud only and Self-hosted only markers stay on `main` as they are. See [Add and release a Self-hosted version](../guides/product-teams/add-a-version.mdx).
+
+## Variables
+
+`{edition.*}` variables, such as `{edition.productName}` and `{edition.consoleUrl}`, are filled in from the Content repository's `editions.yaml`: its `cloud:` block for Cloud, and its `self-hosted:` block for every version. `{edition.version}` is always defined.
+
+## Limits
+
+- Markers can't be nested inside a sentence across lines; keep inline markers on one line.
+- Markers work in pages and partials. In front matter, `{edition.*}` variables work only in `title`, `sidebar_label` and `description`.
+
+## Related
+
+- [Write for several Editions](../guides/write-for-several-editions.mdx)
+- [Preview your changes](../guides/preview-locally.mdx)

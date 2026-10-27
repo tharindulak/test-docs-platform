@@ -1,0 +1,32 @@
+# Override list for wso2/docs-api-platform, api-platform/ (lib/overrides.mjs): fixes to the legacy source and
+# legacy-broken links the converter accepts, each with its reason (paths are under en/). Proposed by
+# `node migration/overrides.mjs suggest api-platform ...` from the run reports of every
+# branch, then reviewed.
+patches:
+  - file: docs/guides/ai-and-mcp/ai-coding-assistants/claude-code-subscription-configuration-with-ai-gateway.md
+    find: '](../../../ai-gateway/1.2.0/llm-proxy/guardrails/semantic-prompt-guard.md)'
+    replace: ']({{base_path}}/cloud/ai-gateway/llm/guardrails/semantic-prompt-guard/)'
+    why: broken link on the legacy site (the 1.2.0 folder has no such page); the guide means AI Gateway's Cloud guardrail, now in AI Gateway's Cloud part
+  - file: docs/guides/monetization/api-monetization.md
+    find: '](../../cloud/api-monetization/manage-paid-subscription-plans.md)'
+    replace: ']({{base_path}}/monetization/manage-paid-subscription-plans/)'
+    why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+accepted:
+  - page: cloud/ai-workspace/llm-proxies/manage-proxy.md
+    href: '#get-started'
+    why: the anchor is not on the target page on the legacy site either
+  - page: get-started.md
+    href: analytics-and-monetization/overview.md
+    why: the legacy site has no page there either
+  - page: guides/ai-and-mcp/set-up-a-governed-multi-model-llm-proxy-with-cost-controls-and-failover.md
+    href: '`#step-9-generate-an-api-key`'
+    why: the legacy site has no page there either
+  - page: guides/monetization/api-monetization.md
+    href: ../../cloud/api-monetization/getting-started.md
+    why: the legacy site has no page there either
+  - page: guides/monetization/mcp-tool-monetization.md
+    href: ../../analytics-and-monetization/overview.md
+    why: the legacy site has no page there either
+  - page: index.md
+    href: analytics-and-monetization/overview.md
+    why: the legacy site has no page there either

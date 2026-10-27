@@ -1,0 +1,7 @@
+{
+  "name": "wso2-docs",
+  "description": "WSO2 Docs author skills: Check my changes and Write a page, kept in step with the Platform's standards and checks.",
+  "version": "0.1.0",
+  "author": { "name": "WSO2 Docs Platform" },
+  "skills": "./skills/"
+}

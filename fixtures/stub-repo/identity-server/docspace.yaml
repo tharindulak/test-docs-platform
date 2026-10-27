@@ -1,0 +1,25 @@
+# A small Content repo used by the tests, in the layout of the Pilot's
+# docs-identity-platform: Identity Server's directory. Its main line is its
+# Cloud part of Identity Platform Cloud (../identity-platform/); its versions
+# are 7.3.0 and 7.2.0. The suite composes the Pilot's real Doc space
+# manifests (fixtures/content-repos/), which this one matches.
+schemaVersion: 1
+slug: identity-server
+displayName: Identity Server
+editionNames:
+  selfHosted: Identity Server {version}
+home: identity-platform
+cloud:
+  in: identity-platform
+owners:
+  team: identity-platform-docs
+repo: wso2/docs-identity-platform
+editLinks: false
+issues:
+  repo: wso2/docs-is
+editions:
+  - id: 7.3.0
+  - id: 7.2.0
+    branch: identity-server/release/7.2.0
+legacyVersions:
+  - { id: 7.1.0, url: 'https://is.docs.wso2.com/en/7.1.0/' }

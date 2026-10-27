@@ -1,0 +1,52 @@
+---
+title: Developer guide for product teams
+description: How a product team places its docs in WSO2 Docs, from the model and the manifests to the repository, releases and extensions.
+type: concept
+sidebar_position: 4
+---
+
+This guide is for the team that owns a product's docs. It explains how WSO2 Docs is put together, and how your team decides where its docs appear. Writers who only change pages need [Start here](start-here.mdx) instead.
+
+The guide uses the Pilot's real Doc spaces as examples: Identity Platform Cloud and Identity Server in `docs-identity-platform`, and API Platform Cloud, API Manager and AI Gateway in `docs-api-platform`.
+
+## How the guide is arranged
+
+Read the concepts once, in order. Then use the how-to pages for each task, and the reference pages to look things up.
+
+| Concept | What it explains |
+|---|---|
+| [How WSO2 Docs is organized](../concepts/product-teams/navigation-model.mdx) | The products menu, Docs sections, Doc spaces, Editions, Cloud parts and addresses |
+| [Version selectors and notices](../concepts/product-teams/version-selectors.mdx) | What readers see when they choose an Edition, and the notices they get |
+| [Manifests and the compose step](../concepts/product-teams/manifests-and-compose.mdx) | The three manifests, who owns each, and how the compose step merges them |
+| [Content repositories, branches and Docs releases](../concepts/product-teams/repositories-and-releases.mdx) | The repository layout, release branches, tags, and the Docs bundle a Docs release publishes |
+| [Extension points](../concepts/product-teams/extension-points.mdx) | What a team may add beyond pages, and how |
+| [Search scopes](../concepts/product-teams/search-scopes.mdx) | What a reader's search covers on your pages |
+
+| How-to | The task |
+|---|---|
+| [Start a Doc space](../guides/product-teams/start-a-doc-space.mdx) | Write a new Doc space directory with `wso2-docs init` |
+| [Write your Doc space manifest](../guides/product-teams/write-the-manifest.mdx) | Names, Editions, branches and the home Docs section |
+| [Place your Doc space in the navigation](../guides/product-teams/place-your-doc-space.mdx) | The products menu, the section menu and where the version is chosen |
+| [Preview and check a Doc space](../guides/product-teams/preview-a-doc-space.mdx) | Preview one Doc space or a whole Cloud tree, and check a manifest change |
+| [Add and release a Self-hosted version](../guides/product-teams/add-a-version.mdx) | Cut the branch, list the Edition and publish its first Docs release |
+| [Show a notice to readers](../guides/product-teams/show-a-notice.mdx) | A banner for some Editions, until a date |
+| [Draw a page as an overview or a catalog](../guides/product-teams/use-a-page-layout.mdx) | Page layouts and data files |
+| [Propose an extension](../guides/product-teams/propose-an-extension.mdx) | Ask the Platform for a component, layout, field or build step |
+
+| Reference | What it lists |
+|---|---|
+| [Doc space manifest](../reference/product-teams/doc-space-manifest.mdx) | Every field of `docspace.yaml` |
+| [Docs section manifest](../reference/product-teams/section-manifest.mdx) | Every field of a section manifest, and the Platform navigation file |
+| [Branches, tags and addresses](../reference/product-teams/branches-tags-addresses.mdx) | Branch and tag names, what each branch builds, and every address rule |
+| [Manifest checks](../reference/product-teams/manifest-checks.mdx) | Every error, warning and note of the compose step |
+
+## Where the guide lives
+
+This guide has one copy: these pages, published at `docs.wso2.com/contribute/`. Their source is in the Platform repository, under `standards/contribute/`. The Platform's README and every Content repository's README link here and don't repeat it. To change the guide, open a pull request against `standards/contribute/` in `wso2/docs-platform`.
+
+## Related
+
+- [Guide for running WSO2 Docs](platform-team.mdx), its companion for the Platform team
+- [Contribute to WSO2 Docs](../index.mdx)
+- [Page types](../concepts/page-types.mdx)
+- [The wso2-docs command](../reference/cli.mdx)

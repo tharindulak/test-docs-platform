@@ -1,0 +1,280 @@
+# Release docs: turns a Content repo's Docs release tag into live Docs
+# deployments (Platform build and deploy pipeline, ticket 11). Content repos
+# dispatch it with `gh workflow run release.yml --ref v<major>`, so the run uses
+# the Platform major they pin. A Platform release (platform-release.yml)
+# dispatches it at its tag with scope all: every live deployment whose Content
+# repo pins the release's major (this checkout's package.json) rebuilds from
+# its deployed tag. platform-deployments.yml dispatches Contribute's Cloud tags
+# and scope landing (the Landing deployment, from the Platform alone). The
+# release sequence:
+#   1-2 build and blocking checks      (one matrix job per Docs deployment)
+#   3   upload the release folder      (same job, immutable, to docs-staging)
+#   4   flip the staging pointer       (finalize-staging: one state write)
+#   5   staging crawl gate
+#   6   staging search index           (upsert, then delete stale; retries and alerts, never blocks)
+#   7   promote to production          (promote: OFF for the Pilot)
+#   8   production search index        (OFF for the Pilot, with promotion)
+#   9   sitemap index and edge redirect table
+#   10  summary for the Doc space owners
+# PENDING INFRA (ticket 15): the staging and production environments need
+# R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / CLOUDFLARE_API_TOKEN secrets and
+# R2_ENDPOINT / CLOUDFLARE_ACCOUNT_ID / REDIRECTS_KV_ID variables, plus
+# TYPESENSE_ADMIN_KEY (secret) and TYPESENSE_URL (variable) for the search index.
+name: Release docs
+run-name: "Release docs: ${{ inputs.repo || 'Platform rebuild' }} ${{ inputs.tag || inputs.space || inputs.scope || 'all' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: Content repo (owner/name), for scope "tag"
+        type: string
+        required: false
+      tag:
+        description: Docs release tag, [<doc space>/]<version>-docs.<n> or [<doc space>/]cloud-<YYYY.MM.DD>.<n>
+        type: string
+        required: false
+      scope:
+        description: tag = that Edition (+ latest twin); docspace = every Edition of a Doc space; all = every Edition whose Content repo pins this Platform's major; landing = the Landing deployment
+        type: choice
+        options: [tag, docspace, all, landing]
+        default: tag
+      space:
+        description: Doc space slug, for scope "docspace"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # Cloud releases: newest wins and an in-progress run is cancelled. Version
+  # releases and rebuilds queue.
+  # Cloud tags ([<doc space>/]cloud-…) share one group per repo: a repo has
+  # one Cloud tree to release (a part's change tags its platform).
+  group: release-${{ inputs.repo || 'platform' }}-${{ contains(inputs.tag, 'cloud-') && 'cloud' || inputs.tag || inputs.space || inputs.scope || 'all' }}
+  cancel-in-progress: ${{ contains(inputs.tag, 'cloud-') }}
+
+env:
+  SCOPE: ${{ inputs.scope || 'tag' }}
+  STAGING_STORAGE: s3://docs-staging
+  PRODUCTION_STORAGE: s3://docs-prod
+  STAGING_HOST: https://docs-staging.wso2.com
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    # Rebuild scopes read the deployed tags from the staging state.
+    environment: staging
+    outputs:
+      latest: ${{ steps.plan.outputs.latest }}
+      others: ${{ steps.plan.outputs.others }}
+      has-latest: ${{ steps.plan.outputs.has-latest }}
+      has-others: ${{ steps.plan.outputs.has-others }}
+      flip: ${{ steps.plan.outputs.flip }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # A Content repo's release reaches the compose step here: its main line's
+      # Doc space manifests are composed and stored as the last good copy
+      # (_platform/composed.json). A failed compose keeps the last good copy and
+      # alerts its owners in the annotations; the release then plans from it, and
+      # an Edition that only the new manifest adds fails the plan.
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        env:
+          # PENDING INFRA: a read-only token while the Content repos are private.
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content"
+      - name: Compose and store the Deployment manifest (keeps the last good copy on failure)
+        continue-on-error: true
+        env:
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: node bin/wso2-release.mjs compose --content "$RUNNER_TEMP/content" --storage "$STAGING_STORAGE" --report compose-report.json
+      - id: plan
+        name: Plan the Docs deployments (from the stored composed manifest)
+        env:
+          INPUT_REPO: ${{ inputs.repo }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_SPACE: ${{ inputs.space }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          # Scope all (a Platform release) reads each Content repo's pinned
+          # Platform major from the main-line checkouts above.
+          args=(plan --scope "$SCOPE" --storage "$STAGING_STORAGE" --rebuild-id "$GITHUB_RUN_ID" --content "$RUNNER_TEMP/content")
+          [ -n "$INPUT_REPO" ] && args+=(--repo "$INPUT_REPO")
+          [ -n "$INPUT_TAG" ] && args+=(--tag "$INPUT_TAG")
+          [ -n "$INPUT_SPACE" ] && args+=(--space "$INPUT_SPACE")
+          node bin/wso2-release.mjs "${args[@]}" > plan.json
+          cat plan.json
+          {
+            echo "latest=$(jq -c .latest plan.json)"
+            echo "others=$(jq -c .others plan.json)"
+            echo "has-latest=$(jq -r .hasLatest plan.json)"
+            echo "has-others=$(jq -r .hasOthers plan.json)"
+            echo "flip=$(jq -r .flip plan.json)"
+          } >> "$GITHUB_OUTPUT"
+
+  # Latest twins build first: older versions take their canonicals from the
+  # new latest page list.
+  build-latest:
+    needs: plan
+    if: needs.plan.outputs.has-latest == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.latest) }}
+    uses: ./.github/workflows/build-deployment.yml
+    with:
+      repo: ${{ matrix.repo }}
+      dir: ${{ matrix.dir }}
+      tag: ${{ matrix.tag }}
+      release: ${{ matrix.release }}
+      space: ${{ matrix.space }}
+      segment: ${{ matrix.segment }}
+      edition: ${{ matrix.edition }}
+      as-latest: ${{ matrix.asLatest }}
+    secrets: inherit
+
+  build:
+    needs: [plan, build-latest]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.plan.outputs.has-others == 'true'
+      && needs.build-latest.result != 'failure' && needs.build-latest.result != 'cancelled'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.others) }}
+    uses: ./.github/workflows/build-deployment.yml
+    with:
+      repo: ${{ matrix.repo }}
+      dir: ${{ matrix.dir }}
+      tag: ${{ matrix.tag }}
+      release: ${{ matrix.release }}
+      space: ${{ matrix.space }}
+      segment: ${{ matrix.segment }}
+      edition: ${{ matrix.edition }}
+      as-latest: ${{ matrix.asLatest }}
+    secrets: inherit
+
+  # Any failed build leaves the previous release live: nothing below runs.
+  finalize-staging:
+    needs: [plan, build-latest, build]
+    if: >-
+      always() && needs.plan.result == 'success'
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    environment: staging
+    # No concurrency group: GitHub keeps one waiting run per group and cancels
+    # an older waiting one. Each state-writing command waits its turn on the
+    # bucket's state lock instead (lib/state-lock.mjs).
+    outputs:
+      crawl-passed: ${{ steps.crawl.outcome == 'success' }}
+    env:
+      FLIP: ${{ needs.plan.outputs.flip }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # flip, search-index and the rest read the stored composed manifest from staging.
+      - name: Flip the staging pointer (step 4)
+        run: |
+          chrome=()
+          [ -f chrome/chrome.json ] && chrome=(--chrome chrome/chrome.json)
+          node bin/wso2-release.mjs flip --storage "$STAGING_STORAGE" --env staging --deploy "$FLIP" "${chrome[@]}"
+      - name: Staging redirect table
+        run: node bin/wso2-release.mjs redirects --storage "$STAGING_STORAGE" --kv "cloudflare:${{ vars.REDIRECTS_KV_ID }}"
+      - name: Staging crawl gate (step 5)
+        id: crawl
+        continue-on-error: true
+        run: node bin/wso2-release.mjs crawl --storage "$STAGING_STORAGE" --host "$STAGING_HOST" --deploy "$FLIP"
+      # Upserts _platform/search-records.json of each new deployment (never
+      # /latest/), then deletes that Edition's stale records. Each deployment
+      # retries; a failure is a warning annotation and never blocks the release.
+      - name: Staging search index (step 6)
+        id: search
+        continue-on-error: true
+        env:
+          TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node bin/wso2-release.mjs search-index --env staging --storage "$STAGING_STORAGE" --deploy "$FLIP"
+      - name: Keep the last 5 releases
+        run: node bin/wso2-release.mjs gc --storage "$STAGING_STORAGE"
+      - name: Summary (step 10)
+        env:
+          CRAWL: ${{ steps.crawl.outcome }}
+          SEARCH: ${{ steps.search.outcome }}
+        run: |
+          {
+            echo "## Docs release on staging"
+            echo
+            echo "| Deployment | Release | Staging URL |"
+            echo "|---|---|---|"
+            for d in $FLIP; do
+              dep="${d%%=*}"; rel="${d#*=}"
+              echo "| \`$dep\` | \`$rel\` | $STAGING_HOST/$dep/ |"
+            done
+            echo
+            echo "Staging crawl gate: **$CRAWL**"
+            echo
+            echo "Staging search index: **$SEARCH**"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Posting this to the Doc space owners waits on a channel decision.
+
+  # Steps 7-9 in production. OFF for the Pilot (no production cutover): it runs
+  # only when the repository variable DOCS_PRODUCTION_ENABLED is "true" and the
+  # staging crawl gate passed.
+  promote:
+    needs: [plan, finalize-staging]
+    if: needs.finalize-staging.outputs.crawl-passed == 'true' && vars.DOCS_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    # No concurrency group: GitHub keeps one waiting run per group and cancels
+    # an older waiting one. Each state-writing command waits its turn on the
+    # bucket's state lock instead (lib/state-lock.mjs).
+    env:
+      FLIP: ${{ needs.plan.outputs.flip }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The composed manifest staging released with
+        run: node bin/wso2-release.mjs composed --storage "$STAGING_STORAGE" --out composed.json
+      - name: Copy the tested release folders to production (step 7)
+        run: node bin/wso2-release.mjs promote --storage "$STAGING_STORAGE" --to "$PRODUCTION_STORAGE" --deploy "$FLIP"
+      - name: Flip the production pointer (step 7)
+        run: |
+          chrome=()
+          [ -f chrome/chrome.json ] && chrome=(--chrome chrome/chrome.json)
+          node bin/wso2-release.mjs flip --storage "$PRODUCTION_STORAGE" --env production --policy composed.json --deploy "$FLIP" "${chrome[@]}"
+      - name: Production search index (step 8)
+        continue-on-error: true
+        env:
+          TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node bin/wso2-release.mjs search-index --env production --storage "$PRODUCTION_STORAGE" --policy composed.json --deploy "$FLIP"
+      - name: Production redirect table (step 9; the flip republished the sitemap index)
+        run: node bin/wso2-release.mjs redirects --storage "$PRODUCTION_STORAGE" --kv "cloudflare:${{ vars.REDIRECTS_KV_ID }}"
+      - name: Keep the last 5 releases
+        run: node bin/wso2-release.mjs gc --storage "$PRODUCTION_STORAGE"

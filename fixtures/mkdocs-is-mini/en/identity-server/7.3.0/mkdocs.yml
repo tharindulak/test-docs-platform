@@ -1,0 +1,40 @@
+INHERIT: ../../base.yml
+site_name: &site_name WSO2 Identity Server
+site_url: https://is.docs.wso2.com/en/7.3.0
+extra:
+  base_path: /en/7.3.0
+  is_version: 7.3.0
+  product: is
+  content:
+    default_keystore_ext: p12
+  product_name: *site_name
+  connectors:
+    - name: Sift
+      icon: assets/img/logo/sift-logo.svg
+      description: Helps prevent fraudulent logins to {{ product_name }}.
+      source_link: https://store.wso2.com/connector/identity-fraud-detection-sift
+      category: fraud-detection
+      documentation_link: sift
+    - name: Duo Security
+      icon: assets/img/logo/duo-logo.png
+      description: Provides two-factor authentication.
+      source_link: https://store.wso2.com/connector/identity-outbound-auth-duo
+      category: authentication
+      documentation_link: https://github.com/wso2-extensions/identity-outbound-auth-duo/blob/master/docs/README.md
+plugins:
+  - redirects:
+      redirect_maps:
+        'setup/install.md': 'deploy/install.md'
+nav:
+  - Home:
+    - Home: index.md
+  - Guides:
+    - Add MFA: guides/mfa.md
+  - Setup:
+    - Install: deploy/install.md
+  - APIs:
+    - Users API: apis/users.md
+  - Connectors:
+    - Connectors: connectors/index.md
+    - Sift:
+      - Overview: connectors/sift/overview.md

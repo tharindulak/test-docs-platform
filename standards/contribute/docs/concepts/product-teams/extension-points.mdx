@@ -1,0 +1,62 @@
+---
+title: Extension points
+description: What a product team may add beyond pages, where each kind of extension lives, and why Content repositories stay code-free.
+type: concept
+sidebar_position: 5
+---
+
+An extension point is a sanctioned way for a team to add something beyond plain pages: a component, a Page layout, a notice, a link out or generated data. Content repositories stay code-free. Every extension is either data in the Doc space or code in the Platform.
+
+## How it works
+
+Teams never ship React code, Docusaurus plugins or CSS in a Content repository. This keeps one look across WSO2 Docs, keeps every page's Markdown twin and quality checks working, and lets one Platform release rebuild every Docs deployment.
+
+| You want | Where it lives | Example |
+|---|---|---|
+| A component in a page | The Platform's component catalogue | `<Edition only="cloud">` |
+| Cards that link to products or sections | `layout: overview` in the page's front matter | Identity Platform Cloud's home page |
+| A searchable grid of items | `layout: catalog`, with a `data:` file next to the page | Identity Server's connectors page and `connectors.yaml` |
+| An API reference | `layout: api-reference`, with `spec:` | API Manager's REST APIs |
+| Audience groups | Top-level folders in `docs/` | "For developers" and "For platform engineers" |
+| A banner for some Editions | `notices` in the Doc space manifest | A retirement notice |
+| A link out of WSO2 Docs in the menu | A link entry in the Docs section manifest | Ballerina's own site, shown with ↗ |
+| An older version still on its old site | `legacyVersions` in the Doc space manifest | Identity Server 7.1.0 |
+| Content generated from a product repository | A data file, synced by a bot pull request | `openapi.yaml`, `connectors.yaml` |
+| Something the Platform doesn't have | An extension proposal | A new layout or manifest field |
+
+### Components and Page layouts
+
+A page's `type` says what kind of writing it is: one of the six Page types. Its `layout` says how it is drawn: `default`, `overview`, `catalog` or `api-reference`. The two are independent. The [component catalogue](../../reference/components.mdx) documents every component and layout, with its Markdown form, accessibility and owner.
+
+### Generated content
+
+The build never runs a team's code, and it reads only committed files. A product's CI generates files such as `openapi.yaml`, `connectors.yaml` or release-note data. A bot opens a pull request to the Content repository, and writers review it like any other change.
+
+### Data files
+
+Data files have Platform schemas, in the Platform's `schemas/`:
+
+| Data file | Schema | Found by |
+|---|---|---|
+| A catalog page's data file | `catalog.schema.json` | The page's `data:` front matter |
+| `release-notes.yaml` | `release-notes.schema.json` | Its name, anywhere in `docs/` |
+| `sdks.yaml` | `sdks.schema.json` | Its name, anywhere in `docs/` |
+
+The blocking [Data files](../../reference/checks.mdx#data-files) check validates each one on every pull request and Docs release. It also checks that ids are unique, categories are known, and links and logos exist.
+
+### Platform growth
+
+A team that needs something new proposes it. The Platform team reviews the proposal and the pull request that follows. Once merged, the extension ships in a Platform release, is documented in Contribute and is open to every team. Manifest and data-file fields are only ever added.
+
+## Limits
+
+- No escape hatch: no raw HTML widgets, iframes or per-team CSS. Until the Platform supports a need, link out.
+- The Platform has a ready-made sync workflow for OpenAPI specs only (`.github/workflows/spec-sync.yml`). Every Content repository carries a caller for it, `.github/workflows/docs-sync.yml`, which runs only when started by hand until the team schedules it. Other generated files are synced by the team's own bot for now.
+- `release-notes.yaml` and `sdks.yaml` are checked, but no layout draws them yet.
+
+## Related
+
+- [Draw a page as an overview or a catalog](../../guides/product-teams/use-a-page-layout.mdx)
+- [Show a notice to readers](../../guides/product-teams/show-a-notice.mdx)
+- [Propose an extension](../../guides/product-teams/propose-an-extension.mdx)
+- [Components and layouts](../../reference/components.mdx)

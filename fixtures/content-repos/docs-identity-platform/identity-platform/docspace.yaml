@@ -1,0 +1,21 @@
+# The Doc space manifest on the main line of docs-identity-platform, as the converter
+# writes it (Converter and Content repos in the new layout, ticket 15),
+# copied for the tests of the Pilot as it is; test/migration.test.mjs keeps
+# the two equal. Compose reads the real checkouts (WSO2_DOCS_CONTENT_REPOS or
+# --content; by default the directory the Platform checkout sits in).
+schemaVersion: 1
+slug: identity-platform
+displayName: Identity Platform Cloud
+formerNames: [Asgardeo]
+editionNames:
+  cloud: Identity Platform Cloud
+home: identity-platform
+owners:
+  team: identity-platform-docs
+repo: wso2/docs-identity-platform
+editLinks: false
+issues:
+  repo: wso2/docs-is
+editions:
+  - id: cloud
+    parts: [identity-server]

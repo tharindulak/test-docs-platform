@@ -1,0 +1,19 @@
+site_name: WSO2 Mini Documentation
+site_url: https://apim.docs.wso2.com/en/1.0.0/
+markdown_extensions:
+    - pymdownx.emoji:
+        emoji_generator: !!python/name:pymdownx.emoji.to_svg
+nav:
+    - Home: index.md
+    - Get Started:
+        - Overview: get-started/overview.md
+    - Design Things:
+        - Create an API: guides/design/create-api.md
+        - Advanced Topics:
+            - Tabs and HTML: guides/design/tabs-and-html.md
+    - Reference:
+        - Product REST APIs:
+            - Demo API v1: reference/product-apis/demo-v1/demo-v1.md
+extra:
+    site_version: 1.0.0
+    base_path: https://apim.docs.wso2.com/en/1.0.0

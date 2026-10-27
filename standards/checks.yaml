@@ -1,0 +1,121 @@
+# The checks `wso2-docs check` runs (Quality gates for Docs releases). The
+# single source for the check command's titles and fix hints, the reusable PR
+# workflow and the Contribute "Checks" reference page.
+#   blocking:    fails the PR (exit code 1)
+#   overridable: a policy check a Doc space owner can override with the
+#                `quality-override` label and a written reason
+#   release:     re-run by the Docs release build
+guideBase: https://docs.wso2.com/contribute/
+checks:
+  - id: compile
+    title: MDX compile
+    blocking: true
+    release: true
+    what: Every page and partial compiles through the Platform's MDX pipeline, in each Edition it renders in.
+    fix: Read the error's line and column. Common causes are a bare `<` or `{` in prose (put it in `code`) and an unclosed JSX tag.
+  - id: preview-build
+    title: Preview build
+    blocking: true
+    release: true
+    what: The affected Edition builds with broken links, anchors and images set to fail.
+    fix: Fix the link, anchor or image path named in the error. Links between pages are relative file paths (`../guides/mfa.mdx#choose-a-factor`).
+  - id: docs-links
+    title: Links to other Doc spaces
+    blocking: true
+    release: true
+    what: "Every `docs:` link names a Doc space and Edition in the deployment manifest, and its page (and anchor) is in that deployment's published route list."
+    fix: "Check the target page's URL on WSO2 Docs and copy its path after the Edition: `docs:<space>/<edition|latest>/<page>/`."
+  - id: manifest
+    title: Doc space manifest
+    blocking: true
+    what: "The Doc space manifest (`docspace.yaml`) follows its schema and composes with the published Deployment manifest: its home section lists it, its Cloud parts point both ways, its branches, pins and notices name what exists. The same rules as the compose check on the pull request."
+    fix: "Fix the field the message names. `home-not-listing` clears once the home section's team lists the Doc space (that change merges first). Every error is described in the developer guide's Manifest checks reference."
+  - id: release-scope
+    title: Release branch scope
+    blocking: true
+    what: "A change to a Doc space's release branch (`<doc space>/release/<version>`) touches only that Doc space's directory. The branch is a copy of the whole repo, but it builds only its own directory."
+    fix: "Move the change to the right branch: another Doc space's pages go to its own branches, and shared root files change on `main`."
+  - id: redirects
+    title: Redirect coverage
+    blocking: true
+    overridable: true
+    what: A page removed or moved in this change has a `moves:` entry in `redirects.yaml` pointing at a page that exists.
+    fix: "Add `- from: <old path>` and `to: <new path>` under `moves:` in `redirects.yaml`. For a removed page, point it at the closest remaining page."
+  - id: front-matter
+    title: Front matter
+    blocking: true
+    release: true
+    what: Every page has a title, a description of at most 160 characters and a page type, uses only known keys, and has valid Edition values.
+    fix: Copy the front matter of the page-type template (`wso2-docs new <type>`), then fill it in.
+  - id: data-files
+    title: Data files
+    blocking: true
+    release: true
+    what: "Every data file a page draws (`data:` on a `layout: catalog` page) and every data file known by its name (`release-notes.yaml`, `sdks.yaml`) follows its Platform schema: catalog, release notes or SDK list. Ids are unique, categories are listed, and links and logos point at pages and assets that exist."
+    fix: "Fix the field the message names. A generated file is fixed where it is generated (the product's CI), then synced again by its bot PR; the schemas are in the Platform's `schemas/` folder, and editors validate against them."
+  - id: markers
+    title: Edition markers and variables
+    blocking: true
+    release: true
+    what: Every `<Edition>` marker is valid and every `{edition.*}` variable is defined in `editions.yaml` for each Edition the content renders in.
+    fix: Use `only="cloud"`, `only="self-hosted"` or `selfHostedFrom="<version>|next"`, and define the variable in the `cloud:` or `self-hosted:` block of `editions.yaml`.
+  - id: marker-versions
+    title: Marker versions
+    blocking: true
+    overridable: true
+    what: A new or changed `selfHostedFrom` version on the main line is newer than the latest released version in the deployment manifest.
+    fix: "Content already in the latest release needs no marker; content for an unannounced release uses `selfHostedFrom=\"next\"`."
+  - id: skeleton
+    title: Folder skeleton
+    blocking: true
+    release: true
+    what: "Top-level `docs/` folders follow the sidebar skeleton: get-started, guides, concepts, reference, deploy-and-operate, release-notes."
+    fix: Move the folder under one of the skeleton folders; add sections below the top level only.
+  - id: image-size
+    title: Image size
+    blocking: true
+    overridable: true
+    what: A new or changed image is at most 1 MB (warns over 300 KB). A Content repository over 1 GB warns.
+    fix: Crop to the relevant UI and save as PNG or WebP; most screenshots fit in 300 KB.
+  - id: image-alt
+    title: Image alt text
+    blocking: true
+    what: A new image reference has alt text that says what the image shows.
+    fix: Write what the reader would miss without the image, for example `![The Applications page with the New application button](...)`.
+  - id: openapi
+    title: OpenAPI specs
+    blocking: true
+    release: true
+    what: Every API page's OpenAPI spec validates (structure, broken `$ref`s, duplicate operation IDs). Description style on changed specs only warns.
+    fix: "Run `npx @wso2/docs api validate` and `npx @wso2/docs api lint` for the full list, and fix the spec where it is synced from (the product repository)."
+  - id: content-safety
+    title: Content safety
+    blocking: true
+    release: true
+    what: "Content carries no code. Pages import only from the component catalogue (`standards/components.yaml`) and relative `.mdx` partials inside the Doc space, and export nothing; `{…}` holds only literals and `require()` of a file inside the Doc space; no `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file, `<script>`, `on*=` attribute, `javascript:` URL or `dangerouslySetInnerHTML`; an `<iframe>` only from the hosts in `standards/iframe-hosts.yaml`, with no `srcdoc`, and no `<object>`, `<embed>` or `<frame>`. It breaks the build: no override. Bundles run it again, and so does intake."
+    fix: "Remove the code. Use a Platform component instead (see Components and layouts), write the value as a literal, and embed videos from `https://www.youtube-nocookie.com/embed/<id>`. What content needs beyond this goes through an extension proposal."
+  - id: twins
+    title: Markdown twins
+    blocking: true
+    release: true
+    what: Each page's Markdown twin has no leftover JSX or imports, and its links resolve.
+    fix: Every Platform MDX component declares a Markdown form; a leftover component here is a Platform bug, so report it.
+  - id: vale
+    title: Prose style (Vale)
+    blocking: false
+    what: The WSO2 Vale style on changed lines. Product-name rules are at error level but don't block until cutover.
+    fix: Follow the message; each one links to its rule in the style guide.
+  - id: spelling
+    title: Spelling (cspell)
+    blocking: false
+    what: US English spelling on changed lines, with the Platform dictionaries plus the repository's `words.txt`.
+    fix: Fix the typo, or add a correct product or technical term to `words.txt` (one word per line).
+  - id: headings
+    title: Headings and house style
+    blocking: false
+    what: "On changed lines: no skipped heading levels, a language on every code fence and no `$` prompts. Admonitions use the five types, at most two in a row, and link text is descriptive."
+    fix: Follow the message; each one links to the rule in the style guide.
+lint:
+  # Vale rules promoted to blocking, one at a time (Quality gates). Empty
+  # until cutover; rules are only ever added here, never removed.
+  blockingRules: []

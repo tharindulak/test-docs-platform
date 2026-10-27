@@ -1,0 +1,108 @@
+---
+title: End an Edition or send it back to its old site
+description: Mark an Edition end of life, list a Legacy version, or take an Edition's Docs deployment down when its docs go back to their old site.
+type: how-to
+sidebar_position: 7
+---
+
+An Edition leaves the front of WSO2 Docs in one of two ways. **End of life** keeps it readable on WSO2 Docs, with a notice. A **Legacy version** is listed in the version dropdown but opens on its old site, so an Edition that becomes one must also have its Docs deployment taken down. Both start in the Doc space's manifest, which its team changes. The Platform team makes the change reach readers.
+
+This page uses Identity Server 7.2.0 as the example.
+
+## Prerequisites
+
+- The Doc space's team has merged the change to its `docspace.yaml` on `main`.
+- You're on the Platform team, with permission to run workflows in `wso2/docs-platform`.
+
+## End an Edition's life
+
+1. The team adds `status: end-of-life` to the Edition:
+
+   ```yaml
+   editions:
+     - id: 7.3.0
+     - id: 7.2.0
+       branch: identity-server/release/7.2.0
+       status: end-of-life
+   ```
+
+2. Compose now, so the change doesn't wait for the next Docs release of any Doc space: in `wso2/docs-platform`, select **Actions** > **Manifests** > **Run workflow**. Or:
+
+   ```bash
+   gh workflow run manifests.yml --repo wso2/docs-platform
+   ```
+
+   The run composes, stores and publishes `manifest.json`. End of life needs no build: `policy-diff` reports `"rebuild": []`.
+
+What readers get, with no rebuild:
+
+- the end-of-life notice on every page of the Edition;
+- `x-robots-tag: noindex, follow` on production;
+- the Edition left out of the sitemap index;
+- search of the Edition only under This Edition.
+
+## List a Legacy version
+
+A version whose docs never moved to WSO2 Docs is a Legacy version. The team lists it with its old site:
+
+```yaml
+legacyVersions:
+  - { id: 7.1.0, url: 'https://is.docs.wso2.com/en/7.1.0/' }
+```
+
+It shows in the version dropdown under the old site, and has no Docs deployment. Its WSO2 Docs addresses, such as `/identity-server/7.1.0/guides/mfa/`, answer 302 to its `url`. Compose it as above. To bring it onto WSO2 Docs later, the team moves it to `editions`, with its release branch, and releases it.
+
+## Send an Edition back to its old site
+
+When an Edition on WSO2 Docs becomes a Legacy version, or is removed:
+
+1. The team moves it from `editions` to `legacyVersions`, with its old site's `url`, or deletes it.
+2. Compose now, as above. Until its Docs deployment is taken down, it still serves, and every flip and manifest change warns:
+
+   ```text
+   warning: identity-server/7.2.0 is deployed, but 7.2.0 is no longer an Edition of identity-server; take it down with wso2-release retire --deployment identity-server/7.2.0
+   ```
+
+3. Take the Docs deployment down, with the staging bucket's credentials:
+
+   ```bash
+   node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json
+   node bin/wso2-release.mjs retire --storage s3://docs-staging --env staging --policy composed.json --deployment identity-server/7.2.0
+   ```
+
+   `retire` refuses an Edition the manifest still lists, live or end of life. From now on, every address of a Legacy version, such as `/identity-server/7.2.0/guides/mfa/`, answers 302 to its old site's `url`, because the Edge Worker finds no Docs deployment for it. A removed Edition's addresses answer 404.
+
+4. Drop its redirects and its search records:
+
+   ```bash
+   node bin/wso2-release.mjs redirects --storage s3://docs-staging --kv cloudflare:<redirects-kv-id>
+   node bin/wso2-release.mjs search-check --env staging --storage s3://docs-staging --policy composed.json --fix
+   ```
+
+5. If the Edition was the newest release, `/latest/` must follow the new first Self-hosted Edition. Rebuild the Doc space: see [Rebuild Docs deployments](run-a-docs-release.mdx#rebuild-docs-deployments).
+
+To rehearse it locally, run steps 3 and 4 against [WSO2 Docs running locally](run-it-locally.mdx), with `--kv local:http://127.0.0.1:4721` and `--env local`.
+
+## Verify
+
+1. `<staging-host>/manifest.json` lists the Edition with `"status": "end-of-life"`, or with `"status": "legacy"` and its `legacyUrl`.
+2. For an end-of-life Edition, its pages still answer 200, and `<staging-host>/sitemap.xml` no longer lists it.
+3. For a Docs deployment taken down, `status` no longer lists it, and `search-check` reports no orphans. Its addresses answer 302 to its `legacyUrl` if it became a Legacy version, or 404 if it was removed:
+
+   ```bash
+   curl -sI https://<staging-host>/identity-server/7.2.0/guides/mfa/ | grep -i '^location'
+   ```
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| The notice doesn't show | Compose hasn't run since the merge. Run **Manifests**. |
+| `retire`: `… is still an Edition in the manifest` | The team's change isn't composed, or it marks the Edition end of life, which keeps it. Run **Manifests** first. |
+| `<space>: policy says latest is 7.3.0 but the deployed latest twin is 7.2.0; rebuild the Doc space` | Rebuild the Doc space, so `/latest/` serves the newest release |
+| `unknown-edition` for a notice | A team notice still names the Edition. The team removes it from the notice. |
+
+## Next steps
+
+- [Roll back a Docs release](roll-back-a-release.mdx)
+- [Write your Doc space manifest](../product-teams/write-the-manifest.mdx#hold-or-end-an-edition)

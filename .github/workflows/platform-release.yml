@@ -1,0 +1,111 @@
+# Platform release: a v<major>.<minor>.<patch> tag on main (Platform releases).
+#   1. checks the tag: it matches package.json, it is on main (or, for a fix
+#      to an older major, on its releases/v<major> branch), and CI passed on
+#      its commit;
+#   2. publishes @wso2/docs to npm with trusted publishing (OIDC: no npm token
+#      is stored anywhere; npm adds provenance itself once this repo is
+#      public);
+#   3. moves the major's tag (v1 for 1.4.0) to it, when it is the newest
+#      release of that major. v1 is a tag, not a branch, as GitHub Actions
+#      refs go: Content repos check out and call the Platform at it;
+#   4. makes the GitHub release, with generated notes;
+#   5. rebuilds the Docs deployments whose Content repo pins that major
+#      (Release docs, scope all, at this tag), when the major's tag moved.
+# Re-running it is safe: a version already on npm and an existing GitHub
+# release are left as they are.
+# PENDING INFRA: on npmjs.com, @wso2/docs needs a trusted publisher for
+# tharindulak/test-docs-platform, workflow platform-release.yml, environment npm; and the
+# repository needs the npm environment (with required reviewers, if wanted).
+name: Platform release
+run-name: "Platform release ${{ github.ref_name }}"
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: write   # move the major tag, make the GitHub release
+      id-token: write   # npm trusted publishing
+      actions: write    # read CI's result, dispatch Release docs
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
+      - run: npm install -g npm@^11.5.1
+      - run: npm ci
+      - id: check
+        name: Check the tag (version, main line, CI)
+        run: |
+          node bin/wso2-release.mjs platform-release --tag "$TAG" > "$RUNNER_TEMP/release.json"
+          cat "$RUNNER_TEMP/release.json"
+          major_tag=$(jq -r .majorTag "$RUNNER_TEMP/release.json")
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || git merge-base --is-ancestor "$GITHUB_SHA" "origin/releases/$major_tag" 2>/dev/null \
+            || { echo "::error::$TAG is on neither main nor releases/$major_tag"; exit 1; }
+          passed=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --status success --json databaseId --jq length)
+          [ "$passed" -gt 0 ] || { echo "::error::CI has not passed on $GITHUB_SHA; wait for it, then re-run this run"; exit 1; }
+          {
+            echo "version=$(jq -r .version "$RUNNER_TEMP/release.json")"
+            echo "major-tag=$(jq -r .majorTag "$RUNNER_TEMP/release.json")"
+            echo "move-major=$(jq -r .moveMajor "$RUNNER_TEMP/release.json")"
+          } >> "$GITHUB_OUTPUT"
+      - name: Publish @wso2/docs to npm
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          if [ -n "$(npm view "@wso2/docs@$VERSION" version 2>/dev/null)" ]; then
+            echo "@wso2/docs@$VERSION is already on npm"
+          else
+            npm publish --access public
+          fi
+      - name: Move the major tag
+        if: steps.check.outputs.move-major == 'true'
+        env:
+          MAJOR_TAG: ${{ steps.check.outputs.major-tag }}
+        run: |
+          git tag -f "$MAJOR_TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$MAJOR_TAG"
+      - name: GitHub release
+        run: gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
+      # A release made with the workflow token starts no workflow, so the
+      # rebuild is dispatched here (workflow_dispatch is the exception).
+      - name: Rebuild the Docs deployments pinned to this major
+        if: steps.check.outputs.move-major == 'true'
+        run: gh workflow run release.yml --ref "$TAG" -f scope=all
+      - name: Summary
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+          MAJOR_TAG: ${{ steps.check.outputs.major-tag }}
+          MOVED: ${{ steps.check.outputs.move-major }}
+        run: |
+          {
+            echo "## Platform release $TAG"
+            echo
+            echo "- npm: \`@wso2/docs@$VERSION\`"
+            if [ "$MOVED" = true ]; then
+              echo "- \`$MAJOR_TAG\` now points at $TAG"
+              echo "- Release docs (scope all) dispatched at $TAG"
+            else
+              echo "- \`$MAJOR_TAG\` stays on a newer release; nothing rebuilt"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

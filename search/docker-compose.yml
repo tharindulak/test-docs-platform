@@ -1,0 +1,14 @@
+# Local search for `wso2-docs preview --search`: the same Typesense the Pilot
+# runs on staging. The key below is for local use only. Set
+# WSO2_DOCS_SEARCH_PORT when 8108 is taken.
+name: wso2-docs-search
+services:
+  typesense:
+    image: typesense/typesense:30.2
+    command: --data-dir /data --api-key=local-preview-key --enable-cors --enable-search-analytics=true --analytics-dir /data/analytics --analytics-flush-interval 60
+    ports:
+      - "127.0.0.1:${WSO2_DOCS_SEARCH_PORT:-8108}:8108"
+    volumes:
+      - typesense-data:/data
+volumes:
+  typesense-data:

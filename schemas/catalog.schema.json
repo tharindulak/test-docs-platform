@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.wso2.com/schemas/catalog.schema.json",
+  "title": "Catalog data file",
+  "description": "A data file that feeds a page with the catalog layout (a searchable grid), for example connectors.yaml. Generated upstream and committed to the Content repo by bot PR; the build reads only the committed file.",
+  "type": "object",
+  "required": ["schemaVersion", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "categories": {
+      "type": "array",
+      "description": "The filter chips, in order.",
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "additionalProperties": false,
+        "properties": { "id": { "$ref": "#/$defs/id" }, "label": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description", "href"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "href": { "type": "string", "pattern": "^(docs:|https?://|/|\\./|\\.\\./|[a-z0-9][^:]*$)", "description": "A docs: link, a page path in this Doc space (docs/<path>), a path relative to the data file (./, ../) or a URL." },
+          "links": {
+            "type": "array",
+            "description": "More links on the card, after href: the connector store, the source repository.",
+            "items": {
+              "type": "object",
+              "required": ["label", "url"],
+              "additionalProperties": false,
+              "properties": {
+                "label": { "type": "string", "minLength": 1 },
+                "url": { "type": "string", "pattern": "^(docs:|https?://|/|\\./|\\.\\./|[a-z0-9][^:]*$)" }
+              }
+            }
+          },
+          "category": { "$ref": "#/$defs/id" },
+          "tags": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+          "logo": { "type": "string", "pattern": "^(assets/|/)", "description": "An image under the Doc space's assets/." },
+          "status": { "enum": ["ga", "beta", "deprecated"] },
+          "editions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Limits the item to these Editions (cloud, self-hosted or a version)." }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$" }
+  }
+}

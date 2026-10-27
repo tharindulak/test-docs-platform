@@ -1,0 +1,56 @@
+# Deploys the Edge Worker (worker/) from this repo, the only edge config.
+# PENDING INFRA (ticket 15): needs CLOUDFLARE_ACCOUNT_ID (variable) and
+# CLOUDFLARE_API_TOKEN (secret) in each environment, plus the real KV IDs in
+# worker/wrangler.jsonc. Until the account variable exists, the jobs skip.
+name: Edge Worker
+
+on:
+  push:
+    branches: [main]
+    paths: [worker/**]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edge-worker
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    if: vars.CLOUDFLARE_ACCOUNT_ID != ''
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --import ./test/setup.mjs --test test/worker.test.mjs
+      - name: Deploy to staging
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy -c worker/wrangler.jsonc --env staging
+
+  # OFF for the Pilot (no production cutover).
+  production:
+    needs: staging
+    if: vars.DOCS_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Deploy to production
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy -c worker/wrangler.jsonc --env production

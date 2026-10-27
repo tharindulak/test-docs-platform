@@ -1,0 +1,19 @@
+# Contribute: the public, unversioned, Platform-wide Doc space at
+# docs.wso2.com/contribute/, built from the Platform's standards source.
+# Doc space manifest (schemas/docspace.schema.json). It belongs to no Docs
+# section and is in no products menu: readers reach it from the footer and the
+# Landing page, so it is listed as no section's (listed: false). Unlike other
+# Unlisted Doc spaces it is indexed and in the sitemap index, as an explicit
+# exception (indexed: true; Chrome: products menu, section menu and two
+# version selectors).
+schemaVersion: 1
+slug: contribute
+displayName: Contribute
+model: unversioned
+listed: false
+indexed: true
+owners:
+  team: docs-standards   # the docs standards owner (to be named) and product reps
+repo: wso2/docs-platform
+issues:
+  repo: wso2/docs-platform

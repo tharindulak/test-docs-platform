@@ -1,0 +1,133 @@
+/* "Copy page" menu: pinned to the top right of the doc, beside the title. */
+:global(.theme-doc-markdown):has([data-page-actions]) {
+  position: relative;
+}
+
+:global(.theme-doc-markdown):has([data-page-actions]) > header h1,
+:global(.theme-doc-markdown):has([data-page-actions]) > h1:first-of-type {
+  padding-right: 9.5rem;
+}
+
+.root {
+  position: absolute;
+  top: 0.35rem;
+  right: 0;
+  z-index: 3;
+}
+
+.group {
+  display: inline-flex;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-button-border-radius, 6px);
+  background: var(--ifm-background-surface-color);
+  overflow: hidden;
+}
+
+.main,
+.toggle {
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ifm-font-color-base);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0.3rem 0.65rem;
+  line-height: 1.4;
+}
+
+.main {
+  min-width: 6.5rem;
+}
+
+.toggle {
+  border-left: 1px solid var(--ifm-color-emphasis-300);
+  padding: 0.3rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.main:hover,
+.toggle:hover,
+.item:hover,
+.item:focus {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.main:focus-visible,
+.toggle:focus-visible,
+.item:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: -2px;
+}
+
+.status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  min-width: 15rem;
+  padding: 0.25rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius, 6px);
+  background: var(--ifm-background-surface-color);
+  box-shadow: var(--ifm-global-shadow-md);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  border: 0;
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.item:hover {
+  text-decoration: none;
+  color: var(--ifm-font-color-base);
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Narrow screens: the menu sits under the title instead of beside it. */
+@media (max-width: 600px) {
+  :global(.theme-doc-markdown):has([data-page-actions]) > header h1,
+  :global(.theme-doc-markdown):has([data-page-actions]) > h1:first-of-type {
+    padding-right: 0;
+  }
+
+  .root {
+    position: relative;
+    top: 0;
+    display: flex;
+    justify-content: flex-start;
+    margin: -0.75rem 0 1rem;
+  }
+
+  .menu {
+    left: 0;
+    right: auto;
+  }
+}

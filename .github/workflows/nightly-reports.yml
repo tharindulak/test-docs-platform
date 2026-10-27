@@ -1,0 +1,166 @@
+# Nightly report-only jobs (Quality gates for Docs releases, after deploy):
+# a full crawl of every live deployment including external links, axe
+# accessibility checks (a sample nightly, everything on Sundays), the
+# search-index consistency check, and the lint count per Content repo (report
+# only during the Pilot; at cutover the counts become the baseline). Nothing
+# here blocks. Results go to the job summaries; posting them to the Doc space
+# owners waits on a channel decision.
+name: Nightly docs reports
+
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Production is off for the Pilot, so the reports read staging.
+  REPORT_HOST: ${{ vars.DOCS_REPORT_HOST || 'https://docs-staging.wso2.com' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      deployments: ${{ steps.m.outputs.deployments }}
+      repos: ${{ steps.m.outputs.repos }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content" --github-env
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      - id: m
+        run: |
+          node bin/wso2-reports.mjs matrix > matrix.json
+          echo "deployments=$(jq -c '{include: .deployments}' matrix.json)" >> "$GITHUB_OUTPUT"
+          echo "repos=$(jq -c '{include: .repos}' matrix.json)" >> "$GITHUB_OUTPUT"
+
+  crawl:
+    needs: plan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.deployments) }}
+    steps:
+      - name: Full crawl with external links (linkinator)
+        env:
+          URL: ${{ env.REPORT_HOST }}${{ matrix.path }}
+        run: |
+          npx --yes linkinator@6.1.2 "$URL" --recurse --check-fragments --timeout 20000 --retry --format csv > crawl.csv || true
+          broken=$(awk -F, 'NR > 1 && $2 != "200" && $3 == "BROKEN"' crawl.csv | wc -l)
+          {
+            echo "## Crawl of ${{ matrix.space }}/${{ matrix.segment }}"
+            echo
+            echo "$broken broken links. First 50:"
+            echo
+            echo '```text'
+            awk -F, 'NR > 1 && $3 == "BROKEN" {print $2, $1, "(on", $4 ")"}' crawl.csv | head -50
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crawl-${{ matrix.space }}-${{ matrix.segment }}
+          path: crawl.csv
+          retention-days: 14
+
+  accessibility:
+    needs: plan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.deployments) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content" --github-env
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      - name: axe on a sample (every page on Sundays)
+        env:
+          SITEMAP: ${{ env.REPORT_HOST }}${{ matrix.path }}sitemap.xml
+        run: |
+          sample=20
+          [ "$(date -u +%u)" = "7" ] && sample=0
+          node bin/wso2-reports.mjs a11y-urls --sitemap "$SITEMAP" --sample "$sample" > pa11y.json
+          npx --yes pa11y-ci@3.1.0 --config pa11y.json --json > a11y.json || true
+          {
+            echo "## Accessibility of ${{ matrix.space }}/${{ matrix.segment }}"
+            echo
+            jq -r '"\(.passes) of \(.total) pages passed; \(.errors) issues"' a11y.json || echo "pa11y-ci did not produce a report"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: a11y-${{ matrix.space }}-${{ matrix.segment }}
+          path: a11y.json
+          retention-days: 14
+
+  search-consistency:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      # Lands with Search on staging (ticket 30): compare each live
+      # deployment's _platform/search-records.json with its records in the
+      # shared Typesense index and report drift. Needs TYPESENSE_* (pending).
+      - name: Search-index consistency
+        run: echo "::notice::The search-index consistency check is not wired yet (Search on staging)."
+
+  lint-counts:
+    needs: plan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.repos) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: platform
+      - name: Check out the Content repo's main line
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repo }}
+          path: content
+          token: ${{ secrets.CONTENT_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - run: npm ci
+        working-directory: platform
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        run: node platform/scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content" --github-env
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      - name: Install Vale
+        run: |
+          curl -sSfL https://github.com/errata-ai/vale/releases/download/v3.24.0/vale_3.24.0_Linux_64-bit.tar.gz | tar xz -C "$RUNNER_TEMP" vale
+          echo "WSO2_DOCS_VALE=$RUNNER_TEMP/vale" >> "$GITHUB_ENV"
+      - name: Lint every page (report only)
+        run: |
+          node platform/bin/wso2-docs.mjs check content --no-build --lint-all --format json --out lint.json > /dev/null || true
+          {
+            echo "## Lint count: ${{ matrix.space }}"
+            echo
+            node platform/bin/wso2-reports.mjs lint-counts lint.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lint-${{ matrix.space }}
+          path: lint.json
+          retention-days: 30

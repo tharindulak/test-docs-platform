@@ -1,0 +1,31 @@
+# The common sidebar skeleton (WSO2 Docs information architecture, item 10).
+# Top-level docs/ folders must be one of these; products add sections below
+# the top level but don't rename these. Each folder sets the default page type.
+folders:
+  - id: get-started
+    label: Get started
+    position: 1
+    defaultType: quick-start
+  - id: guides
+    label: Guides
+    position: 2
+    defaultType: how-to
+  - id: concepts
+    label: Concepts
+    position: 3
+    defaultType: concept
+  - id: reference
+    label: Reference
+    position: 4
+    defaultType: reference
+  - id: deploy-and-operate
+    label: Deploy and operate
+    position: 5
+    defaultType: how-to
+    selfHostedOnly: true
+  - id: release-notes
+    label: Release notes
+    position: 6
+    defaultType: release-notes
+# Files allowed directly under docs/ besides the folders above.
+topLevelFiles: [index.md, index.mdx]

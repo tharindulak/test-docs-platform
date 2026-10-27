@@ -1,0 +1,22 @@
+# The Pilot in the target layout (Changes to the Pilot): what "Converter and
+# Content repos in the new layout" (ticket 15) and "Convert API Platform Cloud
+# and AI Gateway" (ticket 16) write to <repo>/<slug>/docspace.yaml on main.
+# test/compose.test.mjs composes it with navigation/ to prove the model.
+schemaVersion: 1
+slug: api-platform
+displayName: API Platform Cloud
+formerNames:
+  - Bijira
+editionNames:
+  cloud: API Platform Cloud
+home: api-platform
+owners:
+  team: api-platform-docs
+repo: wso2/docs-api-platform
+editLinks: false
+issues:
+  repo: wso2/docs-api-platform
+editions:
+  - id: cloud
+    parts:
+      - ai-gateway

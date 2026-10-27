@@ -1,0 +1,76 @@
+# The weekly digest per Doc space (Analytics and feedback): helpfulness by
+# page and top No reasons (Workers Analytics Engine), searches with no
+# results (Typesense analytics), the most frequent 404s (Edge Worker) and
+# pages with new reported issues (GitHub). A source without its credential
+# says "not available" in the digest. PENDING INFRA: the Analytics read token
+# and the Typesense analytics key. Posting to the owners waits on a channel
+# decision; the digest is in the job summary and the artifact.
+name: Weekly docs digest
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which environment's analytics to read
+        type: choice
+        options: [production, staging]
+        default: production
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      spaces: ${{ steps.m.outputs.spaces }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content" --github-env
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      - id: m
+        run: |
+          echo "spaces=$(node bin/wso2-reports.mjs matrix | jq -c '{include: [.spaces[] | {space}]}')" >> "$GITHUB_OUTPUT"
+
+  digest:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.spaces) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content" --github-env
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      - name: Build the digest
+        env:
+          SPACE: ${{ matrix.space }}
+          ENVIRONMENT: ${{ inputs.environment || 'production' }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
+          TYPESENSE_HOST: ${{ vars.TYPESENSE_HOST }}
+          TYPESENSE_API_KEY: ${{ secrets.TYPESENSE_ANALYTICS_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node bin/wso2-reports.mjs digest --space "$SPACE" --env "$ENVIRONMENT" --out digest >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.space }}
+          path: digest
+          retention-days: 90

@@ -1,0 +1,139 @@
+# Docs bundle (reusable; Releases and deployments, Docs bundles): turns one
+# Docs release tag of a Content repo into its Docs bundle, attached to a
+# GitHub Release named after the tag. A Content repo's docs.yml calls it with
+# the tag right after making it (its `release` and `release-tag` jobs), as
+#   uses: tharindulak/test-docs-platform/.github/workflows/docs-bundle.yml@v1
+# granting contents: write, id-token: write and attestations: write. Then:
+#   1 check the tagged commit: `wso2-docs check --release --no-lint` (the
+#     blocking checks and the strict build of the tag's Edition)
+#   2 pack: `wso2-docs bundle`, which checks again what goes in (nothing
+#     outside the packed directories, no symlinks, at most 1 GiB and 30,000
+#     files, content safety) and writes <slug>-<tag without its prefix>.docs.zip
+#   3 attest the zip with build provenance
+#   4 publish the GitHub Release: the zip, its sha256 and the source commit in
+#     the notes; never latest, never a prerelease. A draft first, then
+#     published, since an immutable release locks its assets when published.
+# The code that checks and packs is always the Platform's at v1 (the same
+# moving tag as the caller's PLATFORM_REF), never the caller's choice, so one
+# tag moves this workflow and its code together, and intake trusts only
+# attestations signed by this file at refs/tags/v1. A fork of the Platform
+# (the proof on tharindulak/test-docs-platform) changes PLATFORM_REPO below.
+# PENDING INFRA: while tharindulak/test-docs-platform is private, the caller passes a
+# read-only DOCS_PLATFORM_READ_TOKEN secret (public: none needed).
+name: Docs bundle
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The Docs release tag, [<doc space>/]<version>-docs.<n> or [<doc space>/]cloud-<YYYY.MM.DD>.<n>
+        type: string
+        required: true
+    secrets:
+      DOCS_PLATFORM_READ_TOKEN:
+        required: false
+
+permissions: {}
+
+env:
+  PLATFORM_REPO: tharindulak/test-docs-platform
+  PLATFORM_REF: v1
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: docs-bundle-${{ github.repository }}-${{ inputs.tag }}
+      cancel-in-progress: false
+    permissions:
+      contents: write     # the GitHub Release
+      id-token: write     # sign the provenance attestation
+      attestations: write
+    steps:
+      - name: Check the tag's name
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          re='^([a-z0-9][a-z0-9-]*/)?(cloud-[0-9]{4}\.[0-9]{2}\.[0-9]{2}|([0-9]+\.[0-9]+\.[0-9]+|[0-9]{4}\.[0-9]{2}\.[0-9]{2})-docs)\.[0-9]+$'
+          [[ "$TAG" =~ $re ]] || { echo "::error::$TAG is not a Docs release tag"; exit 1; }
+      - name: Check out the Content repo at the tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          path: content
+          # main too, for bundle.json's list of files on main ("Edit this page").
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the Platform at v1
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PLATFORM_REPO }}
+          ref: ${{ env.PLATFORM_REF }}
+          path: platform
+          token: ${{ secrets.DOCS_PLATFORM_READ_TOKEN || github.token }}
+          persist-credentials: false
+      # No npm cache: what this job signs comes from fresh checkouts and the
+      # registry only, never from a cache another run could have written.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: platform
+      - name: Work out the Doc space and the Edition
+        id: what
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          read -r dir edition < <(node --input-type=module -e "
+            import { docSpaceDirs } from './platform/lib/content-repo.mjs';
+            import { loadContentRepo } from './platform/lib/content.mjs';
+            import { editionFromTag, parseTag } from './platform/lib/release.mjs';
+            const tag = process.argv[1];
+            const dirs = docSpaceDirs('content');
+            const { prefix } = parseTag(tag);
+            const d = prefix ? dirs.find((x) => (x.docspace.slug ?? x.dir) === prefix) : dirs.length === 1 ? dirs[0] : null;
+            if (!d) throw new Error('No Doc space directory for tag ' + tag);
+            const { model } = loadContentRepo('content/' + d.dir).docspace;
+            console.log(d.dir, model === 'unversioned' ? '_' : editionFromTag(tag, model));
+          " "$TAG")
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "edition=$edition" >> "$GITHUB_OUTPUT"
+      - name: Check the tagged commit (blocking checks and the strict build)
+        env:
+          DIR: ${{ steps.what.outputs.dir }}
+          EDITION: ${{ steps.what.outputs.edition }}
+        run: node platform/bin/wso2-docs.mjs check "content/$DIR" --release --no-lint --edition "$EDITION"
+      - name: Pack the bundle
+        id: bundle
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          node platform/bin/wso2-docs.mjs bundle content --tag "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --out "$RUNNER_TEMP/bundle" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ runner.temp }}/bundle/${{ steps.bundle.outputs.asset }}
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          ASSET: ${{ steps.bundle.outputs.asset }}
+          SHA256: ${{ steps.bundle.outputs.sha256 }}
+          COMMIT: ${{ steps.bundle.outputs.source-commit }}
+          SPACE: ${{ steps.bundle.outputs.doc-space }}
+          EDITION: ${{ steps.bundle.outputs.edition }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -eu
+          # shellcheck disable=SC2016 # the backticks are Markdown code spans
+          notes=$(printf 'Docs bundle of %s, Edition %s.\n\n- Asset: `%s`\n- sha256: `%s`\n- Source commit: `%s`\n- Made by: %s\n' \
+            "$SPACE" "$EDITION" "$ASSET" "$SHA256" "$COMMIT" "$RUN_URL")
+          gh release create "$TAG" "$RUNNER_TEMP/bundle/$ASSET" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "$TAG" --notes "$notes" --draft --latest=false
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false --prerelease=false
+          {
+            echo "## Docs bundle $TAG"
+            echo
+            echo "- \`$ASSET\`, sha256 \`$SHA256\`, from \`$COMMIT\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,32 @@
+# Admonition rules (Documentation standards section 4). Docusaurus's five
+# built-in types only; the migration maps MkDocs types onto them.
+types:
+  - id: note
+    use: A useful aside.
+  - id: tip
+    use: A better or faster way.
+  - id: info
+    use: Background or context.
+  - id: warning
+    use: Could cause errors, security exposure or downtime.
+  - id: danger
+    use: Irreversible, or risks data loss.
+limits:
+  maxInARow: 2
+  rules:
+    - No more than two admonitions in a row.
+    - Don't put content that belongs in the main text in an admonition.
+    - Don't repeat the paragraph above it.
+# MkDocs admonition types and what they became in the migration.
+migration:
+  abstract: info
+  example: note
+  important: warning
+  caution: warning
+  attention: warning
+  hint: tip
+  success: tip
+  question: note
+  failure: warning
+  bug: warning
+  quote: note

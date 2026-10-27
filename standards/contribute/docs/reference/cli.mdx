@@ -1,0 +1,105 @@
+---
+title: The wso2-docs command
+description: Every command and option of npx @wso2/docs, the command-line tool for previewing, creating and checking pages.
+type: reference
+sidebar_position: 6
+---
+
+`npx @wso2/docs` runs the WSO2 Docs Platform from a Content repository checkout. The repository stays content-only: npx keeps the Platform in its own cache.
+
+`preview`, `check` and `build` need the Deployment manifest with your Doc space in it. By default they take the published manifest, `docs-staging.wso2.com/manifest.json`, and compose your repository's own Doc space manifests into it. You need no other checkout. As on the live site, the menus built into each page list only the Doc spaces the published manifest has deployed, plus your own.
+
+| Option or variable | Description |
+|---|---|
+| `--published <URL or file>` | The published manifest to start from. Default: `WSO2_DOCS_PUBLISHED_MANIFEST`, else staging's. A copy is kept, and used when the host can't be reached. |
+| `WSO2_DOCS_CONTENT_REPOS` | A folder of Content repository checkouts. If set, the manifest is composed from their `main` lines instead, to test a change across repositories. |
+| `--manifest <file>` | A composed Deployment manifest, used as it is |
+| `--deployed <file>` | The deployment state the built-in menus follow: an environment's `_platform/state.json` (`wso2-release status`) or a published `manifest.json`. Default: the published manifest, when the Deployment manifest is composed from it. With `--manifest` and no `--deployed`, the menus list every Doc space in the manifest. |
+
+## `init`
+
+Start a Doc space: write `<slug>/` from the Platform's template, `templates/content-repo/`. In a folder with no Doc space yet, `init` also writes the repository's root files. In a repository with Doc spaces, it adds a README row and a `CODEOWNERS` line for the new directory and brings the template's workflows and editor settings up to date. Run again, it changes nothing there. It stops without writing anything if `<slug>/` exists.
+
+| Option | Description |
+|---|---|
+| `<slug>` | The Doc space's slug, such as `agent-manager`. Required. |
+| `--repo <path>` | The repository's root. Default: the current folder. |
+| `--title <name>` | The Doc space's name. Default: made from the slug. |
+| `--home <section>` | The home Docs section, such as `api-platform`. Default: the home of the repository's other Doc spaces. |
+| `--team <team>` | `owners.team`. Default: the repository's team, else `<slug>-docs`. |
+| `--github <owner/name>` | The repository in `docspace.yaml`. Default: the other Doc spaces' `repo`, the `origin` remote, else `wso2/<folder name>`. |
+| `--cloud` | A Cloud Edition. The default when `--self-hosted` isn't given. |
+| `--self-hosted <version>` | A first Self-hosted Edition, such as `1.0.0`. Add `--cloud` for both. |
+| `--root-files` | With no slug: only bring the Platform-managed root files (workflows, branch ruleset, editor settings) up to date with this Platform version's template, and list what changed. README, `CODEOWNERS` and the Doc space directories are left alone. |
+
+
+## `preview`
+
+Live preview of one Edition with hot reload.
+
+| Option | Description |
+|---|---|
+| `--edition <id>` | `cloud`, `next` or a version. Default: from the git branch. |
+| `--only <folder>` | Load only this `docs/` folder |
+| `--exact` | Render exactly as published |
+| `--search` | Start local search with Docker Compose |
+| `--port <n>` | Dev server port |
+
+## `new`
+
+Create a page from a page-type template.
+
+| Option | Description |
+|---|---|
+| `<type>` | `quick-start`, `tutorial`, `how-to`, `concept`, `reference` or `release-notes` |
+| `--title <text>` | The page title, in sentence case. Required. |
+| `--description <text>` | One sentence of at most 160 characters |
+| `--folder <path>` | The folder under `docs/`. Default: the page type's folder. |
+| `--file <name>` | The file name. Default: the title in kebab case. |
+
+## `check`
+
+Run the pull request's checks against your working copy.
+
+| Option | Description |
+|---|---|
+| `--base <ref>` | Compare with this branch or commit. Default: where your branch left `main` or its release branch. |
+| `--edition <id>` | The Edition to build. Default: from the git branch. |
+| `--no-build` | Skip the preview build |
+| `--no-lint` | Skip the warn-only lint |
+| `--routes <dir or URL>` | Where to find other deployments' route lists, for `docs:` links. Default: staging. |
+| `--format text\|json` | Output format |
+| `--out <file>` | Also write the JSON report to a file |
+| `--override` | Report policy-check failures as overridden (set by the `quality-override` label) |
+| `--published <URL or file>` | The published manifest to compose with, as for `preview` |
+| `--vale-config` | Print the path of a Vale configuration for your editor, then exit |
+
+The command exits with code 1 when a blocking check fails, and 0 otherwise.
+
+## `branch-cut`
+
+Make the Branch cut of a new Self-hosted version. It uses git only: nothing is pushed, and your checkout and working tree are left as they are.
+
+1. It makes the version's branch from `main`, a plain copy whose Edition markers stay: `<doc space>/release/<version>`, or `release/<version>` in a repository with one Doc space that keeps unprefixed branches.
+2. On a new branch from `main`, `branch-cut/<doc space>/<version>`, it commits the removal of every `selfHostedFrom` marker of that version or an older one, for a pull request to `main`.
+3. It prints the branch cut report: what is still `next`, what ships in the version, what is held for a later version, and every marker change on `main`. Each `next` block is also a warning.
+
+| Option | Description |
+|---|---|
+| `<doc space> <version>` | The Doc space's directory and the new version, such as `identity-server 7.4.0`. Required, unless `--branch` is given. |
+| `--repo <path>` | The repository's root. Default: the current folder. |
+| `--branch <name>` | The release branch exists already, such as one created on GitHub: make only the commit on `main` and the report. The Docs workflow runs this when a release branch is created. |
+| `--from <ref>` | Cut from this ref. Default: `main`. |
+| `--dry-run` | Print the report only: no branch and no commit |
+| `--report <file>` | Also write the report, in Markdown, to a file |
+| `--format json` | Print the report's data as JSON |
+
+The command refuses a version that isn't exact, a version not newer than the Doc space's newest release, and a branch that exists already.
+
+## `build`
+
+Build one Docs deployment, as the release pipeline does. Used by CI.
+
+| Option | Description |
+|---|---|
+| `--show-markers` | A preview build with Edition markers shown and **Preview as** in the toolbar, as `preview` renders it. Pull request previews use it. Refused with `--env production` and `--as-latest`, and a release refuses the build. |

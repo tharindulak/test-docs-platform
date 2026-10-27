@@ -1,0 +1,92 @@
+# Extension proposal (Extension points for product teams, decision 8): how a
+# team asks the Platform for something its Content repo cannot hold. Content
+# repos stay code-free, so a new component, page layout, data-file schema,
+# manifest field, menu-entry kind or build step lives in the Platform, open to
+# every team. The Platform team reviews the proposal, then the pull request.
+# The catalogue it joins: standards/components.yaml (Contribute's
+# reference/components/ page).
+name: Extension proposal
+description: Propose a component, page layout, data file, manifest field, menu-entry kind or build step for the WSO2 Docs Platform.
+title: "Extension proposal: "
+labels: ["extension-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [component catalogue](https://docs.wso2.com/contribute/reference/components/) first: an existing component or layout may already fit. There is no escape hatch (no raw HTML widgets, iframes or per-team CSS); until the Platform supports a need, link out.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of extension?
+      options:
+        - MDX component
+        - Page layout
+        - Data file (a new schema, or fields on one)
+        - Manifest field (Doc space, Docs section or navigation)
+        - Menu entry kind
+        - Build step or sync workflow (content generated upstream, committed as data)
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Proposed name
+      description: A generic name, not a product's (for example "Catalog", not "IS connectors").
+    validations:
+      required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: The need
+      description: What readers or writers cannot do today, and on which pages. Link a page or a sketch.
+    validations:
+      required: true
+  - type: textarea
+    id: why-not-existing
+    attributes:
+      label: Why the existing components and layouts do not fit
+    validations:
+      required: true
+  - type: input
+    id: doc-spaces
+    attributes:
+      label: Doc spaces that would use it first
+      description: Your team may be its first user.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data and source
+      description: Front matter, manifest fields or data files it reads, and where generated data comes from (generated upstream, synced by bot pull request; the build never runs a team's code).
+  - type: textarea
+    id: markdown-form
+    attributes:
+      label: Markdown form
+      description: What the page's Markdown twin should hold where the extension appears.
+    validations:
+      required: true
+  - type: textarea
+    id: accessibility
+    attributes:
+      label: Accessibility
+      description: Keyboard use, labels, colour contrast, what a screen reader announces, and how it will be checked.
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Owner
+      description: The team that keeps it once it ships.
+    validations:
+      required: true
+  - type: checkboxes
+    id: agree
+    attributes:
+      label: Before you open it
+      options:
+        - label: Manifest and data-file fields are only ever added, so builds made long ago keep working.
+          required: true
+        - label: Once merged, the extension ships in a Platform release and is open to every team.
+          required: true

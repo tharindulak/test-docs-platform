@@ -1,0 +1,23 @@
+# The Doc space manifest on the main line of docs-api-platform, as the converter
+# writes it (Convert API Platform Cloud and AI Gateway, ticket 16), copied for
+# the tests of the Pilot as it is; test/content-repo.test.mjs keeps the two
+# equal. Compose reads the real checkouts (WSO2_DOCS_CONTENT_REPOS or
+# --content; by default the directory the Platform checkout sits in).
+schemaVersion: 1
+slug: api-platform
+displayName: API Platform Cloud
+formerNames:
+  - Bijira
+editionNames:
+  cloud: API Platform Cloud
+home: api-platform
+owners:
+  team: api-platform-docs
+repo: wso2/docs-api-platform
+editLinks: false
+issues:
+  repo: wso2/docs-api-platform
+editions:
+  - id: cloud
+    parts:
+      - ai-gateway

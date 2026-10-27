@@ -1,0 +1,70 @@
+---
+title: Fix a failed compose
+description: Find out why the compose step failed on main, who must fix it, and make the fix reach the published manifest, while the last good copy keeps WSO2 Docs working.
+type: how-to
+sidebar_position: 8
+---
+
+When the compose step fails on `main`, nothing breaks for readers: the last good composed manifest stays stored and published. But releases plan from that older copy, so a fix is needed soon. The failure is in the Manifests run, or in a Release docs run's plan job.
+
+## Prerequisites
+
+- You're on the Platform team, with access to the Platform's workflow runs.
+
+## Find the errors
+
+1. Open the failed run. A Manifests run fails at **Compose (keeps the last good manifest on failure)**. A Release docs run carries on: its compose step is allowed to fail, and its plan uses the last good copy.
+2. Read the annotations, or the step's log. Each error names its files and owning teams, and the run ends with the teams to tell:
+
+   ```text
+   error [latest] sandbox: latest is "9.9.9", which names no Edition
+       in wso2/docs-sandbox:sandbox/docspace.yaml (owners: docs-standards)
+   compose: failed with 1 blocking error; keeping the last good manifest (composed 2026-10-26T13:45:33.426Z)
+   compose: alert docs-standards
+   ```
+
+3. For the whole list, download the Manifests run's `compose` artifact and open `compose-report.json`. `keptLastGood` is `true` and `alert` names the teams. Each `code` is described, with its fix, in [Manifest checks](../../reference/product-teams/manifest-checks.mdx).
+
+## Get it fixed
+
+1. Tell each team in `alert`. Until a channel is chosen, open an issue in the repository that holds the file, and link the run.
+2. The fix is a pull request to the file the error names: a Doc space manifest in its Content repository, or a section manifest or the Platform navigation file in the Platform.
+3. When `main` broke because two pull requests passed alone but not together, either team's file can change. Agree with both which one.
+
+Meanwhile, Platform pull requests still run their compose check: errors already on `main` are listed as "not caused by this change" and don't block them.
+
+## Compose again
+
+A fix in the Platform composes when it merges. A fix in a Content repository reaches compose with its next Cloud release, or the next Docs release of any Doc space. Don't wait for either: in `wso2/docs-platform`, select **Actions** > **Manifests** > **Run workflow**, or:
+
+```bash
+gh workflow run manifests.yml --repo wso2/docs-platform
+```
+
+The run composes every Content repository's `main`, stores the result and publishes `manifest.json`. By hand, it compares with the stored copy and rebuilds the Doc spaces whose Editions or `latest` changed since.
+
+To rehearse it locally against [WSO2 Docs running locally](run-it-locally.mdx):
+
+```bash
+node bin/wso2-release.mjs compose --content ~/wso2-docs-local/repos --storage s3://docs-staging --out composed.json --report compose-report.json
+node bin/wso2-release.mjs manifest --storage s3://docs-staging --env staging --policy composed.json
+```
+
+## Verify
+
+1. The Manifests run ends with `compose: <n> Doc spaces, <n> Docs sections, <n> products not on WSO2 Docs yet; … stored _platform/composed.json`.
+2. `node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json` gives a copy whose `composedAt` is the run's time.
+3. A release that waited for the fix, such as one for a new Edition, now plans.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `missing-repo`, or the clone step fails | A repository in `contentRepos` can't be read: it has no `main`, or `CONTENT_READ_TOKEN` can't reach it |
+| `compose failed …, and there is no last good manifest to keep` | Nothing was ever stored in this bucket. Fix the errors, then compose. |
+| A Release docs run planned from an old manifest | Its compose step failed and kept the last good copy. Fix compose, then start the release again. |
+
+## Next steps
+
+- [Compose and the published manifest](../../concepts/platform-team/published-manifest.mdx)
+- [Manifest checks](../../reference/product-teams/manifest-checks.mdx)

@@ -1,0 +1,42 @@
+---
+title: Use the author skills
+description: Install the "Check my changes" and "Write a page" skills for your AI coding assistant.
+type: how-to
+sidebar_position: 8
+---
+
+Two skills help you follow the standards with an AI coding assistant such as Claude Code. Both are published from the Platform repository and kept in step with these pages.
+
+| Skill | What it does |
+|---|---|
+| Check my changes | Runs `npx @wso2/docs check`, explains each failure and offers fixes, then reviews your changed pages for style, structure for the page type, Edition markers, alt text and testable steps |
+| Write a page | Drafts or converts a page to the standards from your notes, a spec or a code change, in the right folder with the right front matter and markers |
+
+## Prerequisites
+
+- An AI coding assistant that reads `SKILL.md` skills, such as Claude Code.
+
+## Install the skills
+
+In Claude Code, add the Platform repository as a plugin marketplace and install the plugin:
+
+```text
+/plugin marketplace add wso2/docs-platform
+/plugin install wso2-docs@wso2-docs
+```
+
+For other assistants, copy the folders under `skills/` in the Platform repository into the assistant's skills folder. Don't copy them into a Content repository.
+
+## Use them
+
+1. Open the Content repository in your assistant.
+2. Ask "Check my changes", or "Write a how-to page about adding a passkey from these notes".
+3. Review what the skill changed before you commit. The skills never commit or push.
+
+## Verify
+
+The "Check my changes" skill ends with the result of `npx @wso2/docs check` and its review, grouped by page.
+
+## Next steps
+
+- [Check your changes](check-your-changes.mdx)

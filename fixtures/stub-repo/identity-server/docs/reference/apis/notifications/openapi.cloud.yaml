@@ -1,0 +1,211 @@
+openapi: 3.0.3
+info:
+  title: Notification API
+  version: 1.2.0
+  description: A small API used by the Platform tests.
+servers:
+  - url: https://{host}/api/notifications/v1
+    variables:
+      host:
+        default: localhost:9443
+security:
+  - OAuth2: [internal_notification_view]
+tags:
+  - name: Notifications
+    description: Send notifications and list the ones already sent.
+  - name: Templates
+    description: Manage notification templates.
+paths:
+  /notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: List notifications
+      description: Returns the notifications sent in the given period. MARKER-OP-DESCRIPTION
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - name: channel
+          in: query
+          required: true
+          description: Channel to list. MARKER-PARAM-CHANNEL
+          schema:
+            type: string
+            enum: [email, sms]
+        - name: X-Request-ID
+          in: header
+          required: true
+          description: Correlation ID for the request.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The notifications.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags: [Notifications]
+      operationId: sendNotification
+      summary: Send a notification
+      description: Sends a notification to one user. See [the guide](https://example.com/guide).
+      security:
+        - OAuth2: [internal_notification_send]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      responses:
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+  /notifications/{notificationId}:
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        description: ID of the notification. MARKER-PARAM-NOTIFICATION-ID
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Notifications]
+      summary: Delete a notification
+      responses:
+        '204':
+          description: Deleted.
+  /notifications/usage:
+    get:
+      tags: [Notifications]
+      operationId: getNotificationUsage
+      summary: Get notification usage
+      description: Usage for the organization's billing period. MARKER-CLOUD-ONLY-OPERATION
+      responses:
+        '200':
+          description: Usage.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    type: integer
+  /templates:
+    get:
+      tags: [Templates]
+      operationId: listTemplates
+      summary: List templates
+      responses:
+        '200':
+          description: The templates.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+  /templates/{templateId}/logo:
+    put:
+      tags: [Templates]
+      operationId: uploadTemplateLogo
+      summary: Upload a template logo
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          description: ID of the template.
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                altText:
+                  type: string
+      responses:
+        '200':
+          description: Uploaded.
+components:
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: Maximum number of results. MARKER-PARAM-LIMIT
+      schema:
+        type: integer
+        default: 25
+  responses:
+    BadRequest:
+      description: The request is not valid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://localhost:9443/oauth2/token
+          scopes:
+            internal_notification_view: View notifications
+            internal_notification_send: Send notifications
+  schemas:
+    Notification:
+      type: object
+      required: [recipient, channel]
+      description: A notification sent to one user. MARKER-SCHEMA-NOTIFICATION
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Assigned by the server.
+        recipient:
+          type: string
+          example: alex@example.com
+          description: Email address or phone number. MARKER-PROP-RECIPIENT
+        channel:
+          type: string
+          enum: [email, sms]
+          description: Where the notification goes.
+        template:
+          $ref: '#/components/schemas/Template'
+        delivery:
+          type: object
+          description: Delivery details.
+          properties:
+            attempts:
+              type: integer
+              description: Number of attempts. MARKER-PROP-NESTED
+    Template:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Template name.
+        locale:
+          type: string
+          default: en-US
+          description: Template locale.
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string

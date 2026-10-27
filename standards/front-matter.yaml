@@ -1,0 +1,61 @@
+# Front-matter schema (Documentation standards section 6, Quality gates).
+# Unknown keys fail the check, so a new key is added here first, by PR.
+keys:
+  title:
+    type: string
+    required: true
+    help: The page title, in sentence case. It is the H1 and the browser title.
+  description:
+    type: string
+    required: true
+    maxLength: 160
+    help: One sentence of at most 160 characters, used by search, cards and SEO.
+  type:
+    type: pageType
+    required: true
+    defaultFromFolder: true
+    help: The page type. May be left out where the skeleton folder sets a default.
+  sidebar_label:
+    type: string
+    help: A shorter label for the sidebar, in sentence case.
+  sidebar_position:
+    type: number
+    help: Order within the folder's sidebar group.
+  editions:
+    type: editions
+    help: Limits the page to `cloud` or `self-hosted` (an Edition marker for the whole page).
+  selfHostedFrom:
+    type: version
+    help: The first self-hosted version that has this page, or `next`.
+  layout:
+    type: enum
+    values: [default, overview, catalog, api-reference, complete-guide, sdk, connector]
+    help: "How the page is drawn, independently of its page type: `default`, `overview` (its sections of links become cards), `catalog` (a searchable grid of the items in its `data` file) or `api-reference` (an OpenAPI spec). `complete-guide`, `sdk` and `connector` come from the migration and are drawn as `default`. See the component catalogue."
+  data:
+    type: string
+    help: "Catalog pages (`layout: catalog`): the data file the grid shows, next to the page, such as `./connectors.yaml` (schema: catalog)."
+  spec:
+    type: string
+    help: "API pages (`layout: api-reference`): the OpenAPI file, such as `./openapi.yaml`."
+  server:
+    type: string
+    help: API pages only. The base URL shown in examples; `{edition.*}` variables work here.
+  tag:
+    type: string
+    help: API pages only. Makes this page one tag of a large API.
+  slug:
+    type: string
+    discouraged: true
+    help: Discouraged. The folder path is the URL, and slugs are permanent.
+  keywords:
+    type: stringList
+    help: Extra search keywords.
+  hide_table_of_contents:
+    type: boolean
+    help: Hides the table of contents on the right.
+  toc_max_heading_level:
+    type: number
+    help: The deepest heading level in the table of contents (2 to 6).
+  unlisted:
+    type: boolean
+    help: Builds the page without a sidebar entry or search listing (pages that were outside the legacy nav).

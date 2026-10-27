@@ -1,0 +1,54 @@
+# AI review of a Content repo PR (Quality gates for Docs releases, phase 2):
+# the "Check my changes" skill runs on the changed pages through the Claude
+# Code GitHub Action and posts comments and suggested edits. It never blocks,
+# skips bot PRs (converter, backports, marker clean-up) and never runs in a
+# Docs release build. Specified now, OFF until cutover: the Content repo's
+# docs.yml calls it only when vars.DOCS_AI_REVIEW_ENABLED is "true", and it
+# needs the ANTHROPIC_API_KEY secret (or WSO2's approved vendor instead).
+name: Docs AI review
+
+on:
+  workflow_call:
+    inputs:
+      platform-ref:
+        type: string
+        default: v1
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: ${{ !endsWith(github.actor, '[bot]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the Platform (skills and the check command)
+        uses: actions/checkout@v4
+        with:
+          repository: tharindulak/test-docs-platform
+          ref: ${{ inputs.platform-ref }}
+          path: .wso2-docs-platform
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: .wso2-docs-platform
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        run: node .wso2-docs-platform/scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content" --github-env
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Follow .wso2-docs-platform/skills/check-my-changes/SKILL.md on this pull request's changed pages,
+            using `node .wso2-docs-platform/bin/wso2-docs.mjs check . --base origin/${{ github.base_ref }} --no-build`
+            as the check command. Post your findings as review comments with suggested edits on the changed lines.
+            Do not approve or request changes, and do not push commits.

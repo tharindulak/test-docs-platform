@@ -1,0 +1,74 @@
+---
+title: Style guide
+description: The WSO2 Docs house style, written as deviations from the Microsoft Writing Style Guide.
+type: reference
+sidebar_position: 1
+---
+
+WSO2 Docs follows the [Microsoft Writing Style Guide](https://learn.microsoft.com/en-us/style-guide/welcome/). This page lists only where WSO2 Docs differs from it or adds to it. Where this page is silent, Microsoft's guide applies.
+
+## Base
+
+- The Microsoft Writing Style Guide is the base for everything not covered here.
+- Product names, retired names and preferred terms are in [Terminology](terminology.mdx).
+- Page structure is set by the [page type](../concepts/page-types.mdx).
+
+## Sentence case
+
+Use sentence case everywhere: page titles, every heading level, sidebar labels and category labels. Capitalize only the first word and proper nouns, such as product names.
+
+| Write | Not |
+|---|---|
+| Add multi-factor authentication | Add Multi-Factor Authentication |
+| Configure the WSO2 Identity Server console | Configure The WSO2 Identity Server Console |
+
+## Language and voice
+
+- US English.
+- Second person ("you"), present tense, active voice.
+- Contractions are fine: "don't", "it's", "you'll".
+- Keep sentences under 30 words and paragraphs under five sentences.
+- Start with the subject, not `There is` or `There are`.
+- Cut words that add nothing, such as `simply`, `just`, `very` and `quite`.
+
+## Formatting
+
+- **Bold** for UI labels, exactly as they appear: select **Save**.
+- `Code` for code, file paths, commands, configuration keys and values.
+- Placeholders are in capitals inside code formatting, such as `<IS_HOME>` or `<CLIENT_ID>`, and the text says what to put there.
+- Numbered lists for steps, with one action per step. Bulleted lists for everything else.
+
+## Links
+
+- Link text says where the link goes. Never `click here` or `this page`.
+- Link to pages in the same Doc space with relative file paths, such as `../guides/mfa.mdx#choose-a-factor`.
+- Link to other Doc spaces with `docs:` links, such as `docs:api-manager/latest/guides/`.
+
+## Code samples
+
+- Every code block has a language tag, such as `bash`, `yaml` or `json`. Use `text` for output.
+- Commands are copy-pasteable: no `$` prompt, and no output in the same block.
+- Test samples where you can.
+
+## Screenshots
+
+- PNG or WebP, cropped to the relevant part of the UI, in the light theme.
+- No personal or customer data.
+- At most 1 MB, and ideally under 300 KB.
+- Alt text says what the image shows, such as "The Applications page with the New application button".
+
+## Admonitions
+
+Use the five admonition types by meaning, at most two in a row. See [Admonitions](admonitions.mdx).
+
+## Writing for several Editions
+
+- Shared pages use `{edition.productName}` and the other `{edition.*}` variables, never a hard-coded product name.
+- Don't write "In Cloud…" or "Self-hosted only:" where an Edition marker can do the job.
+- A marked page reads correctly in every Edition it appears in.
+
+See [Write for several Editions](../guides/write-for-several-editions.mdx).
+
+## Page types
+
+Every page has one page type, set in its front matter. See [Page types](../concepts/page-types.mdx).

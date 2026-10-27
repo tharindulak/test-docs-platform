@@ -1,0 +1,6 @@
+moves:
+  - from: guides/multi-factor-auth
+    to: guides/mfa
+legacy:
+  - from: https://is.docs.wso2.com/en/7.3.0/guides/authentication/mfa/
+    to: guides/mfa

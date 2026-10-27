@@ -1,0 +1,68 @@
+---
+title: Version selectors and notices
+description: How the header selector and menu dropdowns choose an Edition, how they label it, and which notices readers see.
+type: concept
+sidebar_position: 2
+---
+
+Readers choose an Edition in the version selector next to the products button. A Docs section may also give a Doc space its own version dropdown in the menu. Both show one value for the Doc space being read.
+
+## How it works
+
+### The header selector
+
+The version selector sits next to the products button and is always shown for a Doc space with Editions. The button shows the short Edition, such as "Cloud" or "7.3.0".
+
+- It opens on Cloud when the Doc space has Cloud, its own or a Cloud part. Otherwise it opens on the newest release. A Cloud part counts once its platform's Cloud tree is deployed; until then the selector lists only the Self-hosted versions.
+- It lists the Editions in the order the Doc space manifest gives, Cloud first. Versions are never sorted, so `1.2.0` can come before `2026.09.24`.
+- Inside a Cloud part, it lists the component's Editions. On AI Gateway's part of API Platform Cloud, it lists Cloud, 1.2.0 and 2026.09.24.
+
+### Menu dropdowns
+
+A section entry set to `version-in: menu` also gets a dropdown on its line, aligned right. API Manager and AI Gateway have one in API Platform Documentation. A Doc space set to `version-in: header` has none; API Platform Cloud has only Cloud, so it uses the header.
+
+- For the Doc space being read, the menu dropdown and the header selector show the same Edition. Changing either changes both.
+- For any other Doc space, the dropdown shows where its selector opens. Choosing an Edition there opens that Doc space's home page in that Edition.
+- The menu never switches Editions on its own.
+
+### Labels
+
+| Label | When |
+|---|---|
+| Cloud | The Doc space's Cloud Edition, or its Cloud part |
+| Cloud (`<brand>`) | Cloud, where the Doc space manifest sets a `brand` |
+| 7.3.0 (newest release) | The newest Self-hosted version of a Doc space that has Cloud |
+| 4.7.0 (latest) | The newest Self-hosted version of a Doc space without Cloud |
+| Older versions (old site) | The heading over the Legacy versions. Each opens its old site in a new tab. |
+
+### Switching Editions
+
+- The reader stays on the same page in the new Edition.
+- A page that moved is followed through either Edition's `redirects.yaml`. The reader sees "This page has a different name in …".
+- A page the Edition doesn't have opens that Edition's home page, with "This page isn't in …. You're on its home page instead."
+- An explicit choice is remembered per Doc space. A reader who later arrives from a link or search gets a banner, never a redirect: "You usually read Identity Server 7.2.0. Open this page there?" The banner appears only when that Edition has the page.
+
+### The section the reader came through
+
+The products menu, a section's menu and the Landing page remember which section the reader chose, per Doc space, for the browser session. Moving between Docs deployments on WSO2 Docs keeps it. A page load from another site, such as a search engine, or with no referrer, such as a bookmark, forgets it. That reader sees the home section.
+
+## Notices
+
+Notices sit in the page area, between the title and the page actions. They work at every width.
+
+| Notice | Shown on | Text |
+|---|---|---|
+| Older release | A Self-hosted version that isn't the newest | "You're reading Identity Server 7.2.0. The newest release is 7.3.0, and Cloud has the newest features." with a link to the page in the newest release. Without Cloud, the second half is left out. |
+| Cloud | Cloud, in a Doc space that also has Self-hosted versions | "Cloud has the newest features. Some may not be in a release yet; the newest release is Identity Server 7.3.0." |
+| End of life | An Edition with `status: end-of-life` | The Edition's name, then "has reached end of life. It is no longer updated." For example: "API Manager 4.6.0 has reached end of life. It is no longer updated." |
+| Team notice | The Editions a notice in the Doc space manifest names | The team's own text, at `info` or `warning` level |
+
+The newest release and a Cloud-only Doc space show no version notice.
+
+Version notices are in the server-rendered page. Team notices come only from the published Deployment manifest, at page load, so a changed or ended notice never lingers in an old build. Readers without JavaScript don't see team notices.
+
+## Related
+
+- [How WSO2 Docs is organized](navigation-model.mdx)
+- [Place your Doc space in the navigation](../../guides/product-teams/place-your-doc-space.mdx)
+- [Show a notice to readers](../../guides/product-teams/show-a-notice.mdx)

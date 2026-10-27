@@ -1,0 +1,42 @@
+---
+title: Propose an extension
+description: Ask the Platform for a new component, Page layout, data file, manifest field, menu-entry kind or build step, with an extension proposal.
+type: how-to
+sidebar_position: 8
+---
+
+When your docs need something the Platform doesn't have, propose it. Once it ships, every team can use it.
+
+## Prerequisites
+
+- You've checked the [component catalogue](../../reference/components.mdx) and the [extension points](../../concepts/product-teams/extension-points.mdx). Nothing there does the job.
+- A GitHub account with access to `wso2/docs-platform`.
+
+## Open the proposal
+
+1. In `wso2/docs-platform`, open a new issue and choose **Extension proposal**.
+2. Fill in the form:
+   - the kind: component, Page layout, data file, manifest field, menu-entry kind or build step;
+   - a generic name, not a product's, such as "Catalog" rather than "IS connectors";
+   - the need, with a link to the pages or a sketch;
+   - why the existing components and layouts don't fit;
+   - the Doc spaces that would use it first;
+   - the data it reads and where that data comes from;
+   - its Markdown form: what the page's Markdown twin holds;
+   - how it works with a keyboard and a screen reader, and how that is checked;
+   - the team that will own it.
+3. Submit the issue. The Platform team reviews it.
+
+## Build it
+
+1. Once the Platform team agrees, open a pull request to the Platform with the extension. Your team may be its first user.
+2. Add its entry to `standards/components.yaml` and run `npm run standards`. That updates [Components and layouts](../../reference/components.mdx). A component missing from the catalogue fails the Platform's tests.
+3. Until it ships, link out from your pages. There is no escape hatch: no raw HTML widgets, iframes or per-team CSS.
+
+## Verify
+
+The extension ships in a Platform release. Its entry is in [Components and layouts](../../reference/components.mdx), and your pages use it.
+
+## Next steps
+
+- [Extension points](../../concepts/product-teams/extension-points.mdx)

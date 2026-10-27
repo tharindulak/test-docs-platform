@@ -1,0 +1,19 @@
+# A small Content repo used by the tests: Identity Platform Cloud's
+# directory, the family-level Cloud-only Doc space whose Cloud tree holds
+# Identity Server's main line as its Cloud part (../identity-server/).
+schemaVersion: 1
+slug: identity-platform
+displayName: Identity Platform Cloud
+formerNames: [Asgardeo]
+editionNames:
+  cloud: Identity Platform Cloud
+home: identity-platform
+owners:
+  team: identity-platform-docs
+repo: wso2/docs-identity-platform
+editLinks: false
+issues:
+  repo: wso2/docs-is
+editions:
+  - id: cloud
+    parts: [identity-server]

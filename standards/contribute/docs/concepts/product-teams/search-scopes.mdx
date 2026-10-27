@@ -1,0 +1,32 @@
+---
+title: Search scopes
+description: What a reader's search covers on your pages by default, how it widens, and how Cloud parts and Unlisted Doc spaces are found.
+type: concept
+sidebar_position: 6
+---
+
+A Search scope is how much of WSO2 Docs a reader's search covers. On a page in a Docs section, search covers that section by default. The reader can widen it to all of WSO2 Docs, or narrow it to one Doc space.
+
+## How it works
+
+| Scope | What it covers |
+|---|---|
+| The Docs section, such as "Identity Platform docs" (the default) | Every Doc space the section's menu lists. The Doc space being read is searched at the Edition being read. Each other Doc space is searched where its selector opens: Cloud first, else its newest release. An Edition the reader chose earlier doesn't change this. |
+| All of WSO2 Docs | It only widens: the section's Doc spaces at the same Editions, plus one Edition of every other Doc space, the one the reader last chose, else where its selector opens |
+| This Edition | The Edition being read. On a family Cloud page, only the family's own pages, not its Cloud parts. |
+| All Editions | Every live Edition of the Doc space being read. Not offered when the Doc space has one Edition. |
+
+- End-of-life Editions are searched only under This Edition.
+- The section is the one the menu shows: the section the reader came through, else the home section. It is read from the live Deployment manifest, so a menu change changes the scope with no rebuild.
+- A Cloud part's pages are found as the component's Cloud. For example, the AI Gateway pages in API Platform Cloud are "AI Gateway Cloud" results, and This Edition on them searches AI Gateway Cloud.
+- Each item of a catalog page is its own result, so a search can land on one connector.
+- Results from the newest release open under `/latest/`. `/latest/` itself and Legacy versions are never indexed.
+
+## Unlisted Doc spaces
+
+An Unlisted Doc space is searched only from inside itself: This Edition, and All Editions when it has more than one Edition. Its pages are in no other scope. Contribute is the exception: it is indexed (`indexed: true`), so its pages are also in All of WSO2 Docs.
+
+## Related
+
+- [How WSO2 Docs is organized](navigation-model.mdx)
+- [Preview and check a Doc space](../../guides/product-teams/preview-a-doc-space.mdx)

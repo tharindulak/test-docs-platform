@@ -1,0 +1,88 @@
+# Page types (Documentation standards and how they're promoted, section 5).
+# The single source for templates/<id>.mdx, `wso2-docs new`, the front-matter
+# schema, the Contribute "Page types" page and the author skills.
+# `wso2-docs new` writes this description until the writer replaces it; the
+# house-style lint warns while it is still there.
+placeholderDescription: Describe in one sentence what this page helps the reader do.
+pageTypes:
+  - id: quick-start
+    label: Quick start
+    purpose: A working result in about 15 minutes, with few choices.
+    folder: get-started
+    structure:
+      - One or two sentences on what the reader will have working at the end.
+      - "`## Before you start`: accounts, tools and versions, as a short list."
+      - One `##` section per stage, each a numbered list with one action per step.
+      - "`## See it work`: what the reader runs or opens to confirm the result."
+      - "`## Next steps`: two or three links onward."
+    review:
+      - Finishes in about 15 minutes, with defaults chosen for the reader.
+      - Every step is testable and produces a visible result.
+      - No branching paths or optional detours; link to how-to pages instead.
+  - id: tutorial
+    label: Tutorial
+    purpose: Learn by building something end to end.
+    folder: get-started
+    structure:
+      - What the reader will build and what they will learn.
+      - "`## Prerequisites`."
+      - One `##` section per stage of the build, each ending with a result the reader can check.
+      - "`## What you learned` and `## Next steps`."
+    review:
+      - Each stage ends with something the reader can see or run.
+      - Explains why at each stage, briefly; concepts link to concept pages.
+  - id: how-to
+    label: How-to
+    purpose: "One task: goal, prerequisites, steps, verify, troubleshoot, next."
+    folder: guides
+    alsoIn: [deploy-and-operate]
+    structure:
+      - One or two sentences stating the task and its outcome.
+      - "`## Prerequisites`: required role, installed components, credentials."
+      - One or more `##` sections named with an imperative verb phrase, each a numbered list of steps.
+      - "`## Verify`: how the reader knows it worked."
+      - "`## Troubleshooting` (optional): known failures and their fixes."
+      - "`## Next steps`."
+    review:
+      - Covers exactly one task; a second task is a second page.
+      - Steps are numbered, one action each, and copy-pasteable where they are commands.
+      - Has a verify section with an observable result.
+  - id: concept
+    label: Concept
+    purpose: What something is and why, with no steps.
+    folder: concepts
+    structure:
+      - Opens by defining the thing and its scope.
+      - "`##` sections on how it works, when to use it and its limits."
+      - "`## Related` links to how-to and reference pages."
+    review:
+      - No imperative instructions; link to the how-to instead.
+      - Says what is specific to this product, not generic background.
+  - id: reference
+    label: Reference
+    purpose: "Facts to look up: configuration, APIs, CLI, error codes."
+    folder: reference
+    structure:
+      - One sentence on what the reference covers.
+      - Tables or definition lists, grouped under `##` headings.
+      - Defaults, types, allowed values and examples for every entry.
+    review:
+      - Tables over prose; no narrative and no "you should".
+      - Every entry has its type and default.
+  - id: release-notes
+    label: Release notes
+    purpose: What changed in a version or a Cloud release.
+    folder: release-notes
+    structure:
+      - The version or release date, and one sentence summarizing the release.
+      - "`## New features`, `## Improvements`, `## Fixed issues`, `## Deprecated and removed features`, `## Known issues`; leave out empty sections."
+    review:
+      - Each item says what changed for the reader and links to the page that covers it.
+      - Deprecations name the replacement and the removal version.
+# The migration's special layouts count as variants of these types and keep
+# their layout (front matter `layout:`).
+layouts:
+  complete-guide: how-to
+  sdk: reference
+  connector: reference
+  api-reference: reference

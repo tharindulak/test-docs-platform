@@ -1,0 +1,105 @@
+---
+title: Preview and check a Doc space
+description: Preview one Doc space of a Content repository, or a whole family Cloud tree, and check a manifest change before you open the pull request.
+type: how-to
+sidebar_position: 4
+---
+
+Preview and check one Doc space at a time, by its directory. A family Cloud previews with its Cloud parts, as readers will see it.
+
+## Prerequisites
+
+- Your computer is [set up](../../get-started/set-up.mdx).
+- A checkout of your Content repository. You need no checkout of any other repository.
+
+Preview and check need the Deployment manifest with your Doc space in it. They read the published one, `docs-staging.wso2.com/manifest.json`, and compose your repository's own Doc space manifests into it, as the compose step will once your change merges. On `main` and branches from it they use your working copy of each `docspace.yaml`; on a release branch, the copy on `main`. They keep a copy of the published manifest and use it when you're offline.
+
+To test a change across several repositories, such as a Cloud part and its platform in two pull requests, clone them into one folder, each named as its repository, and point at it:
+
+```bash
+export WSO2_DOCS_CONTENT_REPOS=~/wso2-docs
+```
+
+Preview and check then compose from those checkouts' `main` instead.
+
+## Preview a Doc space
+
+1. Open a terminal in the Content repository's root, on the branch you want to see.
+2. Run the preview with the Doc space's directory:
+
+   ```bash
+   npx @wso2/docs preview ai-gateway
+   ```
+
+3. Open the URL it prints.
+
+The menus and version selectors show your Doc space as it will be listed, from the manifest composed when the preview started. Restart the preview to pick up a later change to the published manifest.
+
+The branch sets the Edition:
+
+| Branch | Doc space | Previews |
+|---|---|---|
+| `main` | A family Cloud, such as `api-platform` | Cloud: the whole tree, with each Cloud part from its directory beside it |
+| `main` | A Cloud part, such as `ai-gateway` | Its part alone, at `/api-platform/cloud/ai-gateway/` |
+| `main` | Self-hosted versions only, such as `api-manager` | `next`, the coming version, which is never published |
+| `ai-gateway/release/1.2.0` | `ai-gateway` | 1.2.0 |
+
+To see a Self-hosted version as it will publish, switch to its branch. `--edition` only changes which markers apply to the files you have. See [Preview your changes](../preview-locally.mdx) for `--only`, `--exact` and the other options.
+
+## Check before you push
+
+Run the pull request's checks on the same directory:
+
+```bash
+npx @wso2/docs check ai-gateway
+```
+
+On a release branch, the check also blocks any change outside `ai-gateway/`. See [Check your changes](../check-your-changes.mdx).
+
+## Check a manifest change
+
+`check` reports what the compose step says about your `docspace.yaml` in its **Doc space manifest** check, and your pull request to `main` runs the same compose check. Each error shows on its file, with its owners.
+
+To run the pull request's compose check yourself, from a Platform checkout:
+
+```bash
+node bin/wso2-release.mjs compose --pr --published https://docs-staging.wso2.com/manifest.json \
+  --repo-dir ~/wso2-docs/docs-api-platform
+```
+
+It blocks only on errors in the files your branch changes from `main`. For a change to a section manifest, run `compose --pr` in the Platform checkout with `--base`, as the Platform's own compose check does.
+
+The last line says `compose: passes against the published manifest`, or lists each blocking error with its file and owner. See [Manifest checks](../../reference/product-teams/manifest-checks.mdx).
+
+## Preview a change to the Platform
+
+To preview Contribute, or a Doc space with your own change to the Platform, run the commands from the Platform checkout:
+
+```bash
+node bin/wso2-docs.mjs preview standards/contribute
+node bin/wso2-docs.mjs preview ~/wso2-docs/docs-api-platform/ai-gateway
+```
+
+- Local builds keep a webpack cache in `node_modules/.cache/webpack`. A change to the Platform's plugins doesn't clear it. Delete that folder after such a change, or build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, which also saves disk space.
+- Builds from one Platform checkout share `site/.docusaurus`, so run one at a time.
+
+A Platform release is a new package, so CI never uses a stale cache.
+
+## Verify
+
+Edit a page and save it. The browser updates in about two seconds.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Can't read the published manifest` | You're offline and have no copy yet. Connect once, or set `WSO2_DOCS_CONTENT_REPOS` to a folder of checkouts. |
+| `<slug> does not compose` | Your `docspace.yaml` has a schema error. Fix the field the message names. |
+| `missing-repo` | `WSO2_DOCS_CONTENT_REPOS` is set, but a repository isn't in that folder. Clone it there, or unset the variable. |
+| `Missing …/docspace.yaml` | You ran the command in the repository's root. Name the Doc space's directory, such as `ai-gateway`. |
+| Old output after a Platform change | Delete `node_modules/.cache/webpack`, or set `DOCUSAURUS_NO_PERSISTENT_CACHE=1`. |
+
+## Next steps
+
+- [Open a pull request](../open-a-pull-request.mdx)
+- [Add and release a Self-hosted version](add-a-version.mdx)

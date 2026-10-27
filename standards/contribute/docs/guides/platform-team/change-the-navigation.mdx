@@ -1,0 +1,126 @@
+---
+title: Change the navigation
+description: Change what only the Platform team keeps in the navigation, the Product families and groups, Docs sections, products not on WSO2 Docs yet, and link entries.
+type: how-to
+sidebar_position: 2
+---
+
+The Platform navigation file, `navigation/navigation.yaml`, is the Platform team's. It sets the products menu's groups and their order, lists every Docs section and the Content repositories compose reads, and lists the products not on WSO2 Docs yet. Each change here is a pull request to `wso2/docs-platform`.
+
+A section's own menu and products-menu entries are its team's. See [Place your Doc space in the navigation](../product-teams/place-your-doc-space.mdx) and [Review a navigation pull request](review-a-navigation-change.mdx).
+
+## Prerequisites
+
+- You're on the Platform team, so `.github/CODEOWNERS` makes you the owner of `navigation/navigation.yaml`.
+- A Platform checkout on a branch from `main`.
+- The names as wso2.com writes them. The products menu mirrors the wso2.com header.
+
+## Change a family or a group
+
+1. In `navigation/navigation.yaml`, edit the `families` list, the Product families in the order of wso2.com's header, or the `groups` list, Solutions and Other, which follow them:
+
+   ```yaml
+   families:
+     - id: agent-platform
+       name: Agent Platform
+       description: Build, run and govern AI agents and the tools they call.
+   ```
+
+2. Keep `id` unchanged once a section uses it. Change `name` only when wso2.com does.
+3. Write `description` as one sentence of at most 160 characters, with no product the menu already names. The Landing page shows it under the group's name.
+
+## Add a Docs section
+
+A Product family has one Docs section by default. Add another only when a team needs a second menu, and add one for Solutions or Other the same way.
+
+1. Add the section to `sections`, with the family or group it belongs to:
+
+   ```yaml
+   sections:
+     - { id: agent-platform, in: agent-platform }
+     - { id: api-platform, in: api-platform }
+     - { id: identity-platform, in: identity-platform }
+   ```
+
+2. Copy the sample section manifest to `navigation/sections/<id>.yaml`, and set its `id`, `title` and `owners.team`:
+
+   ```bash
+   cp templates/section-manifest.yaml navigation/sections/agent-platform.yaml
+   ```
+
+   The sample lists Agent Manager, borrows AI Gateway and has a link entry. Give the section's team the file to fill in.
+
+3. Add the file to `.github/CODEOWNERS`, with the same team as `owners.team`:
+
+   ```text
+   /navigation/sections/agent-platform.yaml    @wso2/agent-platform-docs
+   ```
+
+   The Platform's tests fail when a section manifest has no `CODEOWNERS` line naming its team.
+
+The section's entries for Doc spaces that don't exist yet are warnings, and stay hidden until each Doc space is published. A group with no published entry is left out of the products menu.
+
+## List a product that isn't on WSO2 Docs yet
+
+Every product on wso2.com has a place in the products menu, even before its docs move. Until then, it links to its old site.
+
+1. Add it to `notYetOnWso2Docs`, keyed by the slug its Doc space will have:
+
+   ```yaml
+   notYetOnWso2Docs:
+     integrator:
+       displayName: Integrator
+       in: integration-platform
+       model: versions-only
+       legacyUrl: https://wso2.com/integration-platform/docs/integrator/
+   ```
+
+   Take the slug, group and kind from the product placement, `spec/product-placement.md` in `wso2/docs-platform`. `in` is the family or group, `model` is what the product will be (`cloud-only` for a family Cloud, `versions-only` for a product whose Cloud is a Cloud part, `unversioned`, or `links-out` for an old site that never gets a Doc space, such as Micro Integrator), and `formerNames` lists old names readers may search for. List a family's Cloud first, then its products, then its links out: the products menu keeps that order.
+
+2. When its Doc space is coming, remove the entry in the same pull request that lists the Doc space in its section. A Doc space manifest and an entry with one slug is a `duplicate` error. See [Onboard a team](onboard-a-team.mdx#the-order-of-merges).
+
+## Add a link entry
+
+A link entry is a line in a section's menu that leaves WSO2 Docs, shown with ↗. The products menu shows it too, after the group's products.
+
+1. In the section manifest, add a `label` and a `url` to `menu`:
+
+   ```yaml
+   menu:
+     - docSpace: agent-manager
+     - label: Agent Platform on wso2.com
+       url: https://wso2.com/agent-platform/
+   ```
+
+2. Keep labels unique in the menu, and the URL outside WSO2 Docs. A page on WSO2 Docs is a Doc space entry, or a link from a page.
+
+## Verify
+
+1. Compose your branch against `main`, as the pull request's **Compose check** will. From the Platform checkout, with a folder of Content repository checkouts:
+
+   ```bash
+   git worktree add ../platform-main origin/main
+   node bin/wso2-release.mjs compose --as-base --navigation ../platform-main/navigation --content ~/wso2-docs-local/repos --platform-root ../platform-main --out base.json
+   node bin/wso2-release.mjs compose --pr --base base.json
+   ```
+
+   The last line says `compose: passes against the latest merged manifest`. Warnings and notes name each section's team.
+
+2. Open the pull request. After the merge, the **Manifests** workflow composes, stores the result and publishes `manifest.json`. Open `<staging-host>/manifest.json`: `productsMenu` has your groups in order, and `sections` your section.
+
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `schema` … `description: must NOT have more than 160 characters` | Shorten the group's description |
+| `unknown-section` … `is not in navigation.yaml's sections` | Add the section to `sections` in the same pull request |
+| `unknown-section` … `which has no navigation/sections/<id>.yaml` | Add the section's file |
+| `unknown-family` | A section's or entry's `in` names no family or group |
+| `duplicate` … `has a Doc space manifest and a notYetOnWso2Docs entry` | Remove the `notYetOnWso2Docs` entry |
+| `link-internal` | The link entry points into WSO2 Docs. List the Doc space instead. |
+
+## Next steps
+
+- [Review a navigation pull request](review-a-navigation-change.mdx)
+- [Docs section manifest](../../reference/product-teams/section-manifest.mdx)
+- [Onboard a team](onboard-a-team.mdx)

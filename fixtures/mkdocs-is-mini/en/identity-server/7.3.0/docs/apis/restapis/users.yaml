@@ -1,0 +1,33 @@
+swagger: '2.0'
+info:
+  title: Users API
+  version: 1.0.0
+host: localhost:9443
+basePath: /api/users
+paths:
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/UserList'
+    post:
+      operationId: listUsers
+      parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: '#/definitions/User'
+      responses:
+        '201':
+          description: Created
+definitions:
+  User:
+    type: object
+  UserList:
+    type: array
+    items:
+      $ref: '#/definitions/User'

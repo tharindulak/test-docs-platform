@@ -1,0 +1,62 @@
+---
+title: Start here
+description: The path from your first edit to a merged pull request, one step at a time.
+type: quick-start
+sidebar_position: 1
+---
+
+Follow these steps in order the first time you contribute. Each step links to a page with the details.
+
+## 1. Choose quick edit or local
+
+| | Quick edit | Local |
+|---|---|---|
+| For | Typos, a sentence, a broken step | New pages, restructuring, Edition markers, screenshots |
+| Where | **Edit this page** in the GitHub web editor, or github.dev | VS Code (or any editor) with a live preview |
+| Setup | None | Node.js 22 LTS. Docker only for local search. |
+| Seeing the result | The pull request's preview URL, about 5 to 10 minutes after you push | A live preview in your browser, instantly |
+
+For a quick edit, skip to step 5. See [Make a quick edit](../guides/quick-edit.mdx).
+
+## 2. Set up
+
+Install Node.js 22, clone the Doc space's repository and start the preview:
+
+```bash
+git clone https://github.com/wso2/docs-sandbox.git
+cd docs-sandbox
+npx @wso2/docs preview sandbox
+```
+
+See [Set up your computer](set-up.mdx) for the editor extensions and [Preview your changes](../guides/preview-locally.mdx) for the preview options.
+
+## 3. Create or edit a page
+
+Create a page from a template with `npx @wso2/docs new <type>`, or edit an existing page. Every page has a [page type](../concepts/page-types.mdx). See [Create a page](../guides/create-a-page.mdx).
+
+## 4. Check your changes
+
+Run the same checks the pull request runs:
+
+```bash
+npx @wso2/docs check sandbox
+```
+
+Or ask your AI assistant to run the "Check my changes" skill, which also reviews your pages against the style guide. See [Check your changes](../guides/check-your-changes.mdx).
+
+## 5. Open a pull request
+
+Push your branch and open a pull request against `main`. The checks run, and a preview URL appears on the pull request. Fix what the checks flag. See [Open a pull request](../guides/open-a-pull-request.mdx).
+
+## 6. After the merge
+
+Cloud docs publish when your pull request merges. If older versions need the same fix, open a pull request against each version's release branch. Version releases are published by the release owner. See [Backport a fix](../guides/backport-a-fix.mdx).
+
+## If you run your product's docs, or WSO2 Docs
+
+- A product team's owners: the [developer guide for product teams](product-teams.mdx).
+- The Platform team: the [guide for running WSO2 Docs](platform-team.mdx).
+
+## Try it in the sandbox
+
+The `wso2/docs-sandbox` repository is a small Doc space for practice, published on staging only. Everything above works there. See [Try the sandbox](../guides/try-the-sandbox.mdx).

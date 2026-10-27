@@ -1,0 +1,44 @@
+---
+title: Add multi-factor authentication
+description: Require a second factor when users sign in to your application.
+type: how-to
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import MfaNote from '../_partials/_mfa-note.mdx';
+import SignInOptions from '../../partials/sign-in-options.mdx';
+
+Add a second factor to the sign-in flow of your application.
+
+<MfaNote />
+
+<SignInOptions />
+
+## Choose a factor
+
+Pick TOTP, email OTP or passkeys. See the [quick start](../get-started/quick-start.mdx#register-an-application).
+
+:::note
+Users enroll their second factor the next time they sign in. MARKER-ADMONITION
+:::
+
+<Tabs>
+<TabItem value="totp" label="TOTP">
+Scan the QR code with an authenticator app. MARKER-TAB-TOTP
+</TabItem>
+<TabItem value="email" label="Email OTP">
+Enter the code sent to your email address. MARKER-TAB-EMAIL
+</TabItem>
+</Tabs>
+
+<details>
+<summary>Why a second factor?</summary>
+
+A stolen password alone can no longer sign in. MARKER-DETAILS
+
+</details>
+
+![Sign-in flow with a second factor](./img/mfa-flow.png)
+
+[Download the sample policy](./files/sample-policy.json)

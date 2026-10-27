@@ -1,0 +1,282 @@
+# Docs: the one workflow file a Content repo carries, copied from
+# tharindulak/test-docs-platform templates/content-repo/. Content stays content-only:
+# builds run centrally in the Platform (Platform build and deploy pipeline).
+#
+# Path-filtered. The repo holds one directory per Doc space (Repo structure
+# for Platform, sections and Doc spaces), and every event acts only on the
+# Doc spaces it touches; the `plan` job works them out with
+# `wso2-docs spaces` (lib/content-repo.mjs in the Platform):
+#   pull_request     -> each Doc space the PR changes (on a
+#                       <doc space>/release/<version> branch: that Doc space,
+#                       and the PR fails if it changes any other directory):
+#                       `wso2-docs check` plus the preview build of its Edition
+#                       and a dry run of its Docs bundle (no secrets); on a PR
+#                       to main, the compose check too:
+#                       the repo's Doc space manifests composed with the
+#                       published manifest.json, each error shown on its file
+#                       with its owners. "preview / checks" sums them up;
+#                       branch protection requires it. An AI review job is
+#                       specified but off until cutover
+#                       (vars.DOCS_AI_REVIEW_ENABLED).
+#   push to main     -> each Cloud release the change makes (a touched Doc
+#                       space with a Cloud Edition, or a touched Cloud part's
+#                       platform): the next [<doc space>/]cloud-<YYYY.MM.DD>.<n>
+#                       tag, then its Docs bundle
+#   "Release docs"   -> the next <doc space>/<version>-docs.<n> tag on
+#                       <doc space>/release/<version>, then its Docs bundle
+#   a pushed tag     -> its Docs bundle
+#   a created release branch ([<doc space>/]release/<version>: a Branch cut)
+#                    -> the bot's pull request on main that removes the
+#                       Edition markers the new version covers, with the
+#                       branch cut report (the Platform's branch-cut.yml)
+# A Docs release carries a Docs bundle (Releases and deployments, Docs
+# bundles): the Platform's reusable docs-bundle.yml, at the pinned Platform
+# major, checks the tagged commit, packs its Doc space directory, attests the
+# zip and publishes it as the tag's GitHub Release (never latest, never a
+# prerelease). The Platform's intake picks the bundle up from there; nothing
+# here holds a Platform credential. Turn on immutable releases for this repo.
+# PENDING INFRA: while the repos are private, the read-only
+# DOCS_PLATFORM_READ_TOKEN secret for checking out the Platform. The
+# branch-cut job still takes the GitHub App key (DOCS_PLATFORM_APP_KEY).
+name: Docs
+
+on:
+  create:
+  pull_request:
+    branches: [main, 'release/**', '*/release/**']
+  push:
+    branches: [main]
+    tags: ['*-docs.*', 'cloud-*', '*/*-docs.*', '*/cloud-*']
+  workflow_dispatch:
+    inputs:
+      doc-space:
+        description: The Doc space directory, e.g. identity-server (leave empty in a repo with one Doc space)
+        type: string
+        required: false
+      version:
+        description: Release docs for this version (its <doc space>/release/<version> branch), e.g. 7.3.0
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  # The Platform major this repo pins: v1 is a tag in tharindulak/test-docs-platform that
+  # each 1.x.y Platform release moves forward (never a branch). The `@v1` and
+  # `platform-ref: v1` below name the same tag (`uses:` can't read env); a new
+  # major changes all of them in one pull request.
+  PLATFORM_REF: v1
+
+jobs:
+  plan:
+    if: github.event_name != 'create' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    outputs:
+      spaces: ${{ steps.plan.outputs.spaces }}
+      releases: ${{ steps.plan.outputs.releases }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: content
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: tharindulak/test-docs-platform
+          ref: ${{ env.PLATFORM_REF }}
+          path: platform
+          # PENDING INFRA: while tharindulak/test-docs-platform is private, a read-only
+          # token as the DOCS_PLATFORM_READ_TOKEN secret (public: none needed).
+          token: ${{ secrets.DOCS_PLATFORM_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: platform
+      - name: Work out the Doc spaces this event touches
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          DOC_SPACE: ${{ inputs.doc-space }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          case "$EVENT" in
+            pull_request) args=(--branch "$BASE_REF" --base "origin/$BASE_REF") ;;
+            push) args=(--push --base "$BEFORE") ;;
+            workflow_dispatch) args=(--release "$DOC_SPACE" --version "$VERSION") ;;
+          esac
+          node platform/bin/wso2-docs.mjs spaces content "${args[@]}" --github-output "$GITHUB_OUTPUT"
+
+  preview:
+    needs: plan
+    if: github.event_name == 'pull_request' && needs.plan.outputs.spaces != '[]'
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        space: ${{ fromJSON(needs.plan.outputs.spaces) }}
+    uses: tharindulak/test-docs-platform/.github/workflows/pr-preview.yml@v1
+    with:
+      platform-ref: v1
+      doc-space: ${{ matrix.space.dir }}
+      edition: ${{ matrix.space.edition }}
+
+  # The compose check (Manifests and the compose step): this PR's Doc space
+  # manifests composed with the published manifest.json, as the Platform's
+  # compose step will compose them once merged. No secrets and no other
+  # checkout. Only errors in the files this PR changes block it; a section
+  # that lists a Doc space before it exists is a warning.
+  compose:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: content
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: tharindulak/test-docs-platform
+          ref: ${{ env.PLATFORM_REF }}
+          path: platform
+          token: ${{ secrets.DOCS_PLATFORM_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: platform
+      - name: Compose this PR's Doc space manifests with the published manifest
+        env:
+          PUBLISHED: ${{ vars.DOCS_PUBLISHED_MANIFEST || 'https://docs-staging.wso2.com/manifest.json' }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          node platform/bin/wso2-release.mjs compose --pr --published "$PUBLISHED" --repo-dir content \
+            --base-ref "origin/$BASE_REF" --annotate content/ --report compose-report.json
+
+  # The one required status, whichever Doc spaces the PR touched.
+  checks:
+    name: preview / checks
+    needs: [plan, preview, compose]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sum up the Doc space checks
+        env:
+          PLAN: ${{ needs.plan.result }}
+          PREVIEW: ${{ needs.preview.result }}
+          COMPOSE: ${{ needs.compose.result }}
+        run: |
+          echo "plan: $PLAN, preview: $PREVIEW, compose: $COMPOSE"
+          [ "$PLAN" = success ] || { echo "::error::The plan failed (on a release branch: the PR changes another directory)"; exit 1; }
+          [ "$PREVIEW" = success ] || [ "$PREVIEW" = skipped ] || { echo "::error::A Doc space's checks failed"; exit 1; }
+          [ "$COMPOSE" = success ] || [ "$COMPOSE" = skipped ] || { echo "::error::The compose check failed: see its errors on the Doc space manifests"; exit 1; }
+
+  # Phase 2 of Quality gates: the "Check my changes" review as PR comments.
+  # Never blocks, skips bot PRs; OFF until cutover.
+  review:
+    if: github.event_name == 'pull_request' && vars.DOCS_AI_REVIEW_ENABLED == 'true' && github.event.pull_request.user.type != 'Bot'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: tharindulak/test-docs-platform/.github/workflows/pr-review.yml@v1
+    with:
+      platform-ref: v1
+    secrets: inherit
+
+  # The next tag of each release this event makes. Tags made here start no
+  # workflow (the workflow token), so `release` bundles each one right after.
+  tag:
+    needs: plan
+    if: github.event_name != 'pull_request' && needs.plan.outputs.releases != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: docs-tag-${{ github.repository }}
+      cancel-in-progress: false
+    outputs:
+      tags: ${{ steps.tag.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: tag
+        name: Create the next Docs release tags
+        env:
+          RELEASES: ${{ needs.plan.outputs.releases }}
+        run: |
+          tags=()
+          while read -r release; do
+            TAG_PREFIX=$(jq -r .tagPrefix <<<"$release")
+            VERSION=$(jq -r .version <<<"$release")
+            REF=$(jq -r .ref <<<"$release")
+            if [ -n "$VERSION" ]; then
+              prefix="$TAG_PREFIX$VERSION-docs."
+            else
+              prefix="${TAG_PREFIX}cloud-$(date -u +%Y.%m.%d)."
+            fi
+            n=$(git tag --list "${prefix}*" | sed "s|^${prefix//./\\.}||" | sort -n | tail -1)
+            tag="${prefix}$(( ${n:-0} + 1 ))"
+            git tag "$tag" "origin/$REF"
+            git push origin "$tag"
+            tags+=("$tag")
+          done < <(jq -c '.[]' <<<"$RELEASES")
+          echo "tags=$(jq -cn '$ARGS.positional' --args "${tags[@]}")" >> "$GITHUB_OUTPUT"
+
+  # Each new tag's Docs bundle, from the Platform's reusable workflow.
+  release:
+    needs: tag
+    if: needs.tag.outputs.tags != '' && needs.tag.outputs.tags != '[]'
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJSON(needs.tag.outputs.tags) }}
+    uses: tharindulak/test-docs-platform/.github/workflows/docs-bundle.yml@v1
+    with:
+      tag: ${{ matrix.tag }}
+    secrets:
+      DOCS_PLATFORM_READ_TOKEN: ${{ secrets.DOCS_PLATFORM_READ_TOKEN }}
+
+  # After a Branch cut: the release branch stays a plain copy of main, and
+  # a pull request on main removes the markers the new version covers.
+  branch-cut:
+    if: github.event_name == 'create' && github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || contains(github.ref_name, '/release/'))
+    permissions:
+      contents: read
+    uses: tharindulak/test-docs-platform/.github/workflows/branch-cut.yml@v1
+    with:
+      branch: ${{ github.ref_name }}
+      platform-ref: v1
+    secrets:
+      DOCS_PLATFORM_APP_KEY: ${{ secrets.DOCS_PLATFORM_APP_KEY }}
+      DOCS_PLATFORM_READ_TOKEN: ${{ secrets.DOCS_PLATFORM_READ_TOKEN }}
+
+  # A tag pushed by hand: its Docs bundle.
+  release-tag:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: tharindulak/test-docs-platform/.github/workflows/docs-bundle.yml@v1
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      DOCS_PLATFORM_READ_TOKEN: ${{ secrets.DOCS_PLATFORM_READ_TOKEN }}

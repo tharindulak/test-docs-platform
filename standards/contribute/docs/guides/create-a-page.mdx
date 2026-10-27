@@ -1,0 +1,42 @@
+---
+title: Create a page
+description: Create a new page from a page-type template in the right folder with the right front matter.
+type: how-to
+sidebar_position: 3
+---
+
+Create a page from its page-type template. The template has the right front matter and sections, with comments that say what goes where.
+
+## Prerequisites
+
+- Your computer is [set up](../get-started/set-up.mdx).
+- You know the page's [page type](../concepts/page-types.mdx).
+
+## Create the page
+
+1. Run `new` with the page type and the title, in sentence case:
+
+   ```bash
+   npx @wso2/docs new how-to identity-server --title "Add multi-factor authentication"
+   ```
+
+   The page goes in the type's default folder, here `identity-server/docs/guides/add-multi-factor-authentication.mdx`. To put it elsewhere, add `--folder guides/sign-in`.
+
+2. Open the new file and replace the description with one sentence of at most 160 characters.
+3. Write each section. Replace the `{/* ... */}` comments as you go.
+4. If the page applies to some Editions only, add `editions: cloud`, `editions: self-hosted` or `selfHostedFrom: <version>` to the front matter. See [Write for several Editions](write-for-several-editions.mdx).
+
+## Verify
+
+Run the check on your new page:
+
+```bash
+npx @wso2/docs check identity-server
+```
+
+It reports nothing blocking for a new page straight from the template. Its warnings show the template text you still need to replace.
+
+## Next steps
+
+- [Use the author skills](use-the-author-skills.mdx) to draft the page from your notes.
+- [Style guide](../reference/style-guide.mdx)

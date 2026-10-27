@@ -1,0 +1,91 @@
+---
+title: Add and release a Self-hosted version
+description: Cut a new version's branch, list it as an Edition and publish its first Docs release, which also moves /latest/.
+type: how-to
+sidebar_position: 5
+---
+
+A new Self-hosted version gets its own release branch, an Edition in the Doc space manifest and its first Docs release. This page uses Identity Server 7.4.0 as the example.
+
+## Prerequisites
+
+- You're a Doc space owner.
+- The version's content is ready on `main`.
+
+## Cut the branch
+
+1. Make the Branch cut from an up-to-date `main`:
+
+   ```bash
+   git switch main
+   git pull
+   npx @wso2/docs branch-cut identity-server 7.4.0
+   ```
+
+   The command changes nothing on GitHub and leaves your checkout as it is. It:
+
+   - makes the branch `identity-server/release/7.4.0` from `main`, a plain copy with every Edition marker in it. In a repository with one Doc space that keeps unprefixed branches, the branch is `release/7.4.0`;
+   - commits, on the branch `branch-cut/identity-server/7.4.0` from `main`, the removal of every marker that 7.4.0 covers: `selfHostedFrom` 7.4.0 or older. See [Edition markers](../../concepts/edition-markers.mdx#after-a-branch-cut);
+   - prints the branch cut report: what is still `next`, what ships in 7.4.0, what is held for a later version, and each marker change on `main`. Add `--report <file>` to save it.
+
+   To see the report first without making anything, add `--dry-run`.
+
+2. Push both branches, the `branch-cut/` one first:
+
+   ```bash
+   git push -u origin branch-cut/identity-server/7.4.0
+   git push -u origin identity-server/release/7.4.0
+   ```
+
+   A new release branch starts the Docs workflow's Branch cut job, which leaves your change alone once `branch-cut/identity-server/7.4.0` is on GitHub. If no marker was covered, there is no `branch-cut/` branch to push.
+
+3. Open a pull request from `branch-cut/identity-server/7.4.0` to `main`, with the report as its description, and merge it.
+4. Decide on each `next` block in the report. To ship one in 7.4.0, change `next` to `7.4.0` on the release branch and remove the marker on `main`. To hold it for a later version, leave it.
+5. From now on, fixes for 7.4.0 go to `main` first and are backported to this branch. See [Backport a fix](../backport-a-fix.mdx).
+
+If you create the release branch on GitHub instead, the repository's Docs workflow does steps 2 and 3 for you: it opens the pull request on `main` with the report as its description, and shows the report in the run's summary.
+
+## List the Edition
+
+1. On a branch from `main`, add the version to `editions` in `identity-server/docspace.yaml`. Put it first among the Self-hosted versions, because the first one is the newest release:
+
+   ```yaml
+   editions:
+     - id: 7.4.0
+     - id: 7.3.0
+     - id: 7.2.0
+       branch: identity-server/release/7.2.0
+   ```
+
+2. If the oldest version moves to its old site, move it from `editions` to `legacyVersions`, with its `url`.
+3. Open a pull request against `main` and merge it.
+
+## Release the docs
+
+1. In the Content repository, select **Actions** > **Docs** > **Run workflow**.
+2. Enter the Doc space, `identity-server`, and the version, `7.4.0`. Select **Run workflow**.
+
+The workflow tags the branch `identity-server/7.4.0-docs.1` and publishes its Docs bundle as the tag's GitHub Release, which the Platform picks up and releases. The release composes the Deployment manifest first, so it includes the new Edition. 7.4.0 is now the first Self-hosted Edition, so the release builds it twice: at `/identity-server/7.4.0/` and at `/identity-server/latest/`.
+
+For each later release of 7.4.0, run the same workflow. See [Release docs for a version](../owners/release-docs.mdx).
+
+## Verify
+
+1. On staging, open `/identity-server/7.4.0/` and `/identity-server/latest/`. Both show 7.4.0.
+2. Open the version selector. It lists Cloud, then 7.4.0 (newest release), then 7.3.0.
+3. Open a 7.3.0 page. Its notice now says the newest release is 7.4.0. No rebuild of 7.3.0 was needed.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `identity-server has no Edition 7.4.0 in its docspace.yaml; add it on main first` | Merge the Edition to `main` before you release. |
+| `identity-server/release/7.4.0 already exists` | The branch was cut before. To make only the change to `main` and the report, run `npx @wso2/docs branch-cut --branch identity-server/release/7.4.0`. |
+| `identity-server's newest release is 7.4.0, which is not older than 7.4.0` | A Branch cut makes a new version. Check the version number. |
+| `version must look like 7.3.0` | Versions are exact, such as `7.4.0`, or dates, such as `2026.09.24`. |
+| The release keeps the old manifest | The compose step failed and kept the last good copy. Fix the errors it reports. |
+
+## Next steps
+
+- [Edition markers](../../concepts/edition-markers.mdx)
+- [Branches, tags and addresses](../../reference/product-teams/branches-tags-addresses.mdx)

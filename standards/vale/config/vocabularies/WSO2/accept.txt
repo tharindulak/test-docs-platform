@@ -1,0 +1,110 @@
+WSO2 Identity Platform
+Identity Platform
+WSO2 Identity Server
+Identity Server
+WSO2 API Manager
+API Manager
+WSO2 API Platform
+API Platform
+WSO2 Developer Platform
+Developer Platform
+WSO2 Integration Platform
+Integration Platform
+WSO2 Micro Integrator
+Micro Integrator
+WSO2 Agent Manager
+Agent Manager
+Edition
+Editions
+URL
+URLs
+API
+APIs
+SDK
+CLI
+ID
+IDs
+JSON
+YAML
+HTTP
+OAuth
+PKCE
+Cloud
+Doc space
+Doc spaces
+Content repository
+Platform
+Markdown
+GitHub
+VS Code
+Node.js
+Docker
+Vale
+Diátaxis
+Microsoft
+WSO2
+Asgardeo
+Bijira
+Choreo
+Devant
+Docusaurus
+MDX
+OAuth2
+OIDC
+OpenID
+SAML
+SCIM
+IdP
+IdPs
+JWT
+JWKS
+TOTP
+OTP
+passkey
+passkeys
+passwordless
+usernameless
+keystore
+keystores
+truststore
+truststores
+userstore
+userstores
+hostname
+backchannel
+frontchannel
+onboarding
+onboarded
+webhook
+webhooks
+middleware
+Kubernetes
+kubectl
+Helm
+Datadog
+OpenTelemetry
+Typesense
+Cloudflare
+npx
+npm
+pnpm
+TOML
+cspell
+WebP
+sidebar
+sidebars
+backport
+backports
+backported
+admonition
+admonitions
+frontmatter
+github
+microservices
+agentic
+CODEOWNERS
+ruleset
+rulesets
+linkinator
+cutover
+pasteable

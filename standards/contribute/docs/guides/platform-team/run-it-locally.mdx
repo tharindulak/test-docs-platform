@@ -1,0 +1,120 @@
+---
+title: Run WSO2 Docs locally
+description: Run the Edge Worker with its own storage, redirect table and search index on your computer, and release Docs deployments to it with the pipeline's commands.
+type: how-to
+sidebar_position: 1
+---
+
+Run WSO2 Docs on your computer to rehearse any process on these pages before you do it for real: the Edge Worker in Miniflare with a local bucket and redirect table, your own Typesense, and throwaway copies of the Content repositories. The release CLI then runs exactly as the workflows run it.
+
+## Prerequisites
+
+- A Platform checkout with `npm ci` done, and Node.js 22.
+- Docker, for search.
+- About 2 GB of memory for each small build, such as the Sandbox, and up to 8 GB for the Pilot's largest.
+- Free ports for the edge, its KV endpoint, Typesense and a preview. The examples use 4720, 4721, 8420 and 3720.
+
+## Start the edge
+
+1. In the Platform checkout, start the Edge Worker with staging's rules and a data folder of its own:
+
+   ```bash
+   npm run edge:local -- --port 4720 --data ~/wso2-docs-local/edge
+   ```
+
+   It prints where it runs, its process ID, and the commands for the next steps. The bucket and the redirect table are kept in the data folder, so they survive a restart. Add `--env production` to serve the same data with production's rules, such as `noindex, follow` on end-of-life Editions.
+
+2. In another terminal, load the bucket's credentials. The edge wrote them to its data folder:
+
+   ```bash
+   source ~/wso2-docs-local/edge/edge.env
+   ```
+
+   `wso2-release` commands with `--storage s3://docs-staging` now write to the local edge's bucket, as CI writes to the staging bucket.
+
+## Start search
+
+1. Start Typesense with a data folder of its own:
+
+   ```bash
+   docker run -d --name wso2-docs-local-search -p 127.0.0.1:8420:8108 -v ~/wso2-docs-local/search:/data \
+     typesense/typesense:30.2 --data-dir /data --api-key=local-preview-key --enable-cors
+   ```
+
+2. Point the search commands at it, and make the local collection:
+
+   ```bash
+   export TYPESENSE_URL=http://127.0.0.1:8420 TYPESENSE_ADMIN_KEY=local-preview-key
+   node bin/wso2-release.mjs search-setup --env local
+   ```
+
+## Make a world to release
+
+1. Clone the Content repositories you need into one folder, each named as its repository, and remove each clone's `origin`, so nothing can be pushed:
+
+   ```bash
+   mkdir -p ~/wso2-docs-local/repos && cd ~/wso2-docs-local/repos
+   git clone https://github.com/wso2/docs-sandbox.git && git -C docs-sandbox remote remove origin
+   ```
+
+   Compose reads every repository in `contentRepos`, so clone each one. A clone with only its `main` is enough for a repository you won't build. Until the Content repositories are on GitHub, clone your local copies instead.
+
+2. Copy the Platform's `navigation/` folder, so you can change it without changing your checkout:
+
+   ```bash
+   cp -r navigation ~/wso2-docs-local/navigation
+   ```
+
+3. Compose, store the result in the local bucket, and publish the runtime files:
+
+   ```bash
+   node bin/wso2-release.mjs compose --navigation ~/wso2-docs-local/navigation --content ~/wso2-docs-local/repos --storage s3://docs-staging
+   node bin/wso2-release.mjs manifest --storage s3://docs-staging --env staging --chrome chrome/chrome.json
+   ```
+
+## Release a Docs deployment to it
+
+Run the commands of [Follow and run a Docs release](run-a-docs-release.mdx#run-a-release-by-hand) with `--storage s3://docs-staging`, and these two changes:
+
+- the redirect table goes to the local edge's KV endpoint:
+
+  ```bash
+  node bin/wso2-release.mjs redirects --storage s3://docs-staging --kv local:http://127.0.0.1:4721
+  ```
+
+- the crawl gate and search use the local hosts, `--host http://127.0.0.1:4720` and `--env local`.
+
+## Verify
+
+1. Open `http://127.0.0.1:4720/manifest.json`. It lists your Doc spaces, with `deployments` for each one you released.
+2. Open a released page, such as `http://127.0.0.1:4720/sandbox/1.0.0/`. The response's `x-docs-release` header names the release folder it came from.
+3. Open a bare product address, such as `http://127.0.0.1:4720/sandbox/`. It redirects (302) to where the version selector opens.
+
+## Preview against it
+
+To see a Content repository's working copy with the local edge's menus, preview with its manifest:
+
+```bash
+npx @wso2/docs preview agent-manager --published http://127.0.0.1:4720/manifest.json --port 3720
+```
+
+## Stop it
+
+1. Stop the edge with Ctrl+C in its terminal, or end its process ID with `kill`.
+2. Stop a preview with Ctrl+C. Ending only the `wso2-docs` process leaves Docusaurus running on its port.
+3. Stop search with `docker stop wso2-docs-local-search`.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `no checkout of wso2/<repo> to read its Doc space manifests from` (`missing-repo`) | Clone every repository in `contentRepos` into the folder you pass with `--content` |
+| `s3://docs-staging has no _platform/composed.json yet` | Run `compose --storage s3://docs-staging` first |
+| Old output after a Platform change | Build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, or delete `node_modules/.cache/webpack` |
+| The crawl gate fails on links to `/`, `/contribute/` or another Doc space | Those aren't deployed on your edge. Release them too, or read the failures as expected. |
+| A port is in use | Pick others with `--port` and `--admin-port` (default: the edge's port plus one) |
+
+## Next steps
+
+- [Follow and run a Docs release](run-a-docs-release.mdx)
+- [The wso2-release command](../../reference/platform-team/release-cli.mdx#the-local-edge)

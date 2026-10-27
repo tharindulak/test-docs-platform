@@ -1,0 +1,72 @@
+# The weekly search consistency check (Search for WSO2 Docs): compares each
+# environment's Typesense collection with every live Docs deployment's page
+# list, reports drift (missing pages, removed pages, records from an old
+# release, Editions with no live deployment) and repairs it from the release
+# folders. Drift is a warning annotation for the owners; it blocks nothing.
+# PENDING INFRA (ticket 15): TYPESENSE_URL, TYPESENSE_ADMIN_KEY and the R2
+# credentials in the staging and production environments.
+name: Search consistency
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      fix:
+        description: Repair the drift it finds
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: staging
+            storage: s3://docs-staging
+          - env: production
+            storage: s3://docs-prod
+    environment: ${{ matrix.env }}
+    env:
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
+      TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content" --github-env
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}  # private Content repos (PENDING INFRA)
+      - name: Compare the index with every live deployment
+        # Production has no index until the cutover.
+        if: matrix.env == 'staging' || vars.DOCS_PRODUCTION_ENABLED == 'true'
+        env:
+          ENV_NAME: ${{ matrix.env }}
+          STORAGE: ${{ matrix.storage }}
+          FIX: ${{ github.event_name == 'schedule' || inputs.fix }}
+        run: |
+          args=(search-check --env "$ENV_NAME" --storage "$STORAGE" --out report.json)
+          [ "$FIX" = "true" ] && args+=(--fix)
+          status=0
+          node bin/wso2-release.mjs "${args[@]}" || status=$?
+          {
+            echo "## Search consistency: $ENV_NAME"
+            echo
+            echo '```json'
+            jq '{ok, orphans, fixed, drifted: [.deployments[] | select(.ok | not)]}' report.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

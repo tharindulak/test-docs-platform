@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.wso2.com/schemas/docspace.schema.json",
+  "title": "Doc space manifest",
+  "description": "docspace.yaml in a Doc space's directory (<repo>/<slug>/docspace.yaml), kept by the Doc space's team. Only the copy on the Content repo's main line counts. Fields are only ever added.",
+  "type": "object",
+  "required": ["schemaVersion", "slug", "displayName", "owners", "repo"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "slug": { "$ref": "#/$defs/slug", "description": "The Doc space's address segment, docs.wso2.com/<slug>/. Also the name of its directory." },
+    "displayName": { "type": "string", "minLength": 1, "description": "The name readers see, as wso2.com names the product." },
+    "formerNames": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true, "description": "Earlier names, kept searchable (Asgardeo, Bijira, Choreo, Devant)." },
+    "brand": { "type": "string", "minLength": 1, "description": "The Cloud brand where it differs from the name (WSO2 Cloud), shown as \"Cloud (<brand>)\"." },
+    "editionNames": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cloud": { "type": "string", "minLength": 1, "description": "The Cloud Edition's name, for example \"Identity Platform Cloud\"." },
+        "selfHosted": { "type": "string", "pattern": "\\{version\\}", "description": "A Self-hosted Edition's name; {version} is filled in, for example \"Identity Server {version}\"." }
+      }
+    },
+    "model": {
+      "enum": ["cloud-plus-versions", "versions-only", "cloud-only", "unversioned"],
+      "description": "Optional: the compose step works it out from the Editions. If given, it must agree with them."
+    },
+    "editions": {
+      "type": "array",
+      "description": "The Editions in display order (newest first; never sorted). Cloud, if any, is listed first.",
+      "items": { "$ref": "#/$defs/edition" }
+    },
+    "legacyVersions": {
+      "type": "array",
+      "description": "Self-hosted versions not on WSO2 Docs yet: listed under \"Older versions (old site)\", opening their old site.",
+      "items": {
+        "type": "object",
+        "required": ["id", "url"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/version" },
+          "url": { "$ref": "#/$defs/url" }
+        }
+      }
+    },
+    "latest": { "type": "string", "minLength": 1, "description": "The Edition built as /latest/. Defaults to the first Self-hosted Edition (the newest release), or Cloud in a Cloud-only Doc space." },
+    "home": { "$ref": "#/$defs/slug", "description": "The home Docs section (navigation/sections/<id>.yaml), which must list this Doc space." },
+    "listed": { "const": false, "description": "false for an Unlisted Doc space: no home section, and no section may list it." },
+    "indexed": { "const": true, "description": "With listed: false only: an explicit exception to the Unlisted rule (Contribute). The Doc space stays in no products menu or Docs section, but search engines index it and the sitemap index lists it." },
+    "cloud": {
+      "type": "object",
+      "required": ["in"],
+      "additionalProperties": false,
+      "description": "This Doc space's Cloud content is a Cloud part of a family-level Doc space's Cloud tree.",
+      "properties": { "in": { "$ref": "#/$defs/slug" } }
+    },
+    "notices": { "type": "array", "items": { "$ref": "#/$defs/notice" } },
+    "owners": {
+      "type": "object",
+      "required": ["team"],
+      "additionalProperties": false,
+      "properties": {
+        "team": { "type": "string", "minLength": 1, "description": "The owning team, alerted when compose fails because of this file." }
+      }
+    },
+    "repo": { "$ref": "#/$defs/repo", "description": "The Content repo this Doc space lives in." },
+    "editLinks": { "type": "boolean", "description": "false hides \"Edit this page\"." },
+    "issues": {
+      "type": "object",
+      "required": ["repo"],
+      "additionalProperties": false,
+      "description": "Where \"Report an issue\" opens.",
+      "properties": {
+        "repo": { "$ref": "#/$defs/repo" },
+        "template": { "type": "string", "minLength": 1 },
+        "labels": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "environments": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/slug" },
+      "description": "Only these environments publish the Doc space (the Sandbox: staging only). Default: every environment."
+    },
+    "status": { "const": "legacy", "description": "Not on WSO2 Docs yet: listed with its old site (legacyUrl), with no Docs deployment; docs: links to it fail the build." },
+    "legacyUrl": { "$ref": "#/$defs/url" }
+  },
+  "allOf": [
+    { "oneOf": [{ "required": ["home"] }, { "required": ["listed"] }] },
+    { "if": { "required": ["status"] }, "then": { "required": ["legacyUrl"] } },
+    { "if": { "required": ["legacyUrl"] }, "then": { "required": ["status"] } },
+    { "if": { "required": ["indexed"] }, "then": { "required": ["listed"] } }
+  ],
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$", "description": "An exact version (1.0.0, not v1.0.0 or 1.0) or a date version (2026.09.24)." },
+    "repo": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$" },
+    "url": { "type": "string", "pattern": "^https?://[^\\s]+$" },
+    "edition": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^(cloud|[0-9]+\\.[0-9]+\\.[0-9]+)$", "description": "cloud, or an exact or date version." },
+        "branch": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$", "description": "The branch whose newest Docs release tag is deployed. Default: main for Cloud, <slug>/release/<version> in a repo with several Doc spaces, else release/<version>." },
+        "pin": { "type": "string", "minLength": 1, "description": "Holds this Edition on one Docs release tag: releases of its other tags are refused until the pin is removed." },
+        "status": { "enum": ["live", "end-of-life"] },
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slug" },
+          "description": "On the Cloud Edition only: the component Doc spaces built into this Cloud tree as Cloud parts, from the same Content repo."
+        }
+      }
+    },
+    "notice": {
+      "type": "object",
+      "required": ["text", "level"],
+      "additionalProperties": false,
+      "description": "A banner the chrome shows at runtime from the Deployment manifest (no rebuild).",
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "level": { "enum": ["info", "warning"] },
+        "editions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "The Editions it applies to. Default: every Edition." },
+        "until": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "Shown until this date (inclusive)." }
+      }
+    }
+  }
+}

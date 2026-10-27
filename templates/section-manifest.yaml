@@ -1,0 +1,49 @@
+# A sample Docs section manifest, for the Platform side: it goes to
+# navigation/sections/<id>.yaml in wso2/docs-platform, and its team owns it
+# through the Platform's .github/CODEOWNERS. Only the Platform team adds a
+# section (a line under `sections:` in navigation/navigation.yaml); a section's
+# team then keeps this file. A Doc space team asks the home section's team to
+# add its Doc space here; `wso2-docs init` prints the lines to add.
+#
+# A section sets the products-menu entries and the menu's order and
+# `version-in` only: names, Editions and versions come from the Doc space
+# manifests. Every field:
+# https://docs.wso2.com/contribute/reference/product-teams/section-manifest/
+# Schema: https://docs.wso2.com/schemas/section.schema.json
+schemaVersion: 1
+id: agent-platform
+title: Agent Platform Documentation
+owners:
+  team: agent-platform-docs
+
+# The products menu's entries for this family, in wso2.com's order. An entry
+# opens a Doc space (optionally at an Edition or a page). The label is the
+# product as wso2.com names it; compose warns when it differs from the Doc
+# space's name.
+products:
+  - label: Agent Manager
+    opens: { docSpace: agent-manager }
+  # A borrowed Doc space: AI Gateway's home is the API Platform section,
+  # and wso2.com lists it under both families. Borrowing keeps its one
+  # address; its home section must list it in its products menu too.
+  - label: AI Gateway
+    opens: { docSpace: ai-gateway }
+
+# The section's menu, in order: the family Cloud first, then the products.
+# Each Doc space shows as one line; the one being read opens with its tree.
+# `version-in: menu` gives an entry its own version dropdown on its line
+# (the default with two or more Editions); `version-in: header` leaves the
+# version to the selector next to the product.
+#
+# A Doc space that doesn't exist yet may be listed: compose warns
+# (unknown-docspace) and the entry stays hidden until the Doc space is
+# published. Merge this file first, then the Doc space's own pull request.
+menu:
+  - docSpace: agent-manager
+  # Borrowed from the API Platform section (its home).
+  - docSpace: ai-gateway
+    version-in: menu
+  # A link entry: a site that isn't on WSO2 Docs, shown with ↗. It may not
+  # point into docs.wso2.com (list that Doc space instead).
+  - label: Agent Platform on wso2.com
+    url: https://wso2.com/agent-platform/

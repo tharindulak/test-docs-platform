@@ -1,0 +1,55 @@
+---
+title: Write for several Editions
+description: Mark content as Cloud only, self-hosted only or self-hosted from a version, and use Edition variables.
+type: how-to
+sidebar_position: 7
+---
+
+One page often serves Cloud and several self-hosted versions. Use Edition markers and variables so that each Edition reads correctly.
+
+## Prerequisites
+
+- You know which Editions the content applies to. See [Edition markers](../concepts/edition-markers.mdx).
+
+## Mark a section or phrase
+
+1. Wrap content that applies to some Editions only in an `<Edition>` block:
+
+   ```mdx
+   <Edition only="cloud">
+   ## Create your organization
+
+   Sign up and create an organization.
+   </Edition>
+   ```
+
+2. For a phrase inside a sentence, keep the marker on one line: `The console runs at <Edition only="cloud">your organization URL</Edition><Edition only="self-hosted">port 9443</Edition>.`
+3. For a feature arriving in a self-hosted version, use `selfHostedFrom="<version>"`, or `selfHostedFrom="next"` while the version isn't decided.
+
+## Mark a whole page
+
+Add one of these to the front matter:
+
+```yaml
+editions: cloud            # Cloud only
+editions: self-hosted      # self-hosted versions only
+selfHostedFrom: 7.4.0      # Cloud, and self-hosted from 7.4.0
+```
+
+## Use Edition variables
+
+Write `{edition.productName}` instead of a product name on shared pages. The variables come from `editions.yaml`. An unknown variable fails the check.
+
+## Rules for marked pages
+
+- A marked page reads correctly in every Edition it appears in: no dangling "as shown above", and no heading left without content.
+- Don't write "In Cloud…" or "Self-hosted only:" where a marker can do the job.
+- A `selfHostedFrom` version must be newer than the latest released version. Content already released needs no marker.
+
+## Verify
+
+Preview the page and use **Preview as** in the toolbar to read it as each Edition. Then run `npx @wso2/docs check`.
+
+## Next steps
+
+- [Edition markers](../concepts/edition-markers.mdx)

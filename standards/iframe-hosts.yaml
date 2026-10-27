@@ -1,0 +1,10 @@
+# Hosts a page's <iframe> may load from (Content safety, in Build and quality
+# checks). The content-safety check accepts an <iframe> only with a literal
+# https src on one of these hosts or a subdomain of one. A host is added
+# through an extension proposal, for every team; there are no per-repo
+# exceptions.
+#   host  the host name; its subdomains are accepted too
+#   why   what pages embed from it
+hosts:
+  - host: youtube-nocookie.com
+    why: Product videos, through YouTube's privacy-enhanced mode (no cookies until the reader plays the video).

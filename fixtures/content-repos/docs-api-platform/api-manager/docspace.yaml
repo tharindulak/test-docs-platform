@@ -1,0 +1,57 @@
+# The Doc space manifest on the main line of docs-api-platform, as the converter
+# writes it (Converter and Content repos in the new layout, ticket 15),
+# copied for the tests of the Pilot as it is; test/migration.test.mjs keeps
+# the two equal. Compose reads the real checkouts (WSO2_DOCS_CONTENT_REPOS or
+# --content; by default the directory the Platform checkout sits in).
+schemaVersion: 1
+slug: api-manager
+displayName: API Manager
+editionNames:
+  selfHosted: API Manager {version}
+home: api-platform
+owners:
+  team: api-platform-docs
+repo: wso2/docs-api-platform
+editLinks: false
+issues:
+  repo: wso2/docs-apim
+editions:
+  - id: 4.7.0
+    branch: api-manager/release/4.7.0
+  - id: 4.6.0
+    branch: api-manager/release/4.6.0
+legacyVersions:
+  - id: 4.5.0
+    url: https://apim.docs.wso2.com/en/4.5.0/
+  - id: 4.4.0
+    url: https://apim.docs.wso2.com/en/4.4.0/
+  - id: 4.3.0
+    url: https://apim.docs.wso2.com/en/4.3.0/
+  - id: 4.2.0
+    url: https://apim.docs.wso2.com/en/4.2.0/
+  - id: 4.1.0
+    url: https://apim.docs.wso2.com/en/4.1.0/
+  - id: 4.0.0
+    url: https://apim.docs.wso2.com/en/4.0.0/
+  - id: 3.2.0
+    url: https://apim.docs.wso2.com/en/3.2.0/
+  - id: 3.1.0
+    url: https://apim.docs.wso2.com/en/3.1.0/
+  - id: 3.0.0
+    url: https://apim.docs.wso2.com/en/3.0.0/
+  - id: 2.6.0
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM260/overview
+  - id: 2.5.0
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM250/overview
+  - id: 2.2.0
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM220/overview
+  - id: 2.1.0
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM210/overview
+  - id: 2.0.0
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM200/overview
+  - id: 1.10.0
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM1100/overview
+  - id: 1.9.1
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM191/overview
+  - id: 1.9.0
+    url: https://wso2docs.atlassian.net/wiki/spaces/AM190/overview

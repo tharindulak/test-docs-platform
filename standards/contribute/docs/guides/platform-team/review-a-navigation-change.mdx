@@ -1,0 +1,60 @@
+---
+title: Review a navigation pull request
+description: Review a pull request that changes a Docs section manifest or the Platform navigation file, from its compose check to what readers will see.
+type: how-to
+sidebar_position: 3
+---
+
+A section's team changes its Docs section manifest with a pull request to `wso2/docs-platform`. The section's team approves its own file through `.github/CODEOWNERS`. The Platform team reviews every navigation pull request too, because the products menu and every other section are drawn from the same Deployment manifest.
+
+## Prerequisites
+
+- You're on the Platform team.
+- The pull request changes `navigation/sections/<id>.yaml`, `navigation/navigation.yaml` or both. A change to `navigation/navigation.yaml` needs a Platform team approval.
+
+## Read the compose check
+
+1. Open the pull request's **Compose check** run. It composed `main` first, then the pull request on top, and lists every issue with its files and owners.
+2. Only errors in the files the pull request changes block it. Errors marked "not caused by this change" were already on `main`. See [Fix a failed compose](fix-a-failed-compose.mdx).
+3. Read each warning and note:
+
+   | Code | Ask |
+   |---|---|
+   | `unknown-docspace` | Is the Doc space agreed and coming? Its entry stays hidden until it is published. Its own pull request follows this one. |
+   | `label-differs` | Is the label exactly as wso2.com writes it? Some differ on purpose, such as Security Token Service opening Identity Platform Cloud. |
+   | `borrowed` | The section lists a Doc space whose home is another section. Is that agreed with the Doc space's team? It is told in the compose report. |
+   | `borrowed-not-in-home-products` | The borrowed Doc space is missing from its home section's products. Ask the home section's team to add it. |
+
+## Check what readers will see
+
+1. **Products menu.** `products` lists the family's products in the order of wso2.com's header, with the labels wso2.com uses. The family Cloud needs no entry. A product with no Doc space of its own opens a page in one, such as Monetization opening `api-platform`'s `guides/monetization/`.
+2. **The menu.** `menu` starts with the family Cloud, then the products. Each Doc space is listed once.
+3. **Where the version is chosen.** `version-in: menu` is for Doc spaces with several Editions, such as API Manager and AI Gateway. A family Cloud uses `header`.
+4. **Link entries.** Each points outside WSO2 Docs, with a label that says where it goes.
+5. **Borrowing.** A borrowed Doc space keeps its one address and its home section. Readers who arrive from search see its home section's menu.
+6. **Unlisted Doc spaces.** No section lists the Sandbox, Contribute, Bijira or Devant. The compose check blocks it (`lists-unlisted`).
+
+## Merge it
+
+1. Approve it when the section's team has approved too.
+2. If it lists a coming Doc space, merge it before the Doc space's own pull request. That one then passes `home-not-listing`. See [Onboard a team](onboard-a-team.mdx#the-order-of-merges).
+3. If it also removes a product from `notYetOnWso2Docs`, check that its slug is the coming Doc space's.
+
+## Verify
+
+1. After the merge, open the **Manifests** run. It ends with `Republished manifest.json and sitemap.xml`.
+2. Open `<staging-host>/manifest.json`. `sections.<id>.menu` and `products` hold the published entries in order. `sections.<id>.pending` holds the entries that wait for their Doc space.
+3. Open a page in the section on `<staging-host>`. Within about a minute and a half, the menu shows the change, with no rebuild.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| The check fails before it composes the pull request | A repository in `contentRepos` on `main` can't be cloned (it has no `main`, or the read token can't reach it), or the Platform navigation file on `main` doesn't read. Fix `main` first. |
+| An entry doesn't appear after the merge | Its Doc space has no Docs deployment in that environment yet. It is in `pending` until the first release. |
+| `duplicate` … `has a Doc space manifest and a notYetOnWso2Docs entry` | The product's Doc space manifest is already on its repository's `main`. Remove the `notYetOnWso2Docs` entry in this pull request. |
+
+## Next steps
+
+- [Change the navigation](change-the-navigation.mdx)
+- [Manifest checks](../../reference/product-teams/manifest-checks.mdx)

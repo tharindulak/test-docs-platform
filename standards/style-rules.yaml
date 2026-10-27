@@ -1,0 +1,63 @@
+# House style rules that become Vale rules (besides the terminology). Each
+# links to its section of the Contribute style guide (`guide`). Seeded from
+# docs-is's WSO2-IAM style; Microsoft Writing Style Guide is the base, so
+# only WSO2 deviations and the curated seeds are here.
+rules:
+  - name: Headings
+    guide: reference/style-guide/#sentence-case
+    rule:
+      extends: capitalization
+      message: "Use sentence case in headings: '%s'."
+      level: warning
+      scope: heading
+      match: $sentence
+      indicators: [':']
+  - name: SentenceLength
+    guide: reference/style-guide/#language-and-voice
+    rule:
+      extends: occurrence
+      message: Try to keep sentences under 30 words.
+      level: suggestion
+      scope: sentence
+      max: 29
+      token: \b(\w+)\b
+  - name: ThereIs
+    guide: reference/style-guide/#language-and-voice
+    rule:
+      extends: existence
+      message: "Start with the subject instead of '%s'."
+      level: suggestion
+      ignorecase: false
+      raw: ['\bThere\s(is|are)\b']
+  - name: Weasel
+    guide: reference/style-guide/#language-and-voice
+    rule:
+      extends: existence
+      message: "Cut '%s' or say exactly how much."
+      level: suggestion
+      ignorecase: true
+      tokens: [clearly, extremely, fairly, hugely, interestingly, quite, relatively, remarkably, surprisingly, very]
+  - name: Wordy
+    guide: reference/style-guide/#language-and-voice
+    rule:
+      extends: substitution
+      message: "Use '%s' instead of '%s'."
+      level: suggestion
+      ignorecase: true
+      swap:
+        a number of: some
+        at this point in time: now
+        due to the fact that: because
+        has the ability to: can
+        in the event that: if
+        prior to: before
+        with regard to: about
+  - name: Placeholders
+    guide: reference/style-guide/#formatting
+    rule:
+      extends: existence
+      message: "Put the placeholder '%s' in code formatting."
+      level: warning
+      scope: text
+      nonword: true
+      raw: ['<[A-Z][A-Z0-9_]+>']

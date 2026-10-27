@@ -1,0 +1,10 @@
+cloud:
+  displayName: Identity Platform Cloud
+  productName: WSO2 Identity Platform
+  consoleUrl: https://console.asgardeo.io/t/<org>
+  apiBaseUrl: https://api.asgardeo.io/t/<ORG_NAME>
+self-hosted:
+  displayName: Identity Server {version}
+  productName: WSO2 Identity Server
+  consoleUrl: https://localhost:9443/console
+  apiBaseUrl: https://localhost:9443/t/<TENANT_DOMAIN>

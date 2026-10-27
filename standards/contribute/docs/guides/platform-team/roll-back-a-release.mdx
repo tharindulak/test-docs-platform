@@ -1,0 +1,87 @@
+---
+title: Roll back a Docs release
+description: Point a Docs deployment back at an earlier Docs release in seconds, with no build, and hold it there with a pin until a fix is released.
+type: how-to
+sidebar_position: 6
+---
+
+A rollback points a Docs deployment back at an earlier release folder. Nothing is built: the folder is still in the bucket, so the flip takes seconds. The team then pins the Edition, so the next Docs release doesn't move it forward again before the fix.
+
+This page rolls Sandbox 1.0.0 back from `1.0.0-docs.2` to `1.0.0-docs.1`.
+
+## Prerequisites
+
+- You're on the Platform team, with permission to run workflows in `wso2/docs-platform`.
+- The release to go back to is one of the last 5 of that Docs deployment, or its live one. Older folders are deleted by the clean-up. To go back further, release the old tag again: see [Follow and run a Docs release](run-a-docs-release.mdx#start-a-release-by-hand).
+
+## Find the Docs deployments
+
+1. List what is live and what each Docs deployment pointed at before:
+
+   ```bash
+   node bin/wso2-release.mjs status --storage s3://docs-staging
+   ```
+
+   Each entry has its `release` and, in `previous`, the releases before it, newest first.
+
+2. Roll back every Docs deployment the bad release made. A release of the newest version made two: `sandbox/latest` and `sandbox/1.0.0`. A family Cloud release made one, which holds its Cloud parts too.
+
+## Roll back
+
+1. In `wso2/docs-platform`, select **Actions** > **Roll back docs** > **Run workflow**.
+2. Enter the Docs deployments, separated by spaces, such as `sandbox/latest sandbox/1.0.0`.
+3. Leave **to** empty to go back one release, or enter the release, such as `1.0.0-docs.1`.
+4. Choose the environment, `staging`, and select **Run workflow**.
+
+The workflow points each Docs deployment back, publishes `manifest.json` and the sitemap index again, writes the redirect table, and repairs the search index from the live folders.
+
+To rehearse it locally, run the same commands against [WSO2 Docs running locally](run-it-locally.mdx):
+
+```bash
+node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json
+node bin/wso2-release.mjs rollback --storage s3://docs-staging --env staging --policy composed.json --deployment sandbox/latest
+node bin/wso2-release.mjs rollback --storage s3://docs-staging --env staging --policy composed.json --deployment sandbox/1.0.0
+node bin/wso2-release.mjs redirects --storage s3://docs-staging --kv local:http://127.0.0.1:4721
+node bin/wso2-release.mjs search-check --env local --storage s3://docs-staging --policy composed.json --fix
+```
+
+Each `rollback` prints the release it went back to, such as `staging: sandbox/1.0.0 rolled back to 1.0.0-docs.1`.
+
+## Hold it with a pin
+
+A rollback holds only until the next Docs release of that Edition. Ask the Doc space's team to pin the Edition on `main`:
+
+```yaml
+editions:
+  - id: cloud
+  - id: 1.0.0
+    pin: 1.0.0-docs.1   # rolled back: 1.0.0-docs.2 had a broken sentence
+```
+
+Once the pin is composed, a release of any other tag of that Edition fails its plan:
+
+```text
+wso2-release: Edition 1.0.0 of sandbox is pinned to 1.0.0-docs.1 in its docspace.yaml; remove the pin to release 1.0.0-docs.3
+```
+
+The pinned tag itself still releases, so releasing it again also rolls back. When the fix is merged, the team removes the pin and releases. A pinned Cloud Edition holds the whole Cloud tree, Cloud parts included.
+
+## Verify
+
+1. A page of each Docs deployment answers with an `x-docs-release` header naming the earlier folder, such as `sandbox/1.0.0/1.0.0-docs.1`, within about a minute and a half.
+2. `status` shows the rolled-back release as `release`, and the bad one first in `previous`.
+3. The **Roll back docs** run's summary lists each rollback.
+
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `<deployment> has no earlier release to roll back to` | It was released once only. Take it down, or release a fixed tag. |
+| `<deployment> is not deployed` | Check the Docs deployment's name with `status`: `<doc space>/<edition>`, `<doc space>/latest`, or `<doc space>/_` for an unversioned Doc space |
+| `Release <x> is missing or incomplete` | That folder was deleted by the clean-up. Release its tag again. |
+| The bad release came back | A later release moved the Edition forward. Pin it. |
+
+## Next steps
+
+- [End an Edition or send it back to its old site](end-an-edition.mdx)
+- [The release pipeline](../../concepts/platform-team/release-pipeline.mdx#release-folders-and-pointers)

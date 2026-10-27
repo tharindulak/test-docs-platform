@@ -1,0 +1,67 @@
+---
+title: Compose and the published manifest
+description: The two copies of the Deployment manifest the Platform keeps, where the compose step runs, and how the last good copy keeps WSO2 Docs working on a failure.
+type: concept
+sidebar_position: 3
+---
+
+The compose step merges the Platform navigation file, every Docs section manifest and every Doc space manifest into the Deployment manifest. The developer guide's [Manifests and the compose step](../product-teams/manifests-and-compose.mdx) explains the rules. This page covers the two copies the Platform keeps of the result, and what the Platform team watches.
+
+## How it works
+
+### Two copies
+
+| Copy | Where | Holds | Read by |
+|---|---|---|---|
+| The composed manifest | `_platform/composed.json` in each environment's bucket | Everything compose works out, plus what only the pipeline needs: each Edition's branch and pin, each Doc space's tag prefix, environments and source file, and the inputs as read (`sources`), so a pull request can compose against it | The release pipeline: plan, builds, flips, rollbacks, search |
+| The published manifest | `manifest.json` at the root of each environment's host | The composed manifest without the pipeline-only fields, plus the deployment state: each Doc space's `deployments` and each deployed Edition's `tag` | Readers' menus and version selectors, the Edge Worker, `preview`, `check` and Content repository pull requests |
+
+`manifest.json` is made again at every flip, rollback and manifest change. A Doc space limited to some environments, such as the Sandbox (`environments: [staging]`), is left out of the others' `manifest.json`. Making it also hides what isn't deployed yet: a section entry whose Doc space has no Docs deployment in that environment moves to the section's `pending` list, so a reader never gets a menu line that leads nowhere. A Cloud part counts as deployed once its platform's Cloud is.
+
+### Where compose runs
+
+| When | Workflow | Inputs | Result |
+|---|---|---|---|
+| A pull request to the Platform that changes `navigation/`, `schemas/`, Contribute's `docspace.yaml` or the compose code | Compose check | `main` composed as the base, then the pull request's files on top | Pass, or the errors in the files it changes |
+| A pull request to a Content repository's `main` | The repository's `docs.yml`, compose job | The published `manifest.json`, then the repository's own Doc space manifests | Pass, or the errors in its files, each on its file |
+| A merge to the Platform's `main` that changes those paths, or the Platform team, by hand | Manifests | Every Content repository's `main` | Stored `composed.json`, republished `manifest.json`, and rebuilds when an Edition is added or `latest` moves |
+| Every Docs release | Release docs, plan job | Every Content repository's `main` | Stored `composed.json`, used by the rest of the run |
+
+So a change to a Doc space manifest reaches the published manifest at the next Docs release of any Doc space, or the next Manifests run.
+
+### The last good copy
+
+On `main`, a failed compose never replaces anything. The stored `composed.json` stays, so `manifest.json` stays too, and readers see no change. The run fails, and its annotations name each error's files and owning teams. Compose on `main` fails when two pull requests each pass alone but not together, or when a Content repository's `main` is changed without a pull request.
+
+While `main` is broken, a release still plans from the last good copy, and a pull request's compose check lists the errors already on `main` as "not caused by this change" without being blocked by them. A release for an Edition that only the broken manifest adds waits until compose succeeds again.
+
+### The compose report
+
+`--report <file>` writes what compose found as JSON. Each workflow that composes keeps it: the Manifests workflow uploads `composed.json` and `compose-report.json` as the run's `compose` artifact.
+
+| Field | Meaning |
+|---|---|
+| `ok` | No blocking error |
+| `mode` | `main` or `pr` |
+| `keptLastGood` | On `main`: compose failed and the last good copy stayed |
+| `changed` | In a pull request: the manifest files it adds, changes or removes |
+| `issues` | Every error, warning and note, each with its `level`, `code`, `message`, `files` and `owners` |
+| `alert` | The teams to tell: owners of the blocking errors |
+
+Each `code` is described, with its fix, in [Manifest checks](../../reference/product-teams/manifest-checks.mdx).
+
+### At runtime
+
+The Edge Worker reads `manifest.json` again every 30 seconds per instance (`MANIFEST_TTL_SECONDS`), and serves it to browsers with a 60-second cache. So a flip, a rollback or a menu change reaches readers within about a minute and a half, with no rebuild.
+
+## Limits
+
+- Production republishes the manifest staging composed. Its own bucket's `composed.json` is not used.
+- Compose reads only `main` of each Content repository. A Doc space manifest on a release branch is ignored.
+- A Content repository must be in `contentRepos` before compose reads it, and its `main` must exist: the clone fails for a repository with no `main`.
+
+## Related
+
+- [Fix a failed compose](../../guides/platform-team/fix-a-failed-compose.mdx)
+- [Review a navigation pull request](../../guides/platform-team/review-a-navigation-change.mdx)
+- [Storage, state and runtime files](../../reference/platform-team/storage-and-runtime-files.mdx)

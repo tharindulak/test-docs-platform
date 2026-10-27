@@ -1,0 +1,14 @@
+# The Pilot in the target layout (Changes to the Pilot): what "Converter and
+# Content repos in the new layout" (ticket 15) writes to
+# docs-sandbox/sandbox/docspace.yaml on main.
+schemaVersion: 1
+slug: sandbox
+displayName: Docs Sandbox
+listed: false
+environments: [staging]
+owners:
+  team: docs-standards
+repo: wso2/docs-sandbox
+editions:
+  - id: cloud
+  - id: 1.0.0

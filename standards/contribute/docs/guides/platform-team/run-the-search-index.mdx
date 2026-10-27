@@ -1,0 +1,107 @@
+---
+title: Run the search index
+description: Set up an environment's search collection and keys, index Docs deployments by hand, check the index against what is live and repair it, and change a key.
+type: how-to
+sidebar_position: 10
+---
+
+The release pipeline indexes every Docs deployment it flips, and the weekly check repairs drift. Do these steps by hand to set up an environment, to repair the index after a rollback or a Docs deployment taken down, or to change a key. [Search in operation](../../concepts/platform-team/search-operations.mdx) explains the records and the keys.
+
+## Prerequisites
+
+- You're on the Platform team.
+- The environment's Typesense address and admin key, in `TYPESENSE_URL` and `TYPESENSE_ADMIN_KEY`. For staging they are `<search-staging-host>` and the staging environment's `TYPESENSE_ADMIN_KEY` secret. Locally, your own Typesense: see [Run WSO2 Docs locally](run-it-locally.mdx#start-search).
+- For `--storage`, the environment's bucket credentials: `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
+
+## Set up a collection
+
+1. Make the collection, its analytics rules and a search-only parent key:
+
+   ```bash
+   node bin/wso2-release.mjs search-setup --env staging
+   ```
+
+   It prints `wso2docs-staging: created; analytics rules in place`, then the parent key. The parent key is printed only once: keep it with the Platform team's secrets.
+
+2. Run it again after a Platform release that adds fields: it prints `exists, added <fields>`, and `Reusing search-only parent key <id> (<prefix>…)`. It makes no new key.
+
+## Make the browser key
+
+1. Scope a browser key from the parent, with an expiry:
+
+   ```bash
+   node bin/wso2-release.mjs search-key --parent <parent key> --expires 2027-10-26
+   ```
+
+2. Set it as the Platform repository's `SEARCH_KEY_STAGING` variable, or `SEARCH_KEY_PRODUCTION`. Builds bake both in.
+3. Rebuild every Docs deployment, so pages carry the new key: see [Rebuild Docs deployments](run-a-docs-release.mdx#rebuild-docs-deployments).
+4. For the MCP endpoint, set the Edge Worker's `TYPESENSE_SEARCH_KEY` secret to a search-only key, with `npx wrangler secret put TYPESENSE_SEARCH_KEY -c worker/wrangler.jsonc --env staging`.
+
+## Index Docs deployments by hand
+
+1. Index Docs deployments from their release folders, as a release does after its flip:
+
+   ```bash
+   node bin/wso2-release.mjs search-index --env staging --storage s3://docs-staging --deploy "identity-platform/cloud=cloud-2026.10.26.1 identity-server/7.3.0=7.3.0-docs.1"
+   ```
+
+   Each line of the output gives the records upserted and the stale ones deleted. A family Cloud lists its groups: `identity-platform/cloud upserted 134 records (identity-platform/cloud 6, identity-server/cloud 128)`. `/latest/` is skipped.
+
+2. Or index a local build, before it is published, with `--dir <build> --release <release id>`.
+
+## Check and repair the index
+
+1. In `wso2/docs-platform`, select **Actions** > **Search consistency** > **Run workflow**, with **fix** on, to check and repair both environments. Or check one:
+
+   ```bash
+   node bin/wso2-release.mjs search-check --env staging --storage s3://docs-staging --out search-check.json
+   ```
+
+   It exits 1 when the index drifted. Each Docs deployment in the report has its `missing`, `extra` and `otherReleases` pages, `formerNames` when its records' former names differ from the manifest's, and `orphans` lists Editions with no live Docs deployment.
+
+2. Repair it from the live release folders:
+
+   ```bash
+   node bin/wso2-release.mjs search-check --env staging --storage s3://docs-staging --fix --out search-check.json
+   ```
+
+   `fixed` lists each Docs deployment indexed again and each orphan deleted.
+
+## Change a key
+
+1. Make a new parent key, and a new browser key from it:
+
+   ```bash
+   node bin/wso2-release.mjs search-setup --env staging --new-key
+   ```
+
+2. Set the new browser key in `SEARCH_KEY_STAGING` or `SEARCH_KEY_PRODUCTION`, and rebuild everything.
+3. Once every Docs deployment carries the new key, find the old parent key and delete it. Browser keys scoped from it stop working.
+
+   ```bash
+   node bin/wso2-release.mjs search-keys --env staging
+   node bin/wso2-release.mjs search-key-delete --env staging --id <old id>
+   ```
+
+   `search-keys` shows each key's id and first four characters, never its full value, and marks the collection's search-only parents. Later `search-setup` runs reuse the newest parent.
+
+## Verify
+
+1. `search-check` without `--fix` exits 0, and its report has `"ok": true` and no orphans.
+2. On a page of the environment, the search box finds a page of each Docs deployment you indexed.
+3. The browser key can only search: importing documents or listing keys with it answers 401.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Typesense URL is required (TYPESENSE_URL)` or `admin key is required` | Set both variables |
+| `No search collection for environment "<name>"; pass --collection` | `--env` is `staging`, `production` or `local` |
+| `<space>/<edition> has no search records; refusing to index` | The build has no records. Check its `_platform/search-records.json`. |
+| Search shows "unavailable" on a host | The build has no key for that host's environment. Set the variable and rebuild. |
+| Records of a rolled-back release remain | Run `search-check --fix` |
+
+## Next steps
+
+- [Search in operation](../../concepts/platform-team/search-operations.mdx)
+- [Search scopes](../../concepts/product-teams/search-scopes.mdx)

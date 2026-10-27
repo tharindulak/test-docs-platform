@@ -1,0 +1,27 @@
+# A sample catalog data file, drawn by index.mdx (layout: catalog). The
+# data-files check validates it against the Platform's catalog schema:
+# https://docs.wso2.com/schemas/catalog.schema.json
+schemaVersion: 1
+categories:
+  - { id: notifications, label: Notifications }
+  - { id: storage, label: Storage }
+items:
+  - id: email
+    name: Email
+    description: Sends project notifications by email.
+    href: guides/sample-task
+    category: notifications
+    tags: [email]
+  - id: webhooks
+    name: Webhooks
+    description: Calls your endpoint when a project changes. Cloud only.
+    href: ../../guides/sample-task.mdx
+    category: notifications
+    status: beta
+    editions: [cloud]
+  - id: local-disk
+    name: Local disk
+    description: Keeps project history on the server's disk. Self-hosted only.
+    href: ../configuration.mdx
+    category: storage
+    editions: [self-hosted]

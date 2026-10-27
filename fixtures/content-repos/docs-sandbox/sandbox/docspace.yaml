@@ -1,0 +1,16 @@
+# The Doc space manifest on the main line of docs-sandbox (moved to the new
+# layout, sandbox/, by Converter and Content repos in the new layout, ticket
+# 15; the Sandbox is written by hand, not converted), copied for the tests of
+# the Pilot as it is. Compose reads the real checkouts (WSO2_DOCS_CONTENT_REPOS or
+# --content; by default the directory the Platform checkout sits in).
+schemaVersion: 1
+slug: sandbox
+displayName: Docs Sandbox
+listed: false
+environments: [staging]
+owners:
+  team: docs-standards
+repo: wso2/docs-sandbox
+editions:
+  - id: cloud
+  - id: 1.0.0

@@ -1,0 +1,109 @@
+---
+title: The wso2-release command
+description: Every command and option of the release pipeline's CLI, the local edge and the report jobs, as the workflows run them.
+type: reference
+sidebar_position: 3
+---
+
+`bin/wso2-release.mjs` in the Platform is the release pipeline's CLI. The workflows run it, and so can you, against a bucket or [WSO2 Docs running locally](../../guides/platform-team/run-it-locally.mdx). Run it from a Platform checkout:
+
+```bash
+node bin/wso2-release.mjs <command> [options]
+```
+
+## Storage, manifest and keys
+
+| Option or variable | Description | Default |
+|---|---|---|
+| `--storage <s>` | `s3://<bucket>`, through R2's S3 API with `R2_ENDPOINT`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`; or `file:<dir>` | none |
+| `--policy <file>` | A composed manifest, from `compose --out` or `composed` | The bucket's `_platform/composed.json`, else composed from the checkouts in `WSO2_DOCS_CONTENT_REPOS` |
+| `--kv <sink>` | Where the redirect table goes: `cloudflare:<namespace id>` (with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`), `local:<url>` (the local edge) or `file:<path>` | none |
+| `TYPESENSE_URL`, `TYPESENSE_ADMIN_KEY` | The search commands' Typesense | none |
+| `--env <name>` | `staging` or `production`; for search also `local` | none |
+
+## Compose
+
+| Command | What it does |
+|---|---|
+| `compose [--navigation <dir>] [--content <dir>] [--platform-root <dir>] [--out <file>] [--last-good <file> \| --storage <s>] [--report <file>]` | Composes on `main` and writes `--out` and the bucket's `_platform/composed.json`. On failure it keeps the last good copy, names the teams to alert, and exits 1. |
+| `compose --as-base --out <file> [--navigation <dir>] [--content <dir>] [--platform-root <dir>]` | Composes `main` as the base of a Platform pull request's check, written even when `main` has errors |
+| `compose --pr (--base <file> \| --storage <s>) [--navigation <dir>] [--content <dir>] [--repo <owner/name> --repo-dir <dir>] [--report <file>]` | A pull request's check against the latest merged manifest. Exits 1 on errors in the files the pull request changes. |
+| `compose --pr --published <url\|file> --repo-dir <checkout> [--repo <owner/name>] [--base-ref <ref>] [--annotate <prefix>] [--report <file>]` | A Content repository pull request's check, against the published `manifest.json` |
+| `composed --storage <s> --out <file>` | Writes the bucket's stored composed manifest to a file, for builds and flips |
+| `policy-diff --old <manifest.json> [--policy <file>]` | `{ rebuild, republish }`: the Doc spaces whose Editions or `latest` changed, and whether anything changed |
+
+`--content` is a folder with one checkout per Content repository, named as the repository. Default: `WSO2_DOCS_CONTENT_REPOS`, else the folder the Platform checkout is in.
+
+## Release
+
+| Command | What it does |
+|---|---|
+| `plan --repo <owner/name> --tag <tag> [--storage <s>]` | The Docs deployments a tag makes, latest twin first, as JSON with a `flip` line |
+| `plan --scope docspace --space <slug> --rebuild-id <id> --storage <s>` | A rebuild of every deployed Edition of one Doc space |
+| `plan --scope all --rebuild-id <id> --storage <s> [--major <n>] [--content <dir>]` | A Platform release's rebuild: every deployed Edition whose Content repository pins major `<n>` (default this Platform's major), read from `PLATFORM_REF: v<n>` in each repository's `docs.yml` under `--content`. Contribute always counts. The JSON lists what it leaves out in `skipped`. |
+| `plan --scope landing --rebuild-id <id> --storage <s>` | The Landing deployment, built from the Platform alone, under release id `landing-<YYYY.MM.DD>.<id>` |
+| `platform-changes --base <sha> [--head <sha>] [--github-output <file>]` | Whether a change on the Platform's `main` releases Contribute, the Landing deployment, or both. No base: both. |
+| `platform-release --tag v<major>.<minor>.<patch>` | Checks a Platform release tag against `package.json`, and says whether it moves the `v<major>` tag (only to the newest release of the major) |
+| `check --dir <build> --space <slug> --segment <seg> --edition <id>` | The structural check of a build before upload |
+| `publish --storage <s> --dir <build> --space <slug> --segment <seg> --edition <id> --tag <tag> [--release <id>] [--source-repo <owner/name>] [--source-sha <sha>]` | Uploads a build to its release folder. A complete folder is never uploaded twice. |
+| `flip --storage <s> --env <name> --deploy <space>/<segment>=<release> [--deploy …] [--chrome <file>]` | Points Docs deployments at releases in one state write, and republishes the runtime files |
+| `rollback --storage <s> --env <name> --deployment <space>/<segment> [--to <release>]` | Flips one Docs deployment back to its previous release, or the one named |
+| `retire --storage <s> --env <name> --deployment <space>/<segment>` | Takes down a Docs deployment whose Edition the manifest no longer lists |
+| `manifest --storage <s> --env <name> [--chrome <file>]` | Republishes `manifest.json`, `sitemap.xml` and `llms.txt` (and `chrome.json`) |
+| `redirects --storage <s> --kv <sink> [--dry-run]` | Compiles every live Docs deployment's redirects and writes only what changed |
+| `crawl --storage <s> --host <url> --deploy <space>/<segment>=<release> […]` | The crawl gate. Exits 1 on any failed page or link. |
+| `promote --storage <staging> --to <production> --deploy <space>/<segment>=<release> […]` | Copies release folders byte for byte between buckets |
+| `gc --storage <s> [--keep 5] [--dry-run]` | Deletes all but the newest releases of each Docs deployment, never the live one |
+| `latest-pages --storage <s> --space <slug> --out <file>` | The deployed latest twin's page list, for older versions' canonicals |
+| `route-lists --storage <s> --out <dir>` | Every deployed page list, for `wso2-docs check --routes` |
+| `preview --storage <s> --dir <build> --space <slug> --pr <n> --edition <id>` | Publishes a pull request preview |
+| `status --storage <s>` | Prints the deployment state |
+| `state-lock --storage <s> [--break]` | Who holds the state lock, or `{ "free": true }`. `--break` removes a stuck lock; one left by a run that died also expires after 30 minutes. |
+
+`flip`, `rollback`, `retire`, `manifest`, `redirects` and `gc` take the bucket's state lock while they run, and wait their turn when another command holds it, for up to 45 minutes. A dry run takes no lock. `flip` never moves a Docs deployment to a release published before its live one, unless the Edition is pinned to that release's tag; `rollback` does.
+
+`<segment>` is an Edition id, `latest`, or `_` for an unversioned Doc space and the Landing deployment (`_landing/_`).
+
+## Search
+
+| Command | What it does |
+|---|---|
+| `search-setup --env <name> [--collection <c>] [--new-key]` | Makes or updates the collection and its analytics rules. Makes a search-only parent key the first time, and reuses it after that; `--new-key` makes another |
+| `search-keys --env <name> [--collection <c>]` | Lists every key: id, the first four characters, actions, collections, expiry, and which is the collection's search-only parent |
+| `search-key-delete --env <name> --id <id>` | Deletes one key. Browser keys scoped from it stop working. |
+| `search-key --parent <key> [--expires <date>]` | A scoped browser key from the parent |
+| `search-index --env <name> --storage <s> --deploy <space>/<segment>=<release> […]` | Indexes Docs deployments from their release folders. Exits 1 if one failed. |
+| `search-index --env <name> --dir <build> --release <id>` | Indexes a local build |
+| `search-check --env <name> --storage <s> [--fix] [--out <file>]` | The consistency check. Exits 1 on drift, unless `--fix` repaired it. |
+
+## The local edge
+
+```bash
+npm run edge:local -- [--port 4180] [--data <dir>] [--env staging|production] [--admin-port <port + 1>]
+```
+
+| Option | Description | Default |
+|---|---|---|
+| `--port` | The Edge Worker's port, on 127.0.0.1 | `PORT`, else `4180` |
+| `--data` | Where its bucket and KV are kept. It writes `edge.env` there, with the `R2_*` variables. | `.cache/edge` |
+| `--env` | Which environment's rules from `worker/wrangler.jsonc` | `staging` |
+| `--admin-port` | The KV endpoint for `--kv local:http://127.0.0.1:<port>` | The edge's port plus one |
+
+## Other commands
+
+| Command | What it does |
+|---|---|
+| `wso2-docs spaces <repo> --push --base <before>` | The Cloud releases a merge to `main` makes |
+| `wso2-docs spaces <repo> --release <dir> --version <v>` | The tag a **Release docs** run makes |
+| `wso2-docs spaces <repo> --branch <base> --base <ref>` | The Doc spaces a pull request checks |
+| `wso2-docs build --landing [--out <dir>]` | Builds the Landing deployment |
+| `wso2-docs init --root-files [--repo <path>]` | Brings a Content repository's Platform-managed root files up to date |
+| `wso2-reports matrix` | Live Doc spaces and Docs deployments, for report matrices |
+| `wso2-reports digest --space <slug> [--days 7] [--env production]` | The weekly digest of one Doc space |
+| `wso2-reports lint-counts <check.json>…` | Lint counts per Content repository |
+| `wso2-reports a11y-urls --sitemap <url\|file> [--sample <n>]` | A sample of pages for the accessibility checks |
+
+## Related
+
+- [Storage, state and runtime files](storage-and-runtime-files.mdx)
+- [The wso2-docs command](../cli.mdx)

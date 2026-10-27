@@ -1,0 +1,29 @@
+---
+title: Quality gates
+description: Where each check runs, which checks block a merge or a release, and which only warn.
+type: concept
+sidebar_position: 3
+---
+
+WSO2 Docs checks every change at three points. The pull request is the main gate.
+
+## How it works
+
+1. **The pull request.** The blocking checks are required status checks on `main` and `release/*`. They run from the Platform's reusable workflow, the same code as `npx @wso2/docs check`.
+2. **The Docs release build.** The Platform build re-runs the blocking checks that don't depend on the change. If one fails, nothing deploys and the previous release stays live.
+3. **After deploy.** A crawl of the new deployment on staging checks links, anchors and links into other Doc spaces, and gates promotion to production. Nightly jobs report broken external links, accessibility issues and search-index drift to the Doc space owners.
+
+## What blocks and what warns
+
+The checks that would break the build or the reader's experience block. Prose lint only warns, on the lines you changed, so existing content never stops your change. See [Checks](../reference/checks.mdx) for every check.
+
+Some error-level style rules, starting with product names, can be promoted to blocking one at a time. A promotion is announced in the Platform release notes at least two weeks before it takes effect. Rules are only ever added, never loosened.
+
+## Overrides
+
+A Doc space owner can override a policy check with a label and a written reason. See [Override a policy check](../guides/owners/override-a-check.mdx).
+
+## Related
+
+- [Check your changes](../guides/check-your-changes.mdx)
+- [Protect the main and release branches](../guides/owners/branch-protection.mdx)

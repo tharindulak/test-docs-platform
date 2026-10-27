@@ -1,0 +1,67 @@
+---
+title: Cheat sheet
+description: Every command and file you use to write WSO2 Docs, on one page.
+type: reference
+sidebar_position: 3
+---
+
+Run these commands from a Content repository checkout's root. Name the Doc space's directory, such as `identity-server`.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `npx @wso2/docs init agent-manager --home agent-platform` | Start a Doc space: `agent-manager/` from the Platform's template, plus the root files in a new repository |
+| `npx @wso2/docs preview identity-server` | Live preview of the Edition for this branch (`main` is Cloud) |
+| `npx @wso2/docs preview identity-server --only guides` | Preview one folder only, for speed |
+| `npx @wso2/docs preview identity-server --edition 7.3.0` | Preview another Edition |
+| `npx @wso2/docs preview identity-server --exact` | Preview exactly as published, without marker outlines |
+| `npx @wso2/docs new how-to identity-server --title "Add a login flow"` | Create a page from the how-to template |
+| `npx @wso2/docs check identity-server` | Run the pull request's checks on your changes |
+| `npx @wso2/docs check identity-server --no-build` | The same, without the preview build (faster) |
+| `npx @wso2/docs check identity-server --format json` | Machine-readable results |
+| `npx @wso2/docs branch-cut identity-server 7.4.0` | Branch cut: make the version's branch, remove the markers it covers from `main` on a branch for a pull request, and print the branch cut report |
+
+## Page types
+
+| Type | Use it for | Default folder |
+|---|---|---|
+| `quick-start` | A working result in about 15 minutes | `get-started/` |
+| `tutorial` | Learning by building something end to end | `get-started/` |
+| `how-to` | One task | `guides/`, `deploy-and-operate/` |
+| `concept` | What something is and why | `concepts/` |
+| `reference` | Facts to look up | `reference/` |
+| `release-notes` | What changed in a release | `release-notes/` |
+
+## Edition markers
+
+| Write | Shows in |
+|---|---|
+| `<Edition only="cloud">…</Edition>` | Cloud only |
+| `<Edition only="self-hosted">…</Edition>` | Self-hosted versions only |
+| `<Edition selfHostedFrom="7.4.0">…</Edition>` | Cloud, and self-hosted from 7.4.0 |
+| `<Edition selfHostedFrom="next">…</Edition>` | Cloud, and no self-hosted version until its release owner gives it one |
+| `{edition.productName}` | The product name of the Edition being built |
+
+## Files in a Content repository
+
+A Content repository holds one directory per Doc space, named by its slug (for example `identity-server/`). Each directory holds:
+
+| File | What it holds |
+|---|---|
+| `docspace.yaml` | The Doc space manifest: names, Editions and their branches, home section, owners |
+| `docs/` | The pages. The folder path is the URL. |
+| `docs/**/_category_.yml` | A sidebar group's label and position |
+| `partials/` | Reusable snippets shared inside the Doc space, never pages (`docs/**/_partials/` works too) |
+| `assets/` | Images and downloads; `assets/cloud/` and `assets/self-hosted/` for Edition-only files |
+| `editions.yaml` | The `{edition.*}` variables for Cloud and self-hosted |
+| `redirects.yaml` | Page moves and legacy URLs |
+| `words.txt` | Extra words for the spelling check |
+
+The root holds only the README, `CODEOWNERS`, the workflows, the branch ruleset and the editor settings, all written by `init`. A Doc space's release branch, `<doc space>/release/<version>`, builds only its own directory, and the checks block changes to any other path there.
+
+## Labels on pull requests
+
+| Label | Effect |
+|---|---|
+| `quality-override` | A Doc space owner overrides a policy check, with a reason in the pull request description |

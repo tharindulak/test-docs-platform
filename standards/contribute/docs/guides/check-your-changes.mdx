@@ -1,0 +1,45 @@
+---
+title: Check your changes
+description: Run the pull request's checks on your computer, so that passing locally means passing on the pull request.
+type: how-to
+sidebar_position: 4
+---
+
+Run the same checks the pull request runs, against your working copy.
+
+## Prerequisites
+
+- Your computer is [set up](../get-started/set-up.mdx).
+- Your changes are on a branch, committed or not.
+
+## Run the check
+
+1. Run the check from the repository's folder, with the Doc space's directory:
+
+   ```bash
+   npx @wso2/docs check identity-server
+   ```
+
+   It compares your working copy with `main` (or the release branch you branched from). To compare with something else, add `--base <branch or commit>`.
+
+2. Read the report. Each finding has the file, the line, what's wrong and a link to the rule.
+3. Fix the blocking findings. Warnings are worth fixing but don't stop a merge.
+
+For a faster run while you write, skip the preview build with `--no-build`. Run without it before you push.
+
+## What blocks and what warns
+
+| Blocks the pull request | Only warns, on the lines you changed |
+|---|---|
+| MDX compile, preview build, links to other Doc spaces, redirect coverage, front matter, Edition markers and their versions, folder skeleton, image size and alt text, Markdown twins | Prose style (Vale), spelling (cspell), heading order and house style |
+
+See [Checks](../reference/checks.mdx) for each check and how to fix it.
+
+## Verify
+
+The last line says `Result: pass`, and the command exits with code 0.
+
+## Next steps
+
+- Ask an AI assistant to run the "Check my changes" skill. It runs this check and then reviews your pages. See [Use the author skills](use-the-author-skills.mdx).
+- [Open a pull request](open-a-pull-request.mdx)

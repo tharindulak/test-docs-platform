@@ -1,0 +1,108 @@
+---
+title: Doc space manifest
+description: Every field of the Doc space manifest, with its type, default and allowed values.
+type: reference
+sidebar_position: 1
+---
+
+This page lists every field of `<doc space>/docspace.yaml`. The schema is `schemas/docspace.schema.json` in `wso2/docs-platform`. Only the copy on the Content repository's `main` counts. Unknown fields fail the schema check. `npx @wso2/docs init` writes a new Doc space's manifest with a comment on every field. See [Start a Doc space](../../guides/product-teams/start-a-doc-space.mdx).
+
+## Fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `schemaVersion` | `1` | required | The manifest format version |
+| `slug` | slug | required | The address segment, `docs.wso2.com/<slug>/`, and the directory's name. Lowercase words joined by hyphens. |
+| `displayName` | string | required | The name readers see, as wso2.com writes it |
+| `formerNames` | list of strings | none | Earlier names, kept searchable, such as `Asgardeo` |
+| `brand` | string | none | Cloud's brand where it differs from the name. Shown as "Cloud (brand)". |
+| `editionNames.cloud` | string | `<displayName> Cloud` | The Cloud Edition's name, such as "Identity Platform Cloud" |
+| `editionNames.selfHosted` | string with `{version}` | `<displayName> <version>` | A Self-hosted Edition's name, such as "Identity Server `{version}`" |
+| `model` | `cloud-plus-versions`, `versions-only`, `cloud-only` or `unversioned` | from `editions` | Leave it out. If set, it must agree with the Editions. |
+| `editions` | list of Editions | none | The Editions in display order, Cloud first, then newest first. Never sorted. See [Editions](#editions). |
+| `legacyVersions` | list of `{ id, url }` | none | Versions still on their old site, listed under "Older versions (old site)" |
+| `latest` | Edition id | the first Self-hosted Edition, or `cloud` in a Cloud-only Doc space | The Edition built as `/latest/`: a Self-hosted Edition. Only a Cloud-only Doc space has `cloud`. |
+| `home` | section id | required, or `listed` | The home Docs section, which must list this Doc space |
+| `listed` | `false` | none | An Unlisted Doc space: no home section, and no section may list it. Use it instead of `home`. |
+| `indexed` | `true` | none | With `listed: false` only. Search engines and WSO2 Docs search index it, and the sitemap index lists it. Contribute uses it. |
+| `cloud.in` | slug | none | This Doc space's Cloud is a Cloud part of that family Cloud. Its `main` is the part. |
+| `notices` | list of notices | none | Banners shown at runtime. See [Notices](#notices). |
+| `owners.team` | string | required | The owning team, alerted when compose fails because of this file |
+| `repo` | `owner/name` | required | The Content repository this Doc space lives in |
+| `editLinks` | boolean | `true` | `false` hides "Edit this page" |
+| `issues.repo` | `owner/name` | none | Where "Report an issue" opens |
+| `issues.template` | string | none | The issue template to open |
+| `issues.labels` | list of strings | none | Labels for new issues |
+| `environments` | list of environment ids | every environment | Only these environments publish the Doc space. The Sandbox uses `[staging]`. |
+| `status` | `legacy` | none | Not on WSO2 Docs yet. Needs `legacyUrl`. |
+| `legacyUrl` | URL | none | The old site, with `status: legacy` |
+
+Either `home` or `listed: false` is required, never both.
+
+## Editions {#editions}
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `id` | `cloud`, an exact version or a date version | required | `cloud`, `7.3.0` or `2026.09.24` |
+| `branch` | branch name | `main` for Cloud; `<doc space>/release/<id>` in a repository with several Doc spaces; else `release/<id>` | The branch whose newest Docs release tag is deployed |
+| `pin` | tag | none | Holds this Edition on one Docs release tag, such as `ai-gateway/1.2.0-docs.2`: releases of its other tags are refused |
+| `status` | `live` or `end-of-life` | `live` | An end-of-life Edition stays readable, with the end-of-life notice |
+| `parts` | list of slugs | none | On the Cloud Edition only: the Doc spaces built into this Cloud tree as Cloud parts, from the same Content repository |
+
+## Notices {#notices}
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `text` | string | required | The notice text |
+| `level` | `info` or `warning` | required | How it is styled |
+| `editions` | list of Edition ids | every Edition | Where it shows. A Cloud part's `cloud` counts. |
+| `until` | date, `YYYY-MM-DD` | none | The last day it shows, in UTC. Quoted or not: manifests read dates as plain text. |
+
+## Other files in the directory
+
+| File | Holds |
+|---|---|
+| `editions.yaml` | The `{edition.*}` variables: a `cloud:` block and a `self-hosted:` block. `{version}` is filled in. |
+| `redirects.yaml` | `moves` (`from` and `to`, page paths in this Doc space) and `legacy` (`from`, an old URL, and `to`, a page) |
+| `docs/`, `partials/`, `assets/` | See the [cheat sheet](../../get-started/cheat-sheet.mdx#files-in-a-content-repository) |
+
+## Examples
+
+Identity Platform Cloud, a family Cloud with one Cloud part:
+
+```yaml
+schemaVersion: 1
+slug: identity-platform
+displayName: Identity Platform Cloud
+formerNames: [Asgardeo]
+editionNames:
+  cloud: Identity Platform Cloud
+home: identity-platform
+owners:
+  team: identity-platform-docs
+repo: wso2/docs-identity-platform
+editions:
+  - id: cloud
+    parts: [identity-server]
+```
+
+Identity Server, the Cloud part, with two Self-hosted versions:
+
+```yaml
+schemaVersion: 1
+slug: identity-server
+displayName: Identity Server
+editionNames:
+  selfHosted: Identity Server {version}
+home: identity-platform
+cloud:
+  in: identity-platform
+owners:
+  team: identity-platform-docs
+repo: wso2/docs-identity-platform
+editions:
+  - id: 7.3.0
+  - id: 7.2.0
+legacyVersions:
+  - { id: 7.1.0, url: 'https://is.docs.wso2.com/en/7.1.0/' }
+```

@@ -1,0 +1,37 @@
+---
+title: Release docs for a version
+description: Publish the next Docs release of a self-hosted version from its release branch.
+type: how-to
+sidebar_position: 3
+---
+
+Cloud docs publish on every merge to `main`. A self-hosted version's docs publish when a Doc space owner releases them.
+
+## Prerequisites
+
+- You're a Doc space owner.
+- The changes for the release are merged into the version's branch, such as `identity-server/release/7.3.0`.
+
+## Release the docs
+
+1. In the Content repository, select **Actions** > **Docs** > **Run workflow**.
+2. Enter the Doc space's directory, such as `identity-server`, and the version, such as `7.3.0`. Leave the Doc space empty in a repository with one Doc space.
+3. Select **Run workflow**.
+
+The workflow tags the branch with the next `<doc space>/<version>-docs.<n>` tag, such as `identity-server/7.3.0-docs.4`, and makes the tag's Docs bundle with the Platform's `docs-bundle.yml`:
+
+1. It runs the blocking checks and the strict build on the tagged commit (`wso2-docs check --release --no-lint`).
+2. It packs the Doc space directory into `<doc space>-<version>-docs.<n>.docs.zip`, such as `identity-server-7.3.0-docs.4.docs.zip`, and checks it: no symbolic links, nothing outside the directory, the size limits and content safety.
+3. It attests the zip and publishes it as a GitHub Release named after the tag, with its sha256 and source commit in the notes.
+
+If a check fails, no release is published and the previous Docs release stays live. Fix the problem on the branch and run the workflow again; it makes the next tag. Every pull request already runs the same checks as `wso2-docs bundle --dry-run`, so a release seldom fails.
+
+## Verify
+
+1. In the Content repository, open **Releases**. The tag's release lists the `.docs.zip` asset. It is never marked latest or a pre-release, and it can't be changed once published.
+2. The Platform picks the Docs bundle up from there. The new release appears on staging first, and on WSO2 Docs once the staging crawl passes.
+
+## Next steps
+
+- [Backport a fix](../backport-a-fix.mdx)
+- [Add and release a Self-hosted version](../product-teams/add-a-version.mdx)

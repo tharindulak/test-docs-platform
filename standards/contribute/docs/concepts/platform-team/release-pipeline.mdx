@@ -1,0 +1,86 @@
+---
+title: The release pipeline
+description: How a Docs release goes from a tag in a Content repository to live Docs deployments, what a rebuild is, and what happens when a step fails.
+type: concept
+sidebar_position: 2
+---
+
+The release pipeline turns one Docs release tag into live Docs deployments. It is the Platform's **Release docs** workflow, `.github/workflows/release.yml`, with one build job per Docs deployment. The developer guide's [Content repositories, branches and Docs releases](../product-teams/repositories-and-releases.mdx) says what a team sees. This page is what happens in between.
+
+## How it works
+
+### From a tag to a run
+
+A Content repository's `docs.yml` makes the tag, then calls the Platform's reusable **Docs bundle** workflow (`docs-bundle.yml@v1`) with it. That run checks the tagged commit, packs the Doc space directory as the tag's Docs bundle, attests it with build provenance and publishes it as the tag's GitHub Release. Nothing in the Content repository holds a Platform credential.
+
+The Platform's intake picks up the bundle and starts **Release docs** for its tag. Until intake is built, the Platform team starts that run by hand, as in [Follow and run a Docs release](../../guides/platform-team/run-a-docs-release.mdx#start-a-release-by-hand).
+
+| Event in the Content repository | Tag it makes |
+|---|---|
+| A merge to `main` that touches a Doc space with Cloud | `<doc space>/cloud-<YYYY.MM.DD>.<n>`, such as `sandbox`'s `cloud-2026.10.26.1` |
+| A merge to `main` that touches a Cloud part | The platform's Cloud tag: a change to `identity-server/` makes `identity-platform/cloud-2026.10.26.1` |
+| **Release docs** with a Doc space and a version | `<doc space>/<version>-docs.<n>` on its release branch |
+| A tag pushed by hand | That tag, as it is |
+
+`<n>` is one more than the highest existing tag with the same start. Tags are made by the workflow only. A tag ruleset keeps others from making them.
+
+### The run
+
+| Step | Job | What happens |
+|---|---|---|
+| 1 | plan | Clone every Content repository's `main`, compose, and store the result as `_platform/composed.json`. A failed compose keeps the last good copy. |
+| 2 | plan | Plan the Docs deployments the tag makes, from the stored copy |
+| 3 | build-latest, build | One job per Docs deployment, the `/latest/` twin first: check out the tag, build the Doc space's directory with the stored manifest, run the release's blocking checks, upload to a new release folder |
+| 4 | finalize-staging | Flip: one write of the deployment state points every planned Docs deployment at its new folder, then `manifest.json`, the sitemap index and `llms.txt` are published again |
+| 5 | finalize-staging | Write the redirect table to Workers KV |
+| 6 | finalize-staging | The staging crawl gate: every page of each new Docs deployment, and every link on it into WSO2 Docs, must answer 200 |
+| 7 | finalize-staging | Index search: upsert each new Docs deployment's records, then delete its stale ones. `/latest/` is never indexed. |
+| 8 | finalize-staging | Keep the last 5 releases of each Docs deployment, plus the live one |
+| 9 | promote | Only when the crawl gate passed and production is on: copy the same folders to production, flip there with the manifest staging used, index, write the redirect table |
+
+A tag of the first Self-hosted Edition makes two Docs deployments, `/<doc space>/<version>/` and `/<doc space>/latest/`, from one build each. The latest twin builds first, because older versions take their canonicals from its page list. Cloud is never built twice.
+
+A family Cloud is one Docs deployment. Its build reads each Cloud part's directory from the same checkout, so `identity-platform/cloud-2026.10.26.1` builds Identity Platform Cloud with Identity Server's Cloud part in it, from one commit.
+
+### Release folders and pointers
+
+Every build goes to its own folder, `_releases/<doc space>/<segment>/<release>/`. The release id is the tag without its Doc space prefix, so `ai-gateway/1.2.0-docs.3` uploads to `_releases/ai-gateway/1.2.0/1.2.0-docs.3/`. `_platform/release.json` is written last, with the full tag, the source commit and the Platform version. A folder without it is an interrupted upload and is never flipped to. Uploading a release that is already complete uploads nothing.
+
+Folders are never changed. Going live is a pointer in `_platform/state.json`. The state keeps the 20 releases each Docs deployment pointed at before, so a rollback is a flip back, with no build.
+
+### Rebuilds
+
+A rebuild builds Docs deployments again from the tags they already run, under a new release id, `<release>.r<run id>`:
+
+| Scope | Rebuilds | Started by |
+|---|---|---|
+| `tag` | The tag's Edition, and its latest twin | A Content repository, for each Docs release |
+| `docspace` | Every deployed Edition of one Doc space | The Manifests workflow, when a merged manifest change adds an Edition or moves `latest`; or the Platform team |
+| `all` | Every deployed Edition whose Content repository pins the Platform's major, plus Contribute and the Landing deployment | A Platform release; or the Platform team |
+| `landing` | The Landing deployment, built afresh from the Platform | The Platform deployments workflow, when `navigation/` changes; or the Platform team |
+
+So a Platform change reaches pages built long ago with no new Docs release.
+
+### Who runs at once
+
+- Cloud releases of one Content repository share one concurrency group, and a newer one cancels an older one still running.
+- Other releases have one group per tag, or per Doc space for a rebuild, so different tags run side by side.
+- Every change to an environment's published state waits its turn on one lock, `_platform/state.lock` in that environment's bucket: flips, rollbacks, retiring a Docs deployment, republishing the runtime files, the redirect table and the clean-up. Each command takes the lock, writes, and gives it back. Any number of runs can wait, and none is cancelled. A run that waits shows a notice, `waiting for the state lock, held by …`.
+- Write jobs have no GitHub concurrency group, because GitHub keeps only one waiting run per group and cancels an older waiting one.
+- A lock left by a run that died expires after 30 minutes, and the next writer takes it over.
+- Runs can now finish in any order, so a flip never moves a Docs deployment back to a release published before the live one. It keeps the live one and warns. Only a rollback goes back, or a release of the tag the Edition is pinned to.
+
+## Limits
+
+- A failed build or check stops the run before the flip. The previous release stays live, and nothing else in the run goes live either.
+- A failed crawl gate or search index doesn't undo the flip on staging. It stops promotion to production, or raises a warning.
+- A release reads the manifest as composed at its start. A tag for an Edition that only a newer manifest adds fails the plan until compose succeeds.
+- A pinned Edition refuses every tag but its pin. See [Roll back a Docs release](../../guides/platform-team/roll-back-a-release.mdx#hold-it-with-a-pin).
+- Builds bake the composed manifest without knowing what is deployed. On a staging environment with only some Doc spaces deployed, the crawl gate fails on menu links to the others.
+
+## Related
+
+- [Follow and run a Docs release](../../guides/platform-team/run-a-docs-release.mdx)
+- [Roll back a Docs release](../../guides/platform-team/roll-back-a-release.mdx)
+- [Storage, state and runtime files](../../reference/platform-team/storage-and-runtime-files.mdx)
+- [Platform workflows](../../reference/platform-team/workflows.mdx)

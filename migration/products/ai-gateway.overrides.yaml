@@ -1,0 +1,86 @@
+# Override list for wso2/docs-api-platform, ai-gateway/ (lib/overrides.mjs): fixes to the legacy source and
+# legacy-broken links the converter accepts, each with its reason (paths are under en/). Proposed by
+# `node migration/overrides.mjs suggest ai-gateway ...` from the run reports of every
+# branch, then reviewed.
+patches:
+  - file: docs/cloud/ai-gateway/llm/quick-start-guide.md
+    find: '](./llm/guardrails/aws-bedrock-guardrail/)'
+    replace: ']({{base_path}}/cloud/ai-gateway/llm/guardrails/aws-bedrock-guardrail/)'
+    editions: [cloud]
+    why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+accepted:
+  - page: ai-gateway/1.2.0/README.md
+    href: gateway-controller-management-api/
+    editions:
+      - 1.2.0
+    why: the legacy site has no page there either
+  - page: ai-gateway/1.2.0/README.md
+    href: llm/
+    editions:
+      - 1.2.0
+    why: the legacy site has no page there either
+  - page: ai-gateway/1.2.0/README.md
+    href: mcp/
+    editions:
+      - 1.2.0
+    why: the legacy site has no page there either
+  - page: ai-gateway/1.2.0/README.md
+    href: observability/
+    editions:
+      - 1.2.0
+    why: the legacy site has no page there either
+  - page: ai-gateway/1.2.0/setup-and-deployment/configuration.md
+    href: ./artifact-templating.md
+    editions:
+      - 1.2.0
+    why: the legacy site has no page there either
+  - page: ai-gateway/2026.09.24/README.md
+    href: gateway-controller-management-api/
+    editions:
+      - 2026.09.24
+    why: the legacy site has no page there either
+  - page: ai-gateway/2026.09.24/README.md
+    href: llm/
+    editions:
+      - 2026.09.24
+    why: the legacy site has no page there either
+  - page: ai-gateway/2026.09.24/README.md
+    href: mcp/
+    editions:
+      - 2026.09.24
+    why: the legacy site has no page there either
+  - page: ai-gateway/2026.09.24/README.md
+    href: observability/
+    editions:
+      - 2026.09.24
+    why: the legacy site has no page there either
+  - page: ai-gateway/2026.09.24/setup-and-deployment/configuration.md
+    href: ./artifact-templating.md
+    editions:
+      - 2026.09.24
+    why: the legacy site has no page there either
+  - page: ai-gateway/next/README.md
+    href: gateway-controller-management-api/
+    editions:
+      - cloud
+    why: the legacy site has no page there either
+  - page: ai-gateway/next/README.md
+    href: llm/
+    editions:
+      - cloud
+    why: the legacy site has no page there either
+  - page: ai-gateway/next/README.md
+    href: mcp/
+    editions:
+      - cloud
+    why: the legacy site has no page there either
+  - page: ai-gateway/next/README.md
+    href: observability/
+    editions:
+      - cloud
+    why: the legacy site has no page there either
+  - page: ai-gateway/next/setup-and-deployment/configuration.md
+    href: ./artifact-templating.md
+    editions:
+      - cloud
+    why: the legacy site has no page there either

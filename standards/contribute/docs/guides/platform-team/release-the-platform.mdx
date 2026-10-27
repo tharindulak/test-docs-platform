@@ -1,0 +1,117 @@
+---
+title: Release the Platform
+description: Version and tag the Platform, follow the workflow that publishes it and rebuilds what pins its major, and update Content repositories.
+type: how-to
+sidebar_position: 9
+---
+
+A Platform release ships the Platform's `main` to every Docs deployment and every Content repository's workflows. This page releases `1.4.0` in the `1` major. [Platform releases](../../concepts/platform-team/platform-releases.mdx) explains versions, the major ref and the caches.
+
+## Prerequisites
+
+- You're on the Platform team, with permission to push tags to `wso2/docs-platform`, and to approve the `npm` environment if it has required reviewers.
+- The `@wso2/docs` package on npmjs.com trusts the **Platform release** workflow: a trusted publisher for `wso2/docs-platform`, workflow `platform-release.yml`, environment `npm`. It is set once; see [Secrets, variables and hosting values](../../reference/platform-team/secrets-and-variables.mdx#npm).
+- The changes are merged to `main`, and its **CI** run passes: the tests, the workflow lint and the Edge Worker bundles.
+- For a change that Content repositories must follow, a new major instead: see [Start a new major](#start-a-new-major).
+
+## Choose the version
+
+| The release | Version |
+|---|---|
+| Fixes only | Patch: `1.3.1` |
+| New things every team gets with no change of theirs, such as a component or a check | Minor: `1.4.0` |
+| A change a Content repository must make, such as a renamed workflow input | Major: `2.0.0` |
+
+## Version and tag it
+
+1. On a branch from `main`, set the version, without a tag yet:
+
+   ```bash
+   npm version 1.4.0 --no-git-tag-version
+   ```
+
+   Merge the change with a pull request.
+
+2. Wait for the merge's **CI** run to pass, then tag the merge commit:
+
+   ```bash
+   git switch main && git pull
+   git tag v1.4.0
+   git push origin v1.4.0
+   ```
+
+   That's the whole release by hand. The tag starts the **Platform release** workflow.
+
+## Follow the Platform release
+
+In `wso2/docs-platform`, open **Actions** > **Platform release**. The run is named `Platform release v1.4.0`, and does this:
+
+1. Checks the tag: it matches `package.json`'s version, it is on `main` (or on `releases/v1`, for a fix to an older major), and **CI** passed on its commit. A failed check publishes nothing: fix it, then re-run the run.
+2. Publishes `@wso2/docs@1.4.0` to npm with trusted publishing, so `npx @wso2/docs` runs it. No npm token is involved.
+3. Moves the `v1` tag to `v1.4.0`, when it is the newest `1.x.y` release. `v1` is a tag, not a branch. Content repositories check out and call the Platform at `v1`, so their next run uses the new release.
+4. Makes the GitHub release `v1.4.0`, with notes generated from the merged pull requests. Edit the notes afterwards if you want.
+5. Starts **Release docs** with scope `all` at `v1.4.0`, when `v1` moved.
+
+A patch to an older minor, such as `v1.3.2` after `v1.4.0`, is published but moves no tag and rebuilds nothing, so `v1` never goes backwards. Re-running the run is safe: a version already on npm and an existing GitHub release are left as they are.
+
+## Rebuild the Docs deployments
+
+1. The **Platform release** run starts **Release docs**, named `Release docs: Platform rebuild all`: every deployed Edition whose Content repository pins `v1` is built again from its deployed tag, with the new Platform, and flipped. Contribute and the Landing deployment are always rebuilt.
+2. The plan job's output lists the Docs deployments it leaves out, in `skipped`, with each one's pin. To rebuild again, or after a release whose rebuild was skipped:
+
+   ```bash
+   gh workflow run release.yml --repo wso2/docs-platform --ref v1 -f scope=all
+   ```
+
+3. Contribute and the Landing deployment are the Platform's own, so scope `all` always rebuilds them with the new Platform.
+
+## Update the Content repositories
+
+When the release changes `templates/content-repo/`, such as `docs.yml` or the branch ruleset, each Content repository needs the new files:
+
+1. In each repository, on a branch from `main`:
+
+   ```bash
+   npx @wso2/docs@1.4.0 init --root-files
+   ```
+
+   It lists the files it changed, such as `.github/workflows/docs.yml`, and leaves README, `CODEOWNERS` and the Doc space directories alone.
+
+2. Open a pull request with them. `/.github/` is the Platform team's in every repository's `CODEOWNERS`, so you approve it.
+3. If the branch ruleset changed, import it again. See [Protect the main and release branches](../owners/branch-protection.mdx).
+
+## Start a new major
+
+1. Release `2.0.0` as above. Its run makes the `v2` tag, and `v1` stays on the newest `1.x.y` release. Its rebuild finds no Content repository on `v2` yet, so it rebuilds only Contribute.
+2. In each Content repository, change `PLATFORM_REF: v1` and every `@v1` and `platform-ref: v1` in `.github/workflows/` to `v2`, with `npx @wso2/docs@2.0.0 init --root-files`, in one pull request per repository.
+3. Keep `v1` for fixes until every repository has moved: a `1.x.y` release moves `v1` and rebuilds the repositories still on it. Make it on a `releases/v1` branch from the last `1.x.y` tag: the **Platform release** workflow accepts a `1.x.y` tag there, as well as on `main`.
+
+## Verify
+
+1. The **Release docs** run of the release is named `Release docs: Platform rebuild all`, and its summary lists every Docs deployment pinned to the major, with a release id ending `.r<run id>`.
+2. A release folder's `_platform/release.json` has `"platformVersion": "1.4.0"`. The deployment state names the folder: `node bin/wso2-release.mjs status --storage s3://docs-staging`.
+3. `npx @wso2/docs@1.4.0 --help` runs the new version, and `git ls-remote --tags origin v1` names the same commit as `v1.4.0`.
+
+To rehearse a rebuild locally, plan scope `docspace` against [WSO2 Docs running locally](run-it-locally.mdx), then build, publish and flip each Docs deployment of the plan as a release does:
+
+```bash
+node bin/wso2-release.mjs plan --scope docspace --space sandbox --rebuild-id 9001 --storage s3://docs-staging
+```
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Tag v1.4.0 does not match package.json's version …` | The version bump isn't in the tagged commit. Delete the tag (`git push origin :refs/tags/v1.4.0`), merge the bump, and tag again. |
+| `CI has not passed on <commit>` | Wait for the **CI** run of the merge, then re-run the **Platform release** run. |
+| The npm step fails with a 404 or an authentication error | The trusted publisher on npmjs.com doesn't match: the repository, the workflow file name and the environment `npm` must all match. |
+| Moving the `v1` tag is refused | A tag ruleset protects `v*` tags. Let GitHub Actions bypass it for this repository. |
+| A rebuild fails a check that passed before | The new Platform is stricter, or broke something. The previous release stays live. Fix the Platform, or the page, and release again. |
+| Pages still show the old Platform after the flip | Readers' browsers keep pages for `HTML_MAX_AGE`. Wait for it, or check the `x-docs-release` header. |
+| A build in CI uses old Platform output | Its cache was restored from another Platform commit. Build caches are keyed by the Platform commit: check the cache step's key. |
+| A Docs deployment isn't in the rebuild | If the plan lists it in `skipped`, its Content repository pins another major, or its `docs.yml` has no `PLATFORM_REF: v<n>`: refresh its root files with `init --root-files`. Otherwise its Edition is no longer in its Doc space's manifest. Take it down: see [End an Edition or send it back to its old site](end-an-edition.mdx#send-an-edition-back-to-its-old-site). |
+
+## Next steps
+
+- [Platform workflows](../../reference/platform-team/workflows.mdx)
+- [Follow and run a Docs release](run-a-docs-release.mdx)

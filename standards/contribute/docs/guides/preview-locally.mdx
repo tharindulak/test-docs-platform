@@ -1,0 +1,47 @@
+---
+title: Preview your changes
+description: Run a live preview of one Edition, switch Editions and see Edition markers on your computer.
+type: how-to
+sidebar_position: 2
+---
+
+Run a live preview of the Doc space on your computer. It reloads as you save.
+
+## Prerequisites
+
+- Your computer is [set up](../get-started/set-up.mdx).
+
+## Start the preview
+
+1. Open a terminal in the repository's folder.
+2. Run the preview with the Doc space's directory, such as `identity-server`:
+
+   ```bash
+   npx @wso2/docs preview identity-server
+   ```
+
+3. Open the URL it prints.
+
+The preview shows the Edition for your branch: `main` is Cloud (or the next version in Doc spaces without Cloud), and `identity-server/release/7.3.0` is 7.3.0. A family Cloud previews with its Cloud parts. See [Preview and check a Doc space](product-teams/preview-a-doc-space.mdx).
+
+## Choose what to preview
+
+| Option | What it does |
+|---|---|
+| `--only <folder>` | Loads one folder of `docs/`, for speed. Links outside it work as external links. |
+| `--edition <id>` | Previews another Edition, such as `--edition 7.3.0` |
+| `--exact` | Shows the page exactly as published, without marker outlines or the toolbar |
+| `--search` | Starts local search (needs Docker) |
+| `--port <n>` | Uses another port |
+
+## See every Edition
+
+The preview outlines every `<Edition>` block with a label, such as "Cloud only" or "Self-hosted from 7.4.0". Page-level Edition limits are listed at the top of the page, and pages limited to other Editions are included. Use **Preview as** in the toolbar to see the page as another Edition renders it: blocks it doesn't show are faded. The pull request preview has the same controls. `--exact` turns them off.
+
+## Verify
+
+Edit a page and save it. The browser updates in about two seconds.
+
+## Next steps
+
+- [Check your changes](check-your-changes.mdx)

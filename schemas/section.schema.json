@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.wso2.com/schemas/section.schema.json",
+  "title": "Docs section manifest",
+  "description": "navigation/sections/<id>.yaml in the Platform repo, kept by the section's team (CODEOWNERS). It sets the products-menu entries and the menu's order and version-in only; names come from the Doc space manifests. Fields are only ever added.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "title", "owners", "menu"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/slug", "description": "The section id; the file is named <id>.yaml." },
+    "title": { "type": "string", "minLength": 1 },
+    "owners": {
+      "type": "object",
+      "required": ["team"],
+      "additionalProperties": false,
+      "properties": { "team": { "type": "string", "minLength": 1 } }
+    },
+    "products": {
+      "type": "array",
+      "description": "The products-menu entries, in wso2.com's order.",
+      "items": {
+        "type": "object",
+        "required": ["label", "opens"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "description": "Exactly as wso2.com names the product." },
+          "opens": {
+            "type": "object",
+            "required": ["docSpace"],
+            "additionalProperties": false,
+            "description": "A Doc space (where its version selector opens), one of its Editions, or one page in it. Never a section page: sections have none.",
+            "properties": {
+              "docSpace": { "$ref": "#/$defs/slug" },
+              "edition": { "type": "string", "minLength": 1 },
+              "page": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._/-]*$", "description": "A page path inside the Doc space, for example guides/monetization/." }
+            }
+          }
+        }
+      }
+    },
+    "menu": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The left menu, in order: Doc spaces (the family Cloud first, then products) and links out.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["docSpace"],
+            "additionalProperties": false,
+            "properties": {
+              "docSpace": { "$ref": "#/$defs/slug" },
+              "version-in": { "enum": ["header", "menu"], "description": "menu also gives the entry its own version dropdown. Default: menu with two or more Editions, else header." }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["label", "url"],
+            "additionalProperties": false,
+            "description": "A link out, shown with ↗.",
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "url": { "type": "string", "pattern": "^https?://[^\\s]+$" }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
+  }
+}

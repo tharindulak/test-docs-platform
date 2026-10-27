@@ -1,0 +1,28 @@
+# Docs preview publish: copied from tharindulak/test-docs-platform templates/content-repo/.
+# Runs after the "Docs" workflow's PR preview build, in this repo's own
+# context, and publishes the build artifact to docs-staging.wso2.com/_preview/.
+# Only this job holds the preview-only credential; the PR build had none.
+name: Docs preview publish
+
+on:
+  workflow_run:
+    workflows: [Docs]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+
+jobs:
+  publish:
+    # A PR whose checks failed still gets its preview when the build itself
+    # succeeded (the artifact exists only then), so reviewers can see it.
+    if: github.event.workflow_run.event == 'pull_request' && contains(fromJSON('["success", "failure"]'), github.event.workflow_run.conclusion)
+    uses: tharindulak/test-docs-platform/.github/workflows/pr-preview-publish.yml@v1
+    with:
+      run-id: ${{ github.event.workflow_run.id }}
+      head-sha: ${{ github.event.workflow_run.head_sha }}
+      platform-ref: v1
+    secrets:
+      DOCS_PREVIEW_R2_ACCESS_KEY_ID: ${{ secrets.DOCS_PREVIEW_R2_ACCESS_KEY_ID }}
+      DOCS_PREVIEW_R2_SECRET_ACCESS_KEY: ${{ secrets.DOCS_PREVIEW_R2_SECRET_ACCESS_KEY }}

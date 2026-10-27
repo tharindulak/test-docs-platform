@@ -1,0 +1,44 @@
+---
+title: Quick start
+description: Sign in to the console and register your first application.
+type: quick-start
+sidebar_position: 1
+---
+
+Open the console at `{edition.consoleUrl}` and sign in.
+
+<Edition only="cloud">
+## Create your organization
+
+Sign up and create an organization. MARKER-CLOUD-ONLY
+</Edition>
+
+<Edition only="self-hosted">
+## Start the server
+
+Run the server from `<IS_HOME>/bin`. MARKER-SELF-HOSTED-ONLY
+</Edition>
+
+## Register an application
+
+Register the application in the console.
+
+<Edition selfHostedFrom="7.3.0">
+Passkeys are available for sign-in. MARKER-FROM-730
+</Edition>
+
+<Edition selfHostedFrom="7.4.0">
+## Agent identities
+
+Agents can sign in with their own identities. MARKER-FROM-740
+</Edition>
+
+<Edition selfHostedFrom="next">
+Coming soon to self-hosted. MARKER-FROM-NEXT
+</Edition>
+
+The console runs at <Edition only="cloud">your organization URL</Edition><Edition only="self-hosted">port 9443</Edition>.
+
+```bash
+open {edition.consoleUrl}
+```

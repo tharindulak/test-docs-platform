@@ -1,0 +1,130 @@
+# Spec sync bot (reusable). A Content repo calls this on a schedule for each
+# API whose spec has an original in a product repo. When the product repo's
+# copy changes, it validates the new spec, copies it over the Content repo's
+# copy and opens (or updates) one PR per API with the diff. Writers keep
+# editing descriptions in the Content repo's copy; the PR is where they spot
+# wording the product repo would overwrite.
+#
+# Every Content repo carries a caller, .github/workflows/docs-sync.yml from
+# templates/content-repo/ (by hand until a team schedules it). A scheduled
+# caller, in wso2/docs-api-platform, for API Manager 4.7.0's Publisher API
+# (paths are under the Doc space's directory, <doc space>/, and a version's
+# branch is <doc space>/release/<version>):
+#
+#   on:
+#     schedule: [{ cron: '0 3 * * *' }]
+#     workflow_dispatch:
+#   jobs:
+#     publisher:
+#       uses: tharindulak/test-docs-platform/.github/workflows/spec-sync.yml@v1
+#       with:
+#         product-repo: wso2/carbon-apimgt
+#         product-spec-path: components/apimgt/org.wso2.carbon.apimgt.rest.api.publisher.v1/src/main/resources/publisher-api.yaml
+#         content-spec-path: api-manager/docs/reference/apis/publisher/openapi.yaml
+#         base-branch: api-manager/release/4.7.0
+name: Spec sync
+
+on:
+  workflow_call:
+    inputs:
+      product-repo:
+        description: Product repo holding the original spec, e.g. wso2/carbon-apimgt
+        required: true
+        type: string
+      product-ref:
+        description: Branch or tag of the product repo to sync from
+        required: false
+        type: string
+        default: main
+      product-spec-path:
+        description: Path of the spec in the product repo
+        required: true
+        type: string
+      content-spec-path:
+        description: Path of the spec in this Content repo, under its Doc space directory, e.g. api-manager/docs/reference/apis/publisher/openapi.yaml
+        required: true
+        type: string
+      base-branch:
+        description: Content repo branch the PR targets (main, or <doc space>/release/<version>)
+        required: false
+        type: string
+        default: main
+      platform-version:
+        description: '@wso2/docs version range to run'
+        required: false
+        type: string
+        default: '1'
+    secrets:
+      product_repo_token:
+        description: Token that can read the product repo, if it is private
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: spec-sync-${{ inputs.base-branch }}-${{ inputs.content-spec-path }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the Content repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base-branch }}
+
+      - name: Check out the product repo's spec
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.product-repo }}
+          ref: ${{ inputs.product-ref }}
+          path: _product
+          token: ${{ secrets.product_repo_token || github.token }}
+          sparse-checkout: ${{ inputs.product-spec-path }}
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Compare and copy
+        id: sync
+        env:
+          FROM: _product/${{ inputs.product-spec-path }}
+          TO: ${{ inputs.content-spec-path }}
+          PLATFORM: ${{ inputs.platform-version }}
+        run: |
+          npx --yes "@wso2/docs@$PLATFORM" api sync --from "$FROM" --to "$TO" --summary "$RUNNER_TEMP/pr-body.md"
+          rm -rf _product
+          if git diff --quiet -- "$TO"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update the PR
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TO: ${{ inputs.content-spec-path }}
+          BASE: ${{ inputs.base-branch }}
+          PRODUCT: ${{ inputs.product-repo }}@${{ inputs.product-ref }}
+        run: |
+          api="$(basename "$(dirname "$TO")")"
+          branch="spec-sync/${BASE//\//-}/$api"
+          title="Sync the $api API spec from $PRODUCT"
+          git config user.name "wso2-docs-bot"
+          git config user.email "wso2-docs-bot@users.noreply.github.com"
+          git switch -C "$branch"
+          git add -- "$TO"
+          git commit -m "$title"
+          git push --force origin "$branch"
+          if gh pr view "$branch" --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$branch" --title "$title" --body-file "$RUNNER_TEMP/pr-body.md"
+          else
+            gh pr create --base "$BASE" --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/pr-body.md"
+          fi

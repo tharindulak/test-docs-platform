@@ -1,0 +1,637 @@
+# Override-patch list for wso2/docs-api-platform, api-manager/ (lib/overrides.mjs).
+# Fixes to the legacy wso2/docs-apim source, applied by the converter on every
+# run; never edit the Content repo's generated files instead. Paths are under en/.
+patches:
+- file: docs/api-developer-portal/manage-subscription/subscribe-to-an-api.md
+  find: '     ![[API overview]({{base_path}}/assets/img/get_started/architecture/developer-portal-overview.png)]'
+  replace: '     [![API overview]({{base_path}}/assets/img/get_started/architecture/developer-portal-overview.png)]'
+  why: an image nested inside another image's alt text; the linked thumbnail every other step uses was meant
+- file: docs/install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-only-ldap-user-store.md
+  find: "`<APIM_HOME>/repository/conf/deployment.toml        \n` file"
+  replace: '`<APIM_HOME>/repository/conf/deployment.toml` file'
+  why: the code span around the file path closes on the next line, so <APIM_HOME> reads as an HTML tag
+- file: docs/administer/logging-and-monitoring/logging/managing-log-growth.md
+  find: ']({{base_path}}/administer/logging-and-monitoring/logging/configuring-logging/#configuring-carbon-logs)'
+  replace: ']({{base_path}}/monitoring/observability/configuring-logging/#configuring-carbon-logs)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/administer/managing-users-and-roles/managing-user-roles.md
+  find: ']({{base_path}}/getting-started/overview/#developer-portal)'
+  replace: ']({{base_path}}/getting-started/overview/#developer-portal-marketplace)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/administer/multiple-gateways/configure-gateway-visibility.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/administer/multiple-gateways/configure-gateway.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/administer/multiple-gateways/configure-gateway.md
+  find: href="{{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server"
+  replace: href="{{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server"
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-design-manage/deploy-and-publish/deploy-on-gateway/api-gateway/scaling-the-gateway.md
+  find: ']({{base_path}}/administer/product-configurations/configuring-caching/#key-cache)'
+  replace: ']({{base_path}}/administer/product-configurations/configuring-caching/#key-manager-cache)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-design-manage/deploy-and-publish/deploy-on-gateway/deploy-api/exposing-apis-via-custom-hostnames.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-design-manage/design/create-api/create-a-graphql-api.md
+  find: ']({{base_path}}/api-design-manage/design/api-monetization/monetizing-an-api/)'
+  replace: ']({{base_path}}/monitoring/api-monetization/monetizing-an-api/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/api-design-manage/design/create-api/create-ai-api/create-an-ai-api.md
+  find: ']({{base_path}}/api-security/runtime/secure-apis-using-oauth2-tokens/)'
+  replace: ']({{base_path}}/api-security/runtime/api-authentication/secure-apis-using-oauth2-tokens/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/api-design-manage/design/create-api/create-an-api-using-a-service.md
+  find: ']({{base_path}}/api-design-manage/design/api-monetization/monetizing-an-api/)'
+  replace: ']({{base_path}}/monitoring/api-monetization/monetizing-an-api/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/api-design-manage/design/create-api/create-an-api-using-a-service.md
+  find: ']({{base_path}}/api-security/runtime/secure-apis-using-oauth2-tokens/)'
+  replace: ']({{base_path}}/api-security/runtime/api-authentication/secure-apis-using-oauth2-tokens/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/api-design-manage/design/endpoints/endpoint-types.md
+  find: href="{{base_path}}/api-design-manage/design/api-policies/regular-gateway-policies/adding-dynamic-endpoints/"
+  replace: href="{{base_path}}/api-gateway/policies/adding-dynamic-endpoints/"
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+  editions:
+  - 4.7.0
+  - 4.6.0
+- file: docs/api-design-manage/design/rate-limiting/rate-limiting-for-ai-apis.md
+  find: ']({{base_path}}/api-design-manage/design/api-monetization/monetizing-an-api/)'
+  replace: ']({{base_path}}/monitoring/api-monetization/monetizing-an-api/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/api-developer-portal/collaboration/interact-with-the-community.md
+  find: ']({{base_path}}/manage-apis/design/api-collaborations/enable-social-media-interaction/#enable-sharing-api-links-on-social-media)'
+  replace: ']({{base_path}}/manage-apis/design/api-collaborations/enable-social-media-interaction/#enable-sharing-api-link-on-social-media)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-gateway/federated-gateways/overview.md
+  find: ']({{base_path}}/api-gateway/federated-gateways/EnvoyGateway/eg-k8s/discover-apis-on-eg-gateway-in-kubernetes/)'
+  replace: ']({{base_path}}/api-gateway/federated-gateways/envoygateway/eg-k8s/discover-apis-on-eg-gateway-in-kubernetes/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/api-gateway/passing-enduser-attributes-to-the-backend-via-api-gateway.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-gateway/passing-enduser-attributes-to-the-backend-via-api-gateway.md
+  find: '](#sample-jwt)'
+  replace: '](#sample-backend-jwt)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-gateway/policies/configuring-message-builders-formatters.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-gateway/scaling-the-gateway.md
+  find: ']({{base_path}}/administer/product-configurations/configuring-caching/#key-cache)'
+  replace: ']({{base_path}}/administer/product-configurations/configuring-caching/#key-manager-cache)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-security/key-management/applications/provisioning-out-of-band-oauth-clients.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-security/key-management/authentication/grant-types/jwt-grant.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-security/key-management/third-party-key-managers/configure-forgerock-connector.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-security/key-management/tokens/encrypting-oauth2-tokens.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/api-security/key-management/tokens/hashing-oauth-keys.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/apiops/cli/advanced-topics/configuring-different-endpoint-types.md
+  find: ']({{base_path}}/manage-apis/deploy-and-publish/deploy-on-gateway/api-gateway/message-mediation/adding-dynamic-endpoints/#adding-dynamic-endpoints)'
+  replace: ']({{base_path}}/api-gateway/policies/adding-dynamic-endpoints/#adding-dynamic-endpoints)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/get-started/choosing-your-deployment-strategy.md
+  find: ']({{base_path}}/get-started/deployment-patterns#pattern-4-fully-distributed-deployment)'
+  replace: ']({{base_path}}/get-started/deployment-patterns#pattern-4-fully-distributed-deployment-with-key-manager-separation)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/install-and-setup/install/installation-prerequisites.md
+  find: href="{{base_path}}/install-and-setup/setup/reference/product-compatibility/#tested-operating-systems-and-jdks"
+  replace: href="{{base_path}}/install-and-setup/setup/reference/product-compatibility/#tested-operating-systems"
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/install-and-setup/setup/deployment-best-practices/security-guidelines-for-production-deployment.md
+  find: href="{{base_path}}/administer/logging-and-monitoring/logging/configuring-logging/"
+  replace: href="{{base_path}}/monitoring/observability/configuring-logging/"
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/install-and-setup/setup/deployment-best-practices/security-guidelines-for-production-deployment.md
+  find: href="{{base_path}}/install-and-setup/setup/reference/product-compatibility/#tested-operating-systems-and-jdks"
+  replace: href="{{base_path}}/install-and-setup/setup/reference/product-compatibility/#tested-operating-systems"
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/install-and-setup/setup/setting-up-databases/managing-data-growth-and-improving-performance.md
+  find: '](#schedule-task-for-mysql)'
+  replace: '](#schedule-a-cleanup-task-for-mysql)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/install-and-setup/setup/setting-up-databases/managing-data-growth-and-improving-performance.md
+  find: '](#schedule-task-for-sql-server)'
+  replace: '](#schedule-a-cleanup-task-for-sql-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/install-and-setup/setup/single-node/configuring-a-single-node.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/install-and-setup/setup/single-node/configuring-an-active-active-deployment.md
+  find: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-server)'
+  replace: ']({{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#starting-the-api-m-server)'
+  why: broken link on the legacy site (heading reworded on the target page); found by the converter
+- file: docs/reference/customize-product/customizations/adding-internationalization.md
+  find: ']({{base_path}}/consume/customizations/customizing-the-developer-portal/overriding-developer-portal-theme/#uploading-via-the-admin-portal-tenants-only)'
+  replace: ']({{base_path}}/reference/customize-product/customizations/customizing-the-developer-portal/overriding-developer-portal-theme/#uploading-via-the-admin-portal-tenants-only)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/reference/customize-product/customizations/customizing-login-pages-for-dev-portal-and-publisher.md
+  find: '](/administer/product-security/saml2-sso/configuring-identity-server-as-idp-for-sso/)'
+  replace: ']({{base_path}}/reference/customize-product/extending-api-manager/saml2-sso/configuring-identity-server-as-idp-for-sso/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/reference/faq.md
+  find: ']({{base_path}}/consume/customizations/customizing-the-developer-portal/enabling-or-disabling-self-signup/)'
+  replace: ']({{base_path}}/reference/customize-product/customizations/customizing-the-developer-portal/enabling-or-disabling-self-signup/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/reference/faq.md
+  find: ']({{base}}/install-and-setup/setup/security/configuring-transport-level-security/#disabling-weak-ciphers)'
+  replace: ']({{base_path}}/install-and-setup/setup/security/configuring-transport-level-security/#disabling-weak-ciphers)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+  editions:
+  - 4.7.0
+  - 4.6.0
+- file: docs/tutorials/enforce-throttling-and-resource-access-policies.md
+  find: ']({{base_path}}/create-api/create-rest-api/create-a-rest-api/)'
+  replace: ']({{base_path}}/api-design-manage/design/create-api/create-rest-api/create-a-rest-api/)'
+  why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+- file: docs/administer/rate-limiting/implement-custom-policies.md
+  find: '[Siddhi query language](https://docs.wso2.com/complex-event-processor/SiddhiQL+Guide+3.1)'
+  replace: Siddhi query language
+  why: dead Confluence-era URL (docs.wso2.com sends it to wso2.com/documentation today, and WSO2 Docs takes over that host); link removed, text kept
+- file: docs/api-gateway/rate-limiting/implement-custom-throttling.md
+  find: '[Siddhi query language](https://docs.wso2.com/complex-event-processor/SiddhiQL+Guide+3.1)'
+  replace: Siddhi query language
+  why: dead Confluence-era URL; link removed, text kept
+- file: docs/api-gateway/rate-limiting/enforce-custom-throttling.md
+  find: '[Siddhi Query Language Guide](https://docs.wso2.com/complex-event-processor/SiddhiQL+Guide+3.1)'
+  replace: Siddhi Query Language Guide
+  why: dead Confluence-era URL; link removed, text kept
+accepted:
+- page: administer/governance/api-governance-admin-capabilities.md
+  href: '{{base_path}}/reference/config-catalog/#apim-governance-configurations'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: administer/managing-users-and-roles/managing-permissions.md
+  href: '``https://localhost:9443/carbon``'
+  why: the legacy site has no page there either
+- page: administer/managing-users-and-roles/managing-user-roles.md
+  href: '{{base_path}}/administer/managing-users-and-roles/managing-user-roles/#update-before-the-first-startup-recommended'
+  why: the anchor is not on the target page on the legacy site either
+- page: administer/managing-users-and-roles/managing-user-roles.md
+  href: '{{base_path}}/administer/product-administration/managing-users-and-roles/managing-permissions/#adding-role-based-permissions'
+  why: the anchor is not on the target page on the legacy site either
+- page: administer/managing-users-and-roles/managing-user-roles.md
+  href: '{{base_path}}/getting-started/overview/#api-gateway'
+  why: the anchor is not on the target page on the legacy site either
+- page: administer/managing-users-and-roles/managing-user-roles.md
+  href: '{{base_path}}/getting-started/overview/#api-publisher'
+  why: the anchor is not on the target page on the legacy site either
+- page: administer/managing-users-and-roles/managing-user-roles.md
+  href: '`https://localhost:9443/admin`'
+  why: the legacy site has no page there either
+- page: administer/managing-users-and-roles/managing-user-stores/configuring-the-authorization-manager.md
+  href: '#ConfiguringtheAuthorizationManager-Step1:Settinguptherepository'
+  why: the anchor is not on the target page on the legacy site either
+- page: administer/managing-users-and-roles/managing-user-stores/configuring-the-authorization-manager.md
+  href: '#ConfiguringtheAuthorizationManager-Step2:Updatingtheuserrealmconfigurations'
+  why: the anchor is not on the target page on the legacy site either
+- page: administer/managing-users-and-roles/managing-users.md
+  href: '{{base_path}}/administer/managing-users-and-roles/managing-user-roles/#create-user-roles'
+  why: the anchor is not on the target page on the legacy site either
+- page: ai-gateway/mcp-gateway/invoke-a-mcp-server-using-playground.md
+  href: '{{base_path}}/consume/invoke-apis/invoke-apis-using-tools/invoke-an-api-using-the-integrated-api-console/#step-3-get-an-access-token'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-design-manage/design/advanced-topics/block-subscription-to-an-api.md
+  href: '{{base_path}}/api-design-manage/design/rate-limiting/access-control/#denying-requests'
+  why: the legacy site has no page there either
+- page: api-design-manage/design/advanced-topics/block-subscription-to-an-api.md
+  href: '{{base_path}}/getting-started/key-concepts/#access-token'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-design-manage/design/advanced-topics/block-subscription-to-an-api.md
+  href: '{{base_path}}/getting-started/key-concepts/#application'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-design-manage/design/advanced-topics/block-subscription-to-an-api.md
+  href: '{{base_path}}/getting-started/key-concepts/#rate-limits'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-design-manage/design/advanced-topics/block-subscription-to-an-api.md
+  href: '{{base_path}}/getting-started/overview/#api-gateway'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-design-manage/design/advanced-topics/enable-publisher-access-control-in-api-publisher-portal.md
+  href: '{{base_path}}/reference/product-apis/restful-apis/'
+  why: the legacy site has no page there either
+- page: api-design-manage/design/api-collaborations/enable-social-media-interaction.md
+  href: '#step-2---verify-the-changes-1'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-design-manage/design/api-policies/create-policy.md
+  href: '{{base_path}}/install-and-setup/setup/deployment-best-practices/security-guidelines-for-production-deployment/#restrict-access-java'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-design-manage/design/api-versioning/enabling-notifications.md
+  href: '{{base_path}}/reference/config-catalog/#enable-notifications'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: api-design-manage/design/create-api/create-a-graphql-api.md
+  href: '{{base_path}}/api-design-manage/design/rate-limiting/graphql-api/overview-query-limits-for-graphql/'
+  why: the legacy site has no page there either
+- page: api-design-manage/design/create-api/create-an-api-using-a-service.md
+  href: '{{base_path}}/api-design-manage/design/rate-limiting/introducing-throttling-use-cases/'
+  why: the legacy site has no page there either
+- page: api-design-manage/design/create-api/create-an-api-using-a-service.md
+  href: '{{base_path}}/api-design-manage/design/rate-limiting/rate-limiting-for-streaming-apis/'
+  why: the legacy site has no page there either
+- page: api-design-manage/design/endpoints/resiliency/endpoint-timeouts.md
+  href: '{{base_path}}/reference/synapse-properties/endpoint-properties'
+  why: the legacy site has no page there either
+- page: api-gateway/passing-enduser-attributes-to-the-backend-via-api-gateway.md
+  href: '#jwt-generation-configuration-details'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-gateway/platform-gateway/gateway-registration-and-deployment.md
+  href: '{{base_path}}/reference/config-catalog/#api-m-platform-gateway-connect-configurations'
+  editions:
+  - 4.7.0
+  - next
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: api-gateway/policies/adding-dynamic-endpoints.md
+  href: '{{base_path}}/learn/api-gateway/message-mediation/changing-the-default-mediation-flow-of-api-requests#creating-and-uploading-manually-in-api-publisher'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-gateway/policies/removing-specific-request-headers-from-response.md
+  href: '{{base_path}}/api-gateway/message-mediation/changing-the-default-mediation-flow-of-api-requests'
+  why: the legacy site has no page there either
+- page: api-gateway/policies/transforming-api-message-payload.md
+  href: '{{base_path}}/integrate/examples/json_examples/json-examples/#accessing-content-from-json-payloads'
+  why: the legacy site has no page there either
+- page: api-gateway/policies/transforming-api-message-payload.md
+  href: '{{base_path}}/integrate/examples/json_examples/json-examples/#constructing-and-transforming-json-payloads'
+  why: the legacy site has no page there either
+- page: api-gateway/policies/transforming-api-message-payload.md
+  href: '{{base_path}}/integrate/examples/json_examples/json-examples/#logging-json-payloads'
+  why: the legacy site has no page there either
+- page: api-gateway/policies/transforming-api-message-payload.md
+  href: '{{base_path}}/integrate/examples/json_examples/json-examples/#troubleshooting-debugging-and-logging'
+  why: the legacy site has no page there either
+- page: api-security/design-time/configuring-api-security-audit.md
+  href: '#auditreports'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/design-time/configuring-api-security-audit.md
+  href: auditreports
+  why: the legacy site has no page there either
+- page: api-security/key-management/applications/provisioning-out-of-band-oauth-clients.md
+  href: '#step5'
+  editions:
+  - 4.7.0
+  - next
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/key-management/third-party-key-managers/configure-global-key-manager.md
+  href: '{{base_path}}/api-security/key-management/third-party-key-managers/overview/#configuring-key-managers-with-wso2-api-m'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/key-management/third-party-key-managers/configure-keycloak-connector.md
+  href: '#step12'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/key-management/third-party-key-managers/configure-okta-connector.md
+  href: '#section3'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/key-management/tokens/encrypting-oauth2-tokens.md
+  href: '{{base_path}}/install-and-setup/deploying-wso2-api-manager/distributed-deployment/understanding-the-distributed-deployment-of-wso2-api-m'
+  why: the legacy site has no page there either
+- page: api-security/key-management/tokens/jwt-tokens.md
+  href: '{{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#accessing-the-api-publisher'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/key-management/tokens/securing-oauth-token-with-hmac-validation.md
+  href: '#SecuringOAuthTokenwithHMACValidation-Preventingmiss-useofOAuthTokens'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/key-management/tokens/securing-oauth-token-with-hmac-validation.md
+  href: '#SecuringOAuthTokenwithHMACValidation-WSO2APIManagerextension-HMACandtimestampverificationhandler'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/key-management/tokens/securing-oauth-token-with-hmac-validation.md
+  href: '#SecuringOAuthTokenwithHMACValidation-WSO2ISExtension-OAuthTokenGeneratorExtension'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/runtime/api-authentication/secure-apis-using-api-keys.md
+  href: '{{base_path}}/api-design-manage/deploy-and-publish/deploy-on-gateway/api-gateway/passing-enduser-attributes-to-the-backend-via-api-gateway/'
+  editions:
+  - 4.6.0
+  why: the legacy site has no page there either
+- page: api-security/runtime/api-authentication/secure-apis-using-oauth2-tokens.md
+  href: '{{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#accessing-the-api-publisher'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/runtime/authorization/role-based-access-control-using-xacml.md
+  href: '{{base_path}}/reference/customize-product/extending-api-manager/saml2-sso/configuring-identity-server-as-idp-for-sso.md#sharing-the-user-store'
+  why: the anchor is not on the target page on the legacy site either
+- page: api-security/runtime/opa-validation/overview.md
+  href: '#custom-opa-policy-with-custom-request-generator'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/advanced-topics/configuring-environment-specific-parameters.md
+  href: '#handling-the-certificates-using-the-params-file'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/advanced-topics/creating-custom-users-to-perform-api-controller-operations.md
+  href: '{{base_path}}/administer/managing-users-and-roles/managing-user-roles/#create-user-roles'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/cicd-using-cli.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/encrypting-secrets-with-ctl.md
+  href: '{{base_path}}/install-and-setup/setup/mi-setup/security/encrypting_plain_text/#dynamic-secrets'
+  editions:
+  - 4.6.0
+  why: the legacy site has no page there either
+- page: apiops/cli/managing-apis-api-products/importing-apis-via-dev-first-approach.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-apis-api-products/importing-apis-via-dev-first-approach.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/using-dynamic-data-in-api-controller-projects/#initialize-api-projects-with-dynamic-data'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-apis-api-products/migrating-api-products-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/configuring-environment-specific-parameters/#defining-the-params-file-for-an-api-product'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-apis-api-products/migrating-api-products-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-apis-api-products/migrating-api-products-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/using-dynamic-data-in-api-controller-projects/#add-dynamic-data-to-environment-configs'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-apis-api-products/migrating-apis-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/configuring-environment-specific-parameters/#defining-the-params-file-for-an-api'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-apis-api-products/migrating-apis-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-apis-api-products/migrating-apis-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/using-dynamic-data-in-api-controller-projects/#add-dynamic-data-to-environment-configs'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-applications/migrating-applications-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-common-api-policies/migrating-common-api-policies-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-mcp-servers/importing-mcp-servers-via-dev-first-approach.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-mcp-servers/migrating-mcp-servers-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/configuring-environment-specific-parameters/#defining-the-params-file-for-an-mcp-server'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-mcp-servers/migrating-mcp-servers-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/creating-custom-users-to-perform-api-controller-operations/#steps-to-create-a-custom-user-who-can-perform-api-controller-operations'
+  why: the anchor is not on the target page on the legacy site either
+- page: apiops/cli/managing-mcp-servers/migrating-mcp-servers-to-different-environments.md
+  href: '{{base_path}}/install-and-setup/setup/api-controller/advanced-topics/using-dynamic-data-in-api-controller-projects/#add-dynamic-data-to-environment-configs'
+  why: the anchor is not on the target page on the legacy site either
+- page: get-started/api-manager-quick-start-guide.md
+  href: '{{base_path}}/install-and-setup/setup/kubernetes-deployment/kubernetes/am-pattern-0-all-in-one/#step-1-set-up-basic-configurations'
+  why: the anchor is not on the target page on the legacy site either
+- page: includes/deploy/steps-to-deploy-apim-in-a-distributed-setup-with-km-separation.md
+  href: ../../../../install-and-setup/deploying-wso2-api-manager/production-deployment-guidelines/#common-guidelines-and-checklist
+  why: the anchor is not on the target page on the legacy site either
+- page: includes/deploy/steps-to-deploy-apim-in-a-distributed-setup-with-km-separation.md
+  href: ../../../../reference/config-catalog/#api-m-gateway-notification-configurations
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: includes/deploy/steps-to-deploy-apim-in-a-distributed-setup-with-tm-separation.md
+  href: ../../../../install-and-setup/deploying-wso2-api-manager/production-deployment-guidelines/#common-guidelines-and-checklist
+  why: the anchor is not on the target page on the legacy site either
+- page: includes/deploy/steps-to-deploy-apim-in-a-distributed-setup-with-tm-separation.md
+  href: ../../../../reference/config-catalog/#api-m-gateway-notification-configurations
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/install-and-setup-overview.md
+  href: '{{base_path}}/install-and-setup/setup/distributed-deployment/understanding-the-distributed-deployment-of-wso2-api-m'
+  why: the legacy site has no page there either
+- page: install-and-setup/install/installation-prerequisites.md
+  href: '{{base_path}}/install-and-setup/setup/reference/product-compatibility/#tested-wso2-products'
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/advance-configurations/configuring-caching.md
+  href: '{{base_path}}/reference/config-catalog/#api-m-token-revocation'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-only-ldap-user-store.md
+  href: '{{base_path}}/administer/product-security/logins-and-passwords/maintaining-logins-and-passwords/#setting-up-an-e-mail-login'
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-only-ldap-user-store.md
+  href: '{{base_path}}/reference/config-catalog/#super-admin-configurations'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-only-ldap-user-store.md
+  href: '#admin_ConfiguringaRead-OnlyLDAPUserStore-Updatingthesystemadministrator'
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-write-active-directory-user-store.md
+  href: '{{base_path}}/administer/managing-users-and-roles/configuring-the-system-administrator'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-write-active-directory-user-store.md
+  href: '{{base_path}}/install-and-setup/setup/security/creating_keystores'
+  editions:
+  - 4.6.0
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-write-ldap-user-store.md
+  href: '{{base_path}}/administer/product-security/logins-and-passwords/maintaining-logins-and-passwords/#setting-up-an-e-mail-login'
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-write-ldap-user-store.md
+  href: '{{base_path}}/deploy/performance/performance-tuning-recommendations#performance-tuning-ldaps-pooling'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-write-ldap-user-store.md
+  href: '{{base_path}}/deploy/security/use-asymmetric-encryption'
+  editions:
+  - 4.6.0
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/configure-userstores/configure-primary-user-store/configuring-a-read-write-ldap-user-store.md
+  href: '{{base_path}}/reference/config-catalog/#super-admin-configurations'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/setup/deployment-best-practices/production-deployment-guidelines.md
+  href: '{{base_path}}/install-and-setup/setup/deployment-best-practices/security-guidelines-for-production-deployment/#wsdl-url-generation'
+  editions:
+  - 4.7.0
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/deployment-best-practices/security-guidelines-for-production-deployment.md
+  href: '{{base_path}}/reference/config-catalog/#dependency-configurations'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/setup/deployment-best-practices/security-guidelines-for-production-deployment.md
+  href: '{{base_path}}/reference/config-catalog/#super-admin-configurations'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/setup/deployment-best-practices/tuning-performance.md
+  href: '{{base_path}}/install-and-setup/setup/mi-setup/transport_configurations/configuring-transports/#configuring-the-httphttps-transport'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/deployment-best-practices/tuning-performance.md
+  href: '#configuring-wso2-api-m-to-perform-regular-cleaning'
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/distributed-deployment/configuring-wso2-identity-server-as-a-key-manager.md
+  href: '{{base_path}}/api-security/key-management/configuration/configure-wso2is7-connector'
+  editions:
+  - 4.6.0
+  - next
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/distributed-deployment/configuring-wso2-identity-server-as-a-key-manager.md
+  href: '#Linux-Mac'
+  editions:
+  - 4.6.0
+  - next
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/distributed-deployment/configuring-wso2-identity-server-as-a-key-manager.md
+  href: '#step3-2'
+  editions:
+  - 4.6.0
+  - next
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/distributed-deployment/configuring-wso2-identity-server-as-a-key-manager.md
+  href: '#windows'
+  editions:
+  - 4.6.0
+  - next
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/distributed-deployment/deploying-wso2-api-m-in-a-simple-scalable-setup.md
+  href: ../../../../install-and-setup/deploying-wso2-api-manager/production-deployment-guidelines/#common-guidelines-and-checklist
+  editions:
+  - 4.6.0
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/distributed-deployment/deploying-wso2-api-m-in-a-simple-scalable-setup.md
+  href: ../../../../reference/config-catalog/#api-m-gateway-notification-configurations
+  editions:
+  - 4.6.0
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/setup/distributed-deployment/deploying-wso2-api-m-in-a-simple-scalable-setup.md
+  href: '{{base_path}}/install-and-setup/deploying-wso2-api-manager/production-deployment-guidelines/#common-guidelines-and-checklist'
+  editions:
+  - 4.7.0
+  - next
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/distributed-deployment/deploying-wso2-api-m-in-a-simple-scalable-setup.md
+  href: '{{base_path}}/reference/config-catalog/#api-m-gateway-notification-configurations'
+  editions:
+  - 4.7.0
+  - next
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: install-and-setup/setup/kubernetes-deployment/azure/deploying-wso2-api-m-on-aks.md
+  href: '#azure-deployment-architecture'
+  editions:
+  - 4.7.0
+  - next
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/setting-up-databases/overview.md
+  href: '{{base_path}}/install-and-setup/setup/distributed-deployment/understanding-the-distributed-deployment-of-wso2-api-m/'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/single-node/configuring-a-single-node.md
+  href: '{{base_path}}/install-and-setup/deploying-wso2-api-manager/production-deployment-guidelines/#common-guidelines-and-checklist'
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/single-node/configuring-an-active-active-deployment.md
+  href: '{{base_path}}//install-and-setup/setup/deployment-best-practices/production-deployment-guidelines/#common-guidelines-and-checklist/'
+  why: the anchor is not on the target page on the legacy site either
+- page: install-and-setup/setup/sso/okta-as-an-external-idp-using-saml.md
+  href: '{{base_path}}/assets/img/learn/okta-apim-add-role-permissions1.png'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/sso/okta-as-an-external-idp-using-saml.md
+  href: '{{base_path}}/assets/img/learn/okta-apim-add-role-permissions2.png'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/sso/okta-as-an-external-idp-using-saml.md
+  href: '{{base_path}}/assets/img/learn/okta-apim-add-role-permissions3.png'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/sso/okta-as-an-external-idp-using-saml.md
+  href: '{{base_path}}/assets/img/learn/okta-profile-edit.png'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/sso/okta-as-an-external-idp-using-saml.md
+  href: '{{base_path}}/assets/img/learn/okta-profile-edit2.png'
+  why: the legacy site has no page there either
+- page: install-and-setup/setup/sso/okta-as-an-external-idp-using-saml.md
+  href: '{{base_path}}/assets/img/learn/okta-profile-edit3.png'
+  why: the legacy site has no page there either
+- page: integrate/develop/working-with-service-catalog.md
+  href: '{{base_path}}/integrate/develop/integration-development-kickstart'
+  why: the legacy site has no page there either
+- page: integrate/develop/working-with-service-catalog.md
+  href: '{{base_path}}/reference/config-catalog-mi/#service-catalog-client'
+  why: the legacy site has no page there either
+- page: integrate/develop/working-with-service-catalog.md
+  href: '{{base_path}}/tutorials/integration-tutorials/service-catalog-tutorial'
+  why: the legacy site has no page there either
+- page: integrate/develop/working-with-service-catalog.md
+  href: '{{base_path}}/tutorials/integration-tutorials/service-catalog-tutorial-for-proxy-services'
+  why: the legacy site has no page there either
+- page: integrate/develop/working-with-service-catalog.md
+  href: '{{base_path}}/tutorials/tutorials-overview/#integration-tutorials'
+  why: the anchor is not on the target page on the legacy site either
+- page: monitoring/api-monetization/monetizing-an-api.md
+  href: '{{base_path}}/manage-apis/design/rate-limiting/adding-new-throttling-policies#Adding-a-new-subscription---level-throttling-tier'
+  why: the anchor is not on the target page on the legacy site either
+- page: monitoring/observability/metrics/jmx-based-monitoring.md
+  href: '#using-the-serviceadmin-mbean'
+  why: the anchor is not on the target page on the legacy site either
+- page: monitoring/observability/monitoring-correlation-logs.md
+  href: '{{base_path}}/reference/product-apis/devops-apis/devops-v0/devops-v0/#/paths/~1config~1correlation~1/get'
+  why: the anchor is not on the target page on the legacy site either
+- page: monitoring/observability/traces/monitoring-with-opentelemetry.md
+  href: '{{base_path}}/reference/config-catalog/#api-m-open-tracer-configurations'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: monitoring/observability/traces/monitoring-with-opentracing.md
+  href: '{{base_path}}/reference/config-catalog/#api-m-open-tracer-configurations'
+  why: the target is a placeholder page until it is migrated; the link goes to the page without the anchor
+- page: reference/customize-product/customizations/adding-internationalization.md
+  href: '{{base_path}}/reference/customize-product/customizations/customizing-the-developer-portal/overriding-developer-portal-theme/#uploading-via-the-admin-portal-tenants-only'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/customize-product/customizations/customize-the-api-store-and-gateway-urls-for-tenants.md
+  href: '#configure-per-tenant-service-provider-creation-for-devportal'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/customize-product/customizations/customizing-the-developer-portal/overriding-developer-portal-theme.md
+  href: '{{base_path}}/reference/customize-product/customizations/customizing-the-developer-portal/styling-api-details-info-section/'
+  why: the legacy site has no page there either
+- page: reference/customize-product/customizations/log-in-to-the-dev-portal-using-social-media.md
+  href: '{{base_path}}/install-and-setup/deploying-wso2-api-manager/distributed-deployment/configuring-wso2-identity-server-as-a-key-manager/'
+  editions:
+  - 4.7.0
+  why: the legacy site has no page there either
+- page: reference/customize-product/extending-api-manager/extending-gateway/customizing-api-template-for-gateway.md
+  href: '{{base_path}}/install-and-setup/setup/distributed-deployment/understanding-the-distributed-deployment-of-wso2-api-m/'
+  why: the legacy site has no page there either
+- page: reference/customize-product/extending-api-manager/extending-key-management/extending-scope-validation.md
+  href: '{{base_path}}/manage-apis/design/api-security/oauth2/oauth2-scopes/scope-allowlisting'
+  why: the legacy site has no page there either
+- page: reference/customize-product/extending-api-manager/extending-workflows/configuring-http-redirection-for-workflows.md
+  href: '{{base_path}}/develop/product-apis/admin-apis/admin-v1/admin-v1/#tag/Workflows-(Individual)/paths/~1workflows~1update-workflow-status/post'
+  why: the legacy site has no page there either
+- page: reference/customize-product/extending-api-manager/extending-workflows/configuring-http-redirection-for-workflows.md
+  href: '{{base_path}}/reference/product-apis/admin-apis/admin-v4/admin-v4/#tag/Workflows-(Individual)/paths/~1workflows~1update-workflow-status/post'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/default-product-ports.md
+  href: '{{base_path}}/install-and-setup/setup/deployment-best-practices/changing-the-default-ports-with-offset/#configuring-the-port-offset'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/faq.md
+  href: '{{base_path}}/install-and-setup/install/installing-the-product/running-the-api-m/#configuring-the-session-time-out'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/faq.md
+  href: '{{base_path}}/install-and-setup/setup/reference/default-product-ports/#api-manager'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/faq.md
+  href: '{{base_path}}/install-and-setup/setup/security/logins-and-passwords/maintaining-logins-and-passwords/#setting-up-an-e-mail-login'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/faq.md
+  href: '#FAQ-Keystorepassword'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/faq.md
+  href: '#FAQ-Step1-CreateaselfsignedJavaKeyStorefileandincludeyourdomainastheCN'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/governance/owasp-top-10.md
+  href: '#owaspapi22023-jwt-best-practice'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/guides/accessing-api-manager-by-multiple-devices-simultaneously.md
+  href: '#AccessingAPIManagerbyMultipleDevicesSimultaneously-Howthisshouldwork'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/guides/accessing-api-manager-by-multiple-devices-simultaneously.md
+  href: '#AccessingAPIManagerbyMultipleDevicesSimultaneously-Issueinhavingmultipleaccesstokens'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/guides/accessing-api-manager-by-multiple-devices-simultaneously.md
+  href: '#AccessingAPIManagerbyMultipleDevicesSimultaneously-RecommendedSolution'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/product-apis/advanced-configurations.md
+  href: '{{base_path}}/administer/managing-users-and-roles/managing-permissions/#adding-role-based-permissions'
+  why: the anchor is not on the target page on the legacy site either
+- page: reference/troubleshooting/troubleshooting-jms.md
+  href: '{{base_path}}/integrate/develop/customizations/creating-custom-mediators'
+  why: the legacy site has no page there either
+- page: reference/vendor-extensions-catalog.md
+  href: '#x-wso2-pass-request-payload-to-enforcer'
+  why: the anchor is not on the target page on the legacy site either
+- page: tutorials/create-and-publish-websocket-api.md
+  href: '{{base_path}}/manage-apis/design/create-api/create-a-websocket-api'
+  why: the legacy site has no page there either

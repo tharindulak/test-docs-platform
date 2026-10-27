@@ -1,0 +1,1 @@
+{ "billing": { "enabled": true, "page": [] }, "beta": { "enabled": false, "page": ["guides/beta.md"] } }

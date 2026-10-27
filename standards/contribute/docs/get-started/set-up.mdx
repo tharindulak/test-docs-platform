@@ -1,0 +1,47 @@
+---
+title: Set up your computer
+description: Install Node.js and the editor extensions you need to preview and check WSO2 Docs locally.
+type: how-to
+sidebar_position: 2
+---
+
+Set up your computer once to write and preview WSO2 Docs locally. Quick edits in the GitHub web editor need no setup.
+
+## Prerequisites
+
+- A GitHub account with access to the Doc space's repository.
+- Git.
+
+## Install the tools
+
+1. Install [Node.js 22 LTS](https://nodejs.org/). The `npx` command comes with it.
+2. Optional: install [Docker](https://docs.docker.com/get-docker/) if you want search in your local preview.
+3. Install [Vale](https://vale.sh/docs/install) if you want style checks when you run `npx @wso2/docs check`. Without it, the check skips style and still runs everything else.
+You need no checkout of any other repository. The preview and the check build the navigation from the published Deployment manifest, with your repository's Doc space manifests in it. See [Preview and check a Doc space](../guides/product-teams/preview-a-doc-space.mdx).
+
+## Set up your editor
+
+Every Content repository carries a `.vscode/extensions.json` file, kept up to date by the Platform. When you open the repository in VS Code, accept the prompt to install the recommended extensions:
+
+| Extension | What it does |
+|---|---|
+| MDX (`unifiedjs.vscode-mdx`) | Syntax highlighting and errors for `.mdx` pages |
+| Vale (`chrischinchilla.vale-vscode`) | Style suggestions as you type |
+| Code Spell Checker (`streetsidesoftware.code-spell-checker`) | Spelling as you type |
+
+To use the WSO2 Vale style in the editor, run `npx @wso2/docs check --vale-config` once. It prints the path of a Vale configuration file. Set the Vale extension's **Vale CLI: Config** setting to that path.
+
+## Verify
+
+Run the preview from the repository's folder, with the Doc space's directory:
+
+```bash
+npx @wso2/docs preview sandbox
+```
+
+The first run downloads the Platform into a cache outside the repository, so your checkout stays content-only. When the preview is ready, open the URL it prints.
+
+## Next steps
+
+- [Preview your changes](../guides/preview-locally.mdx)
+- [Create a page](../guides/create-a-page.mdx)

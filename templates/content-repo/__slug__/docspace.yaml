@@ -1,0 +1,83 @@
+# Doc space manifest of __TITLE__, written by `wso2-docs init`. Only the copy on
+# the main line counts: the compose step reads it from main and merges it
+# with the Docs section manifests into the Deployment manifest, which every
+# products menu, section menu and version selector follows. A change here
+# needs no rebuild of any page.
+#
+# Every field: https://docs.wso2.com/contribute/reference/product-teams/doc-space-manifest/
+# Your editor checks this file as you type, against the schema compose uses:
+# https://docs.wso2.com/schemas/docspace.schema.json
+schemaVersion: 1
+
+# The address, docs.wso2.com/__SLUG__/, and the name of this directory. Agreed
+# with the Platform team; it can't change once the Doc space is public.
+slug: __SLUG__
+
+# The name readers see, written as wso2.com writes the product.
+displayName: __TITLE__
+
+# The names of the Editions in the version selector and page titles. {version}
+# is filled in for each Self-hosted version. Add `brand: <name>` where Cloud
+# has a brand of its own (shown as "Cloud (<brand>)").
+editionNames:
+__EDITION_NAMES__
+
+# Earlier names readers still search for (optional).
+# formerNames: [Old product name]
+
+# The home Docs section: navigation/sections/<id>.yaml in the Platform. Its
+# team lists this Doc space in the section's menu (other sections may borrow
+# it; it keeps this one address). Until the section lists it, compose
+# reports home-not-listing.
+home: __HOME__
+
+# An Unlisted Doc space (in no section or products menu, linked only from its
+# console) has `listed: false` instead of `home`, and search engines don't
+# index it. `indexed: true` is the one exception to that, for Contribute
+# only: an Unlisted Doc space that is still indexed and in the sitemap index.
+# Leave both out unless the Platform team agrees.
+# listed: false
+# indexed: true
+
+# A product in a family with a Cloud tree (such as API Platform Cloud) has no
+# Cloud Edition of its own: its main line is its Cloud part of the family's
+# Cloud. Set `cloud.in` to the family-level Doc space, leave `cloud` out of
+# `editions`, and ask that Doc space's team to add this slug to the `parts`
+# of its Cloud Edition. Both must be in the same Content repo.
+# cloud:
+#   in: api-platform
+
+# The team that keeps this Doc space: alerted when compose fails because of
+# this file, and the code owner of this directory (CODEOWNERS).
+owners:
+  team: __TEAM__
+
+# The Content repo this Doc space lives in, and where "Report an issue" opens.
+repo: __REPO__
+issues:
+  repo: __REPO__
+
+# The Editions, in the order the version selector shows them (never sorted):
+#   - your own Cloud first, `- id: cloud`, built from main;
+#   - then each Self-hosted version, newest first, as an exact version
+#     (1.0.0) or a date version (2026.09.24). The first one is also built as
+#     /latest/.
+# Each version builds from its release branch: `<doc space>/release/<version>`
+# in a repo with several Doc spaces, else `release/<version>`. Set `branch`
+# only for another name. `pin: <tag>` holds an Edition on one Docs release;
+# `status: end-of-life` keeps it readable with an end-of-life notice.
+editions:
+__EDITIONS__
+
+# Versions still on their old site: listed under "Older versions (old site)".
+# legacyVersions:
+#   - id: 0.9.0
+#     url: https://example.wso2.com/docs/0.9.0/
+
+# Notices the chrome shows above the page, from the published manifest (no
+# rebuild). `until` is a plain date, quoted or not, and the last day shown.
+# notices:
+#   - text: This version reaches end of life on 31 March 2027.
+#     level: warning
+#     editions: [1.0.0]
+#     until: 2027-03-31

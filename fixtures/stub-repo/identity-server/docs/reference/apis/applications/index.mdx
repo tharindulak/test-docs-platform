@@ -1,0 +1,18 @@
+---
+title: Application management API
+description: Create, list, update and delete applications and their inbound protocols.
+type: reference
+layout: api-reference
+spec: ./openapi.yaml
+server: '{edition.apiBaseUrl}/api/server/v1'
+---
+
+Use this API to manage the applications registered in {edition.productName}.
+
+## Authentication and scopes
+
+Get an access token with the scopes each operation lists and send it as a bearer token.
+
+<Edition only="cloud">
+Use the root organization's token. MARKER-API-CLOUD-ONLY
+</Edition>

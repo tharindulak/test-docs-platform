@@ -1,0 +1,28 @@
+---
+title: Override a policy check
+description: Let a pull request merge past a policy check, such as redirect coverage, with a label and a written reason.
+type: how-to
+sidebar_position: 2
+---
+
+Doc space owners can override the three policy checks when there's a good reason: redirect coverage, image size and marker versions. Checks that break the build can't be overridden: MDX compile, links, anchors and unknown Edition variables.
+
+## Prerequisites
+
+- You're a Doc space owner, listed in the repository's `CODEOWNERS`.
+
+## Override the check
+
+1. In the pull request description, add a line that starts with `Quality override:` and says why, for example `Quality override: the old page was a duplicate and had no traffic.`
+2. Add the `quality-override` label to the pull request.
+3. Re-run the **Docs** check.
+
+The check reports the overridden findings as overridden, and passes if nothing else blocks. Without the reason line, the check fails and says the reason is missing.
+
+## Verify
+
+The **Docs** check passes, and its summary lists each overridden finding with your reason.
+
+## Next steps
+
+- [Checks](../../reference/checks.mdx)

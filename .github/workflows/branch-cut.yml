@@ -1,0 +1,102 @@
+# The bot after a Branch cut (reusable; called by a Content repo's docs.yml
+# when a release branch is created: `<doc space>/release/<version>`, or
+# `release/<version>` in a repo with one Doc space). Editions and versions:
+# the branch stays a plain copy of main; this opens the pull request on main
+# that removes every `selfHostedFrom` marker the new version covers, with
+# the branch cut report (what ships, what is held, what is still `next`) as
+# its description and in the run summary.
+#
+# A writer who ran `npx @wso2/docs branch-cut` and pushed its
+# branch-cut/<doc space>/<version> branch already has that change: the run
+# finds the branch and stops.
+#
+# PENDING INFRA: the GitHub App (DOCS_PLATFORM_APP_ID variable,
+# DOCS_PLATFORM_APP_KEY secret) installed on the Content repo with contents
+# and pull-requests write, so the bot's pull request runs the "Docs"
+# workflow's checks (a pull request opened with the workflow token starts no
+# workflow).
+name: Docs branch cut
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: The release branch that was created (github.ref_name)
+        type: string
+        required: true
+      platform-ref:
+        type: string
+        default: v1
+    secrets:
+      DOCS_PLATFORM_APP_KEY:
+        required: true
+      DOCS_PLATFORM_READ_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  main-markers:
+    name: markers on main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.DOCS_PLATFORM_APP_ID }}
+          private-key: ${{ secrets.DOCS_PLATFORM_APP_KEY }}
+          repositories: ${{ github.event.repository.name }}
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: content
+          fetch-depth: 0
+          token: ${{ steps.app.outputs.token }}
+      - name: Check out the Platform
+        uses: actions/checkout@v4
+        with:
+          repository: tharindulak/test-docs-platform
+          ref: ${{ inputs.platform-ref }}
+          path: platform
+          token: ${{ secrets.DOCS_PLATFORM_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: platform
+      - name: Remove the markers the new version covers, and write the branch cut report
+        id: cut
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          [[ "$BRANCH" =~ ^([a-z0-9][a-z0-9-]*/)?release/[A-Za-z0-9.]+$ ]] || { echo "::error::$BRANCH is not a release branch"; exit 1; }
+          git -C content config user.name "wso2-docs-bot"
+          git -C content config user.email "wso2-docs-bot@users.noreply.github.com"
+          node platform/bin/wso2-docs.mjs branch-cut --branch "origin/$BRANCH" --repo content --dry-run --format json > plan.json
+          cleanup="branch-cut/$(jq -r .slug plan.json)/$(jq -r .version plan.json)"
+          echo "cleanup=$cleanup" >> "$GITHUB_OUTPUT"
+          if git -C content ls-remote --exit-code --heads origin "$cleanup" > /dev/null; then
+            echo "$cleanup exists already (made with npx @wso2/docs branch-cut): nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            echo "changes=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node platform/bin/wso2-docs.mjs branch-cut --branch "origin/$BRANCH" --repo content --report report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          echo "changes=$(jq '.main.changes | length' plan.json)" >> "$GITHUB_OUTPUT"
+      - name: Open the pull request on main
+        if: steps.cut.outputs.changes != '0'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          CLEANUP: ${{ steps.cut.outputs.cleanup }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          git -C content push origin "$CLEANUP"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$CLEANUP" \
+            --title "Remove the Edition markers covered by $BRANCH" --body-file report.md

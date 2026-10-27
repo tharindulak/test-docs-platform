@@ -1,0 +1,44 @@
+# A tiny wso2/docs-api-platform: one MkDocs build that keeps every version as
+# folders. Site-wide pages, a Cloud entry with AI Gateway's Cloud sub-section,
+# and AI Gateway's versions as nav sections over folders (next/ and the date
+# version 2026.09.24/). test/migration-folders.test.mjs converts it with the
+# real ai-gateway.mjs and api-platform.mjs configs.
+site_name: "API Platform Documentation"
+site_url: https://wso2.com/bijira/docs
+nav:
+  - Overview: index.md
+  - Get Started: get-started.md
+  - Cloud:
+      - Introduction:
+          - What is API Platform Cloud?: cloud/introduction/what-is-bijira.md
+      - AI Gateway:
+          - Overview: cloud/ai-gateway/overview.md
+          - LLM:
+              - Guard: cloud/ai-gateway/llm/guard.md
+          - Analytics:
+              - Moesif Analytics: cloud/ai-gateway/analytics/moesif.md
+  - AI Gateway:
+      - next:
+          - Overview: ai-gateway/next/overview.md
+          - Setup and Deployment:
+              - Install the Gateway: ai-gateway/next/setup-and-deployment/install.md
+          - Analytics:
+              - Moesif Analytics: ai-gateway/next/analytics/moesif.md
+          - Guides:
+              - Shared guide: guides/shared.md
+      - 2026.09.24:
+          - Overview: ai-gateway/2026.09.24/overview.md
+          - Quick Start Guide: ai-gateway/2026.09.24/quick-start-guide.md
+  - Monetization:
+      - Overview: monetization/overview.md
+  - Guides:
+      - Shared guide: guides/shared.md
+plugins:
+  - search
+  - redirects:
+      redirect_maps:
+        ai-gateway/legacy-page.md: ai-gateway/2026.09.24/overview.md
+        cloud/ai-gateway/llm/old-guard.md: cloud/ai-gateway/llm/guard.md
+        cloud/ai-gateway/moved-guide.md: guides/shared.md
+extra:
+  page_title_suffix: "API Platform Docs"

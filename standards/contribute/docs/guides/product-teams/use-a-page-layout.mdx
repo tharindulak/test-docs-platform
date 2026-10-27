@@ -1,0 +1,102 @@
+---
+title: Draw a page as an overview or a catalog
+description: Turn a page's link sections into cards with layout overview, or show a searchable grid from a data file with layout catalog.
+type: how-to
+sidebar_position: 7
+---
+
+A page's `layout` front matter sets how the page is drawn, separately from its Page type. Use `overview` for a home page or guide index of cards, and `catalog` for a searchable grid of items such as connectors.
+
+## Prerequisites
+
+- A page to change. See [Create a page](../create-a-page.mdx).
+
+## Draw an overview
+
+1. Add `layout: overview` to the page's front matter.
+2. Write each card as an `##` or `###` section that holds only text and links: a short sentence, then a list of links.
+
+   This is the start of Identity Platform Cloud's home page:
+
+   ```mdx
+   ---
+   title: Identity Platform Cloud
+   description: 'Identity Platform Cloud: sign-in, access and user management for your apps, delivered as a service by WSO2.'
+   type: concept
+   layout: overview
+   ---
+
+   Identity Platform Cloud is WSO2's identity and access management as a service.
+
+   ## Products
+
+   ### Identity Server
+
+   Single sign-on, multi-factor authentication, API authorization and user management for your apps.
+
+   - [Identity Server Cloud](docs:identity-server/cloud/)
+   - [Identity Server Self-hosted](docs:identity-server/latest/)
+   ```
+
+   Each `###` under "Products" becomes one product card. Sections next to each other at one heading level share a grid.
+
+A section with anything else in it, such as a table or a code block, stays prose. The page stays plain Markdown, and its Markdown twin is that Markdown.
+
+## Draw a catalog
+
+1. Put the data file next to the page, such as `docs/guides/connectors/connectors.yaml`:
+
+   ```yaml
+   schemaVersion: 1
+   categories:
+     - id: fraud-detection
+       label: Fraud detection
+   items:
+     - id: sift
+       name: Sift
+       description: Helps prevent fraudulent logins to your system.
+       href: ./sift/overview.mdx
+       links:
+         - label: Connector store
+           url: https://store.wso2.com/connector/identity-fraud-detection-sift
+       category: fraud-detection
+       logo: assets/self-hosted/img/logo/sift-logo.svg
+   ```
+
+2. Add `layout: catalog` and `data:` to the page's front matter:
+
+   ```yaml
+   layout: catalog
+   data: ./connectors.yaml
+   ```
+
+3. Write the page's text. The grid follows it.
+
+Each item needs `id`, `name`, `description` and `href`. Add `editions` to an item to show it only in some Editions. The [component catalogue](../../reference/components.mdx#layout-catalog) lists every field.
+
+If the data file comes from a product repository, have the product's CI generate it and a bot open a pull request with it. The build reads only the committed file.
+
+## Verify
+
+1. Run the check on the Doc space:
+
+   ```bash
+   npx @wso2/docs check identity-server
+   ```
+
+   The **Data files** check validates the data file against `schemas/catalog.schema.json`. It also checks that ids are unique, categories are known, and links and logos exist.
+
+2. Preview the page. The overview shows cards, or the catalog shows its search box, filter chips and grid.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| A section isn't a card | It holds something besides text and links. Move the rest to its own section. |
+| `data-files` error at an item's line | Fix that item: the message names the field. |
+| An item's page link fails the build | `href` names a page in the Doc space that doesn't exist. Use the page's file path, a `docs:` link or a URL. |
+
+## Next steps
+
+- [Extension points](../../concepts/product-teams/extension-points.mdx)
+- [Front matter](../../reference/front-matter.mdx)

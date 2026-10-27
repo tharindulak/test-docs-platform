@@ -1,0 +1,82 @@
+---
+title: Add an extension to the Platform
+description: Review a team's extension proposal, then add the component or Page layout to the Platform and its component catalogue, and ship it in a Platform release.
+type: how-to
+sidebar_position: 11
+---
+
+Content repositories hold no code, so every extension a team needs is Platform code or data, open to every team. A team asks with an extension proposal, as [Propose an extension](../product-teams/propose-an-extension.mdx) explains. The Platform team reviews it and adds it to the Platform. This page covers a component and a Page layout. Data-file schemas, manifest fields and build steps follow the same review.
+
+## Prerequisites
+
+- You're on the Platform team.
+- An issue in `wso2/docs-platform` with the `extension-proposal` label, from the **Extension proposal** form.
+
+## Review the proposal
+
+Check the form's answers against these rules:
+
+1. **Nothing existing fits.** Look in [Components and layouts](../../reference/components.mdx) and the [extension points](../../concepts/product-teams/extension-points.mdx). A new option on an existing component or layout is better than a new one.
+2. **A generic name.** It names what it is, such as "Catalog", not a product's use, such as "IS connectors".
+3. **Data, not code, from the team.** Anything generated comes from the product's own CI and is committed as data by a bot pull request. The build never runs a team's code.
+4. **A Markdown form.** What the page's Markdown twin holds where the extension appears. A component without one fails the Markdown export.
+5. **Accessibility.** Keyboard use, labels, contrast, what a screen reader announces, and how it is checked.
+6. **An owner.** The team that keeps it once it ships, usually `docs-platform`.
+7. **No escape hatch.** No raw HTML widgets, iframes or per-team CSS. Until the Platform has it, the team links out.
+8. **Fields only ever added.** A new manifest or data-file field must be optional, so builds made long ago keep working.
+
+Answer on the issue: agreed, agreed with changes, or not, with the reason.
+
+## Add a component
+
+1. On a branch from `main`, add the React component under `site/src/components/`, and register it in `site/src/theme/MDXComponents.js`.
+2. Add its Markdown form to `COMPONENT_FORMS` in `lib/markdown-forms.mjs`.
+3. Add its entry to the `components` list in `standards/components.yaml`, with `name`, `use`, `what`, `example`, `markdownForm`, `accessibility`, `owner` and `since`.
+4. Regenerate the Contribute pages made from the standards:
+
+   ```bash
+   npm run standards
+   ```
+
+   It rewrites `standards/contribute/docs/reference/components.mdx` with the new entry.
+
+5. Run the tests:
+
+   ```bash
+   npm test
+   ```
+
+   A component in `COMPONENT_FORMS` with no catalogue entry fails `the component catalogue documents every registered component`.
+
+## Add a Page layout
+
+1. Add the layout's name to `LAYOUTS` in `lib/layouts.mjs`, and any front-matter defaults it brings to `layoutFrontMatter`.
+2. Draw it before Docusaurus's own plugins, in `plugins/remark-layouts.mjs`, with its components under `site/src/components/layouts/`, so links, anchors, search records and Markdown twins see it.
+3. Add it to the `layout` values in `standards/front-matter.yaml`, and to the `layouts` list in `standards/components.yaml`, with what it reads under `data`.
+4. If it reads a data file, add the file's schema to `schemas/` and to the `dataFiles` list in `standards/components.yaml`, so the `data-files` check validates it.
+5. Update the expected list in `test/extensions.test.mjs`, which pins the layouts, then run `npm run standards` and `npm test`.
+
+## Ship it
+
+1. Open the pull request, linked to the proposal. The proposing team may build it and be its first user, but the Platform team approves it.
+2. It reaches every team in the next Platform release. See [Release the Platform](release-the-platform.mdx).
+3. Close the proposal with a link to its catalogue entry.
+
+## Verify
+
+1. [Components and layouts](../../reference/components.mdx) lists the new component or layout, with its example, Markdown form and owner.
+2. A page that uses it builds, passes `wso2-docs check`, and its Markdown twin holds the Markdown form.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `standards/components.yaml documents <name>` fails | Add the catalogue entry |
+| `layouts: the fixed Platform list …` fails | The layout is missing from `LAYOUTS`, `standards/front-matter.yaml` or the catalogue, or the test's list |
+| The Markdown export fails on the component | Add its form to `COMPONENT_FORMS` |
+| `components.mdx` has changes you didn't make | Someone edited it by hand. It is generated: change `standards/components.yaml` and run `npm run standards`. |
+
+## Next steps
+
+- [Extension points](../../concepts/product-teams/extension-points.mdx)
+- [Release the Platform](release-the-platform.mdx)

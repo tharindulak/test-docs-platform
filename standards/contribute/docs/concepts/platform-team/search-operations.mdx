@@ -1,0 +1,66 @@
+---
+title: Search in operation
+description: The search collection behind each environment, the records every Docs deployment adds to it, the keys that guard it, and the check that keeps it in step.
+type: concept
+sidebar_position: 5
+---
+
+WSO2 Docs search is one Typesense collection per environment, shared by every Docs deployment of that environment. The release pipeline keeps it in step with what is live. The developer guide's [Search scopes](../product-teams/search-scopes.mdx) explains what readers search. This page is how the index is kept.
+
+## How it works
+
+### Collections and records
+
+| Environment | Collection | Search host |
+|---|---|---|
+| Production | `wso2docs-production` | `<search-production-host>` |
+| Staging | `wso2docs-staging` | `<search-staging-host>` |
+| Your computer | `wso2docs-local` | `http://localhost:<port>`, your own Typesense |
+
+Every build writes its records to `_platform/search-records.json`. Each record carries its Doc space, Edition, Product family, page and the release that indexed it. A family Cloud's records are split by owner: the family's own pages are the family Doc space's, and each Cloud part's pages are the component's Cloud, with `cloudIn` naming the platform. Each item of a catalog page is a record of its own. Records also carry the Doc space's former names from its manifest's `formerNames`, and a Cloud part's carry its platform's too, so a search for Asgardeo finds Identity Platform Cloud's pages.
+
+`/latest/` is never indexed: its pages are already indexed as the Edition they are. Legacy versions have no records.
+
+### Indexing
+
+After each flip, `wso2-release search-index` takes each new Docs deployment's records from its release folder, adds or updates them in the collection, then deletes that Edition's records from any other release. For a family Cloud, it deletes per group: the family's, then each part's. A Docs deployment with no records is refused, because indexing it would delete the whole Edition.
+
+Each Docs deployment retries three times on its own. A failure is a warning in the run's annotations. It never blocks or undoes a release.
+
+### The consistency check
+
+Every Monday, the **Search consistency** workflow compares each environment's collection with every live Docs deployment, and repairs what drifted:
+
+| Drift | Means | Repair |
+|---|---|---|
+| `missing` | A page has records in its release folder but none in the index | Index the Docs deployment again |
+| `extra` | The index has a page that the Docs deployment's page list doesn't | Delete those records |
+| `otherReleases` | Records were indexed by another release, such as one rolled back from | Index the Docs deployment again |
+| `formerNames` | The records' former names differ from the manifest's, such as after a `formerNames` change | Index the Docs deployment again |
+| `orphans` | A Doc space and Edition in the index with no live Docs deployment, such as one taken down | Delete them |
+
+A rollback or a taken-down Docs deployment always leaves drift. The rollback workflow repairs it at once, and so should anyone who takes a Docs deployment down.
+
+### Keys
+
+| Key | Can | Held by |
+|---|---|---|
+| The admin key, `TYPESENSE_ADMIN_KEY` | Everything | The pipeline's staging and production environments only. Never a build, a Content repository or a browser. |
+| A search-only parent key | Search the one collection | Made once by `wso2-release search-setup`, which reuses it on every later run. Kept by the Platform team to make browser keys from. |
+| A scoped browser key | Search, with what the parent embeds, such as an expiry | The `SEARCH_KEY_STAGING` and `SEARCH_KEY_PRODUCTION` variables, baked into every build. Public by design. |
+| The Edge Worker's key, `TYPESENSE_SEARCH_KEY` | Search | A Worker secret, for the MCP endpoint's `search_docs` |
+
+Every build carries both environments' browser keys and endpoints, and the browser picks one by the host it is served from. So the same bytes work on staging and, once promoted, on production. A host with no key shows search as unavailable instead of searching the wrong index.
+
+## Limits
+
+- Search is never a reason a release fails, so a broken index shows only as warnings and in the weekly check. Read the check's summary.
+- A new browser key reaches readers only through builds: after changing `SEARCH_KEY_STAGING` or `SEARCH_KEY_PRODUCTION`, rebuild everything.
+- Typesense shows a key's full value only when the key is made. `search-setup` prints the parent key that one time; later runs name it by its id and first four characters. Keep the value with the Platform team's secrets, or make a new parent with `--new-key`.
+- Production has no index until cutover. The weekly check skips it while production is off.
+
+## Related
+
+- [Run the search index](../../guides/platform-team/run-the-search-index.mdx)
+- [Search scopes](../product-teams/search-scopes.mdx)
+- [Secrets, variables and hosting values](../../reference/platform-team/secrets-and-variables.mdx)

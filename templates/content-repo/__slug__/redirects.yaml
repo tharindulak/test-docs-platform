@@ -1,0 +1,8 @@
+# Page moves and legacy URLs of __TITLE__. The redirects check blocks a pull
+# request that removes or moves a page without a `moves:` entry.
+#   moves:  - from: guides/old-name      (paths under docs/, no extension)
+#             to: guides/new-name
+#   legacy: - from: https://old.docs.example.com/en/1.0.0/some/page/
+#             to: guides/new-name
+moves: []
+legacy: []

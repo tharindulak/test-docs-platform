@@ -1,0 +1,174 @@
+# Platform navigation file (Team manifests and how the final build merges
+# them). Kept by the Platform team: only the Platform team adds families,
+# groups, sections or Content repos. Schema: schemas/navigation.schema.json.
+#
+# `wso2-release compose` validates this file, every Docs section manifest
+# (navigation/sections/<id>.yaml) and every Doc space manifest
+# (<repo>/<path>/<slug>/docspace.yaml on main), and merges them into the
+# Deployment manifest. The pipeline adds the deployed tag per Edition and
+# environment and publishes it as docs.wso2.com/manifest.json.
+# Fields are only ever added: deployments built long ago read the published copy.
+schemaVersion: 1
+owners:
+  team: docs-platform
+platformRepo: wso2/docs-platform
+
+# The products menu: the families in the order of wso2.com's header, named as
+# wso2.com names them, then the groups wso2.com/documentation adds.
+# The products menu and the Landing page draw this one list; the Landing page
+# adds only each group's short description (one sentence, no product names
+# that the menu already shows) and each product's Cloud and Self-hosted links.
+families:
+  - id: agent-platform
+    name: Agent Platform
+    description: Build, run and govern AI agents and the tools they call.
+  - id: api-platform
+    name: API Platform
+    description: Design, secure and manage APIs, AI traffic and MCP servers, in Cloud or on your own infrastructure.
+  - id: integration-platform
+    name: Integration Platform
+    description: Connect applications, data and services, with low-code tools and connectors.
+  - id: identity-platform
+    name: Identity Platform
+    description: Sign-in, access control and identity management for customers, workforce and AI agents.
+  - id: engineering-platform
+    name: Engineering Platform
+    description: An internal developer platform for building, deploying and running cloud-native applications.
+groups:
+  - id: solutions
+    name: Solutions
+    description: Industry accelerators that bring WSO2 products together for healthcare and financial services.
+  - id: other
+    name: Other
+    description: Product updates, security advisories and support across WSO2 products.
+
+environments: [staging, production]
+
+# Every Docs section, with its manifest at navigation/sections/<id>.yaml
+# (owned through CODEOWNERS), and the family or group it belongs to.
+sections:
+  - { id: api-platform, in: api-platform }
+  - { id: identity-platform, in: identity-platform }
+
+# Where the Doc space manifests are: each repo's main line, at
+# <path>/<slug>/docspace.yaml.
+contentRepos:
+  - repo: wso2/docs-identity-platform
+  - repo: wso2/docs-api-platform
+  - repo: wso2/docs-sandbox
+  # The Platform's own Doc space: Contribute, at standards/contribute/.
+  - repo: wso2/docs-platform
+    path: standards
+
+# Products not on WSO2 Docs yet, so the catalog and product switcher cover
+# every product on wso2.com/documentation. Each is listed with its old site and
+# has no Docs deployment; docs: links to it fail the build. A product's Doc
+# space manifest replaces its entry here (the same slug in both is an error).
+# The entries follow spec/product-placement.md: in each group the family Cloud
+# first (cloud-only), then its products (versions-only, their Cloud a Cloud
+# part, or unversioned), then the links out (links-out), which never get a
+# Doc space.
+notYetOnWso2Docs:
+  agent-platform:
+    displayName: Agent Platform Cloud
+    in: agent-platform
+    model: cloud-only
+    legacyUrl: https://wso2.com/agent-platform/docs/cloud/
+  agent-manager:
+    displayName: Agent Manager
+    in: agent-platform
+    model: versions-only
+    legacyUrl: https://wso2.com/agent-platform/docs/
+  api-gateway:
+    displayName: API Gateway
+    in: api-platform
+    model: versions-only
+    legacyUrl: https://wso2.com/api-platform/docs/api-gateway/1.2.0/
+  api-portal:
+    displayName: API Portal & MCP Hub
+    in: api-platform
+    model: versions-only
+    legacyUrl: https://wso2.com/api-platform/docs/api-portal/1.0.0/
+  ai-workspace:
+    displayName: AI Workspace
+    in: api-platform
+    model: versions-only
+    legacyUrl: https://wso2.com/api-platform/docs/ai-workspace/1.0.0/
+  integration-platform:
+    displayName: Integration Platform Cloud
+    in: integration-platform
+    model: cloud-only
+    formerNames: [Devant]
+    legacyUrl: https://wso2.com/integration-platform/docs/saas/
+  integrator:
+    displayName: Integrator
+    in: integration-platform
+    model: versions-only
+    legacyUrl: https://wso2.com/integration-platform/docs/integrator/
+  # On the Integrator site today ("ICP 2.1.0" in its menu).
+  integration-control-plane:
+    displayName: Integration Control Plane
+    in: integration-platform
+    model: versions-only
+    legacyUrl: https://wso2.com/integration-platform/docs/integrator/
+  connectors:
+    displayName: Connectors
+    in: integration-platform
+    model: unversioned
+    legacyUrl: https://wso2.com/integration-platform/docs/connectors/catalog
+  micro-integrator:
+    displayName: Micro Integrator
+    in: integration-platform
+    model: links-out
+    legacyUrl: https://mi.docs.wso2.com/en/latest/
+  streaming-integrator:
+    displayName: Streaming Integrator
+    in: integration-platform
+    model: links-out
+    legacyUrl: https://si.docs.wso2.com/latest/
+  ballerina-integrator:
+    displayName: Ballerina Integrator
+    in: integration-platform
+    model: links-out
+    legacyUrl: https://bi.docs.wso2.com/
+  enterprise-integrator:
+    displayName: Enterprise Integrator
+    in: integration-platform
+    model: links-out
+    legacyUrl: https://ei.docs.wso2.com/en/latest/
+  ballerina:
+    displayName: Ballerina
+    in: integration-platform
+    model: links-out
+    legacyUrl: https://ballerina.io/learn/
+  engineering-platform:
+    displayName: Engineering Platform Cloud
+    in: engineering-platform
+    model: cloud-only
+    formerNames: [Choreo]
+    legacyUrl: https://wso2.com/engineering-platform/developer-platform/docs/
+  openchoreo:
+    displayName: OpenChoreo
+    in: engineering-platform
+    model: links-out
+    legacyUrl: https://openchoreo.dev/docs/
+  healthcare:
+    displayName: Accelerator for Healthcare
+    in: solutions
+    model: unversioned
+    legacyUrl: https://healthcare.docs.wso2.com/
+  financial-services:
+    displayName: Accelerator for Financial Services
+    in: solutions
+    model: versions-only
+    legacyUrl: https://ob.docs.wso2.com/en/latest/
+  updates:
+    displayName: Updates
+    in: other
+    model: unversioned
+    legacyUrl: https://updates.docs.wso2.com/en/latest/
+  platform-security:
+    displayName: Platform Security
+    in: other
+    model: unversioned
+    legacyUrl: https://security.docs.wso2.com/en/latest/

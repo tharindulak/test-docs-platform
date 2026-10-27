@@ -1,0 +1,216 @@
+# PR checks and preview, part 1 of 2 (reusable; called by a Content repo's
+# docs.yml on pull_request, once per Doc space the PR touches). With NO
+# secrets, so fork PRs are safe, it runs `wso2-docs check` (Quality gates for
+# Docs releases) on one Doc space directory: the blocking checks, including
+# the preview build of the Edition the PR targets and, on a
+# <doc space>/release/<version> branch, that nothing outside the directory
+# changes; then the warn-only lint on changed lines, shown as annotations;
+# then a dry run of the Docs bundle the Doc space's next release would make
+# (`wso2-docs bundle --dry-run`: nothing outside its directory, no symlinks,
+# the limits and content safety), with nothing written or published.
+# Then the preview reviewers read: a second build of the same Edition with
+# `--show-markers`, as local preview renders it (every <Edition> block
+# outlined, page limits listed, and the Edition toggle), so one preview URL
+# shows every Edition. The checks never read that build, and a release
+# refuses it. It is uploaded as the `docs-preview-<doc space>` artifact even
+# when a check fails, so reviewers still get a preview; part 2,
+# pr-preview-publish.yml, publishes each one from workflow_run with a
+# preview-only credential.
+#
+# Branch protection requires the caller's "preview / checks" job, which sums
+# these up, on main, release/* and */release/*: see
+# templates/content-repo/.github/branch-ruleset.json. A Doc space owner
+# overrides a policy check with the `quality-override` label plus a line
+# "Quality override: <reason>" in the PR description.
+name: Docs PR preview build
+
+on:
+  workflow_call:
+    inputs:
+      platform-ref:
+        description: Platform ref to build with (the major the Content repo pins)
+        type: string
+        default: v1
+      require-routes:
+        description: Fail when another deployment's route list can't be loaded for a docs link
+        type: boolean
+        default: true
+      doc-space:
+        description: The Doc space directory to check (empty for a repo with its Doc space at the root)
+        type: string
+        default: ''
+      edition:
+        description: The Edition the PR targets (default from the base branch)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  VALE_VERSION: 3.24.0
+
+jobs:
+  build:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Check out the PR
+        uses: actions/checkout@v4
+        with:
+          path: content
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the Platform
+        uses: actions/checkout@v4
+        with:
+          repository: tharindulak/test-docs-platform
+          ref: ${{ inputs.platform-ref }}
+          path: platform
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - run: npm ci
+        working-directory: platform
+      - name: Install Vale (warn-only prose lint)
+        run: |
+          curl -sSfL "https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz" | tar xz -C "$RUNNER_TEMP" vale
+          echo "WSO2_DOCS_VALE=$RUNNER_TEMP/vale" >> "$GITHUB_ENV"
+      - name: Work out the Edition and the preview path
+        id: what
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR: ${{ github.event.pull_request.number }}
+          DOC_SPACE: ${{ inputs.doc-space }}
+          EDITION: ${{ inputs.edition }}
+        run: |
+          [[ -z "$DOC_SPACE" || "$DOC_SPACE" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "::error::bad Doc space directory"; exit 1; }
+          dir="content${DOC_SPACE:+/$DOC_SPACE}"
+          read -r slug edition < <(node --input-type=module -e "
+            import fs from 'node:fs';
+            import yaml from './platform/node_modules/js-yaml/index.js';
+            import { editionForBranch } from './platform/lib/content-repo.mjs';
+            const d = yaml.load(fs.readFileSync(process.argv[1] + '/docspace.yaml', 'utf8'));
+            console.log(d.slug, process.argv[3] || editionForBranch(d, process.argv[2]) || '');
+          " "$dir" "$BASE_REF" "$EDITION")
+          [ -n "$edition" ] || { echo "::error::No Edition for base branch $BASE_REF"; exit 1; }
+          {
+            echo "dir=$dir"
+            echo "space=$slug"
+            echo "edition=$edition"
+            echo "base-url=/_preview/$slug/pr-$PR/$edition/"
+          } >> "$GITHUB_OUTPUT"
+      # Only a Doc space owner may override: whoever added the label must be
+      # named in CODEOWNERS or maintain the repo, and the PR must give a reason.
+      - name: Quality override
+        id: override
+        if: contains(github.event.pull_request.labels.*.name, 'quality-override')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          reason=$(printf '%s\n' "$BODY" | sed -n 's/^[[:space:]]*Quality override:[[:space:]]*//p' | head -1)
+          if [ -z "$reason" ]; then
+            echo "::error::The quality-override label needs a line 'Quality override: <reason>' in the PR description"
+            exit 0
+          fi
+          who=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/events" --paginate --jq '.[] | select(.event == "labeled" and .label.name == "quality-override") | .actor.login' | tail -1)
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$who/permission" --jq .permission 2>/dev/null || echo none)
+          owners=$(cat content/CODEOWNERS content/.github/CODEOWNERS 2>/dev/null || true)
+          if [ "$perm" = "admin" ] || [ "$perm" = "maintain" ] || grep -qw -- "@$who" <<<"$owners"; then
+            echo "reason=$reason (override by @$who)" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::@$who added quality-override but is not a Doc space owner; the override is ignored"
+          fi
+      - name: Blocking checks, preview build and lint
+        id: check
+        continue-on-error: true
+        env:
+          DIR: ${{ steps.what.outputs.dir }}
+          EDITION: ${{ steps.what.outputs.edition }}
+          BASE_URL: ${{ steps.what.outputs.base-url }}
+          BASE_REF: ${{ github.base_ref }}
+          OVERRIDE: ${{ steps.override.outputs.reason }}
+          REQUIRE_ROUTES: ${{ inputs.require-routes }}
+        run: |
+          mkdir -p preview
+          args=(check "$DIR" --edition "$EDITION" --base "origin/$BASE_REF" --base-url "$BASE_URL"
+            --link-host https://docs-staging.wso2.com --routes https://docs-staging.wso2.com
+            --build-out checked/site --out preview/check.json --annotate "$DIR/")
+          if [ "$REQUIRE_ROUTES" = "true" ]; then args+=(--require-routes); fi
+          if [ -n "$OVERRIDE" ]; then args+=(--override "$OVERRIDE"); fi
+          set -o pipefail
+          node platform/bin/wso2-docs.mjs "${args[@]}" | tee check.txt
+      # The Docs bundle the next release of this Edition would make, packed
+      # and checked but not written (a Cloud part's: its family Cloud's).
+      - name: Docs bundle dry run
+        id: bundle
+        if: always() && steps.what.outcome == 'success'
+        continue-on-error: true
+        env:
+          DIR: ${{ steps.what.outputs.dir }}
+          EDITION: ${{ steps.what.outputs.edition }}
+        run: |
+          set -o pipefail
+          node platform/bin/wso2-docs.mjs bundle "$DIR" --edition "$EDITION" --dry-run | tee bundle.txt
+      # The preview: Edition markers shown and the Edition toggle, as in
+      # local preview. Built even when a check failed, since broken links only
+      # warn here; if it fails, the checked build is the preview instead.
+      - name: Preview build with Edition markers
+        if: always() && steps.what.outcome == 'success'
+        env:
+          DIR: ${{ steps.what.outputs.dir }}
+          EDITION: ${{ steps.what.outputs.edition }}
+          BASE_URL: ${{ steps.what.outputs.base-url }}
+        run: |
+          if ! node platform/bin/wso2-docs.mjs build "$DIR" --edition "$EDITION" --base-url "$BASE_URL" \
+              --link-host https://docs-staging.wso2.com --show-markers --out preview/site; then
+            echo "::warning::The preview build with Edition markers failed; the preview shows the checked build, without markers"
+            rm -rf preview/site
+            if [ -f checked/site/index.html ]; then cp -R checked/site preview/site; fi
+          fi
+      - name: Check summary
+        if: always()
+        run: |
+          {
+            echo "## Docs checks"
+            echo
+            echo '```text'
+            grep -v '^::' check.txt || true
+            cat bundle.txt 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Describe the preview
+        if: always() && hashFiles('preview/site/index.html') != ''
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          SPACE: ${{ steps.what.outputs.space }}
+          EDITION: ${{ steps.what.outputs.edition }}
+        run: |
+          jq -n --arg pr "$PR" --arg sha "$SHA" --arg space "$SPACE" --arg edition "$EDITION" \
+            '{pr: $pr, sha: $sha, space: $space, edition: $edition}' > preview/preview.json
+      - uses: actions/upload-artifact@v4
+        if: always() && hashFiles('preview/site/index.html') != ''
+        with:
+          name: docs-preview-${{ steps.what.outputs.space }}
+          path: preview
+          retention-days: 3
+      - name: Fail on blocking checks
+        if: steps.check.outcome == 'failure' || steps.bundle.outcome == 'failure'
+        env:
+          CHECK: ${{ steps.check.outcome }}
+          BUNDLE: ${{ steps.bundle.outcome }}
+        run: |
+          [ "$CHECK" != failure ] || echo "::error::A blocking docs check failed; see the summary. Run npx @wso2/docs check locally to reproduce it."
+          [ "$BUNDLE" != failure ] || echo "::error::The Docs bundle dry run failed; see the summary. Run npx @wso2/docs bundle --dry-run locally to reproduce it."
+          exit 1

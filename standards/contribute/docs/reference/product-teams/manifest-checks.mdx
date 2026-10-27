@@ -1,0 +1,67 @@
+---
+title: Manifest checks
+description: Every error, warning and note the compose step reports for the Doc space manifests, the section manifests and the Platform navigation file.
+type: reference
+sidebar_position: 4
+---
+
+This page lists every issue the compose step (`wso2-release compose`) reports. Each issue names its code, its files and their owning teams. Errors block a pull request when they are in a file it changes, and they keep the last good Deployment manifest on `main`. Warnings and notes never block.
+
+For the checks on pages and data files, see [Checks](../checks.mdx).
+
+## Errors
+
+| Code | What it means | Fix |
+|---|---|---|
+| `schema` | A file doesn't match its schema or doesn't parse. Also: a `slug` that differs from its directory, a `repo` that differs from the repository it's in, a section `id` that differs from its file name, or a `model` that disagrees with the Editions. | Fix the field the message names. |
+| `duplicate` | A slug, Edition, menu entry, family, group or section is listed twice. Or a Doc space has a manifest and a `notYetOnWso2Docs` entry. Or two link entries in one menu share a label. | Remove one. For `notYetOnWso2Docs`, the Platform team removes the entry. |
+| `home-not-listing` | A Doc space's home section doesn't list it in its menu. | Add the Doc space to the home section's menu. |
+| `lists-unlisted` | A section lists, or a products-menu entry opens, an Unlisted Doc space. | Remove it from the section, or give the Doc space a `home`. |
+| `removed-still-listed` | A Doc space or Edition was removed while a section still lists or opens it. | Remove it from the section first. |
+| `unknown-edition` | A products-menu entry opens an Edition, or a notice names an Edition, that the Doc space doesn't have. | Name a real Edition. A Legacy version isn't one. |
+| `latest` | `latest` names no Edition, or names `cloud` in a Doc space with Self-hosted Editions (`/latest/` is never Cloud). | Name a Self-hosted Edition, or leave `latest` out. |
+| `version-in` | `version-in: menu` on a Doc space with fewer than two Editions. | Use `header`, or leave it out. |
+| `cloud-part` | A Cloud part link is broken: the part doesn't exist, doesn't point back with `cloud.in`, is in another repository, belongs to two platforms or has a Cloud Edition of its own. Or `parts` sits on an Edition that isn't Cloud. | Make the platform's `parts` and the part's `cloud.in` match, in one repository. |
+| `unknown-section` | A home section, or a section file, that `navigation.yaml` doesn't list. | Use an existing section. Only the Platform team adds sections. |
+| `unknown-family` | A section or `notYetOnWso2Docs` entry names a family or group that doesn't exist. | Use a family or group from `navigation.yaml`. |
+| `unknown-environment` | `environments` names an environment that doesn't exist. | Use `staging` or `production`. |
+| `branch-prefix` | In a repository with several Doc spaces, a release branch doesn't start with `<doc space>/`. | Rename the branch, or fix `branch`. |
+| `pin` | A `pin` isn't one of the Edition's Docs release tags. | Use a tag such as `ai-gateway/1.2.0-docs.2`. |
+| `link-internal` | A section's link entry points into WSO2 Docs. | List the Doc space as a menu entry instead. |
+| `missing-repo` | Compose found no checkout of a repository in `contentRepos`. | Point `WSO2_DOCS_CONTENT_REPOS` at the folder of checkouts, or unset it to compose from the published manifest. |
+
+## Warnings
+
+| Code | What it means |
+|---|---|
+| `unknown-docspace` | A section lists a slug that is no Doc space yet. The entry stays hidden until the Doc space's manifest is on its repository's `main` and the Doc space is published. A slug that is wrong stays hidden for good, so check the spelling. |
+| `label-differs` | A products-menu `label` differs from the Doc space's name. A leading "WSO2 " is ignored, and entries that open a page are skipped. |
+| `borrowed-not-in-home-products` | A borrowed Doc space is missing from its home section's products-menu entries. |
+| `notice-ended` | A notice's `until` date has passed. The notice is no longer shown. |
+
+## Notes
+
+| Code | What it means |
+|---|---|
+| `borrowed` | Another section lists your Doc space. Addressed to the Doc space's team. |
+
+Locally, `npx @wso2/docs check` reports the errors and warnings that involve your Doc space's `docspace.yaml` in its **Doc space manifest** check.
+
+## Examples
+
+A Content repository change whose home section doesn't exist, from `compose --pr`:
+
+```text
+error [unknown-section] ai-gateway's home section "agent-platform" does not exist
+    in wso2/docs-api-platform:ai-gateway/docspace.yaml (owners: api-platform-docs)
+compose: this change touches wso2/docs-api-platform:ai-gateway/docspace.yaml
+compose: 1 blocking error in this change (owners: api-platform-docs)
+```
+
+A section that lists a Doc space before it exists, on the Platform's pull request:
+
+```text
+warning [unknown-docspace] section agent-platform lists "agent-manager" (menu item 1), which is no Doc space yet; the entry stays hidden until its Doc space manifest is on its repo's main line and the Doc space is published
+    in wso2/docs-platform:navigation/sections/agent-platform.yaml (owners: agent-platform-docs)
+compose: passes against the latest merged manifest
+```

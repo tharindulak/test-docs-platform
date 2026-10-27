@@ -1,0 +1,10 @@
+// Platform-managed (Content writer experience): copied from wso2/docs-platform
+// templates/content-repo/ and kept current by the Platform bot. Edit it there.
+{
+  "recommendations": [
+    "unifiedjs.vscode-mdx",
+    "chrischinchilla.vale-vscode",
+    "streetsidesoftware.code-spell-checker",
+    "redhat.vscode-yaml"
+  ]
+}

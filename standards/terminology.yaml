@@ -1,0 +1,94 @@
+# The terminology file (Documentation standards section 8). It generates the
+# WSO2 Vale rules, the Contribute "Terminology" page and the author skills'
+# word list. Seeded from docs-is's WSO2-IAM Vale style and the
+# docs-agent-platform terminology table.
+#
+# level: error rules are the first candidates for blocking. They block only
+# once listed in checks.yaml `lint.blockingRules` (at cutover, announced two
+# weeks ahead in the Platform release notes). Until then every rule only warns.
+
+# Product names. `wrong` lists forms that are never right in prose (regular
+# expressions, case-sensitive). `formerly` lists retired names, allowed only
+# as "(formerly <name>)".
+products:
+  - name: WSO2 Identity Platform
+    short: Identity Platform
+    formerly: [Asgardeo]
+    wrong: ['WSO2 identity platform', '\bIdentity platform\b']
+  - name: WSO2 Identity Server
+    short: Identity Server
+    wrong: ['\bWSO2 IS\b', '\bIS\b', 'WSO2 identity server', '\bIdentity server\b']
+  - name: WSO2 API Manager
+    short: API Manager
+    wrong: ['\bAPI-M\b', '\bAPIM\b', 'WSO2 API manager', '\bAPI manager\b']
+  - name: WSO2 API Platform
+    short: API Platform
+    formerly: [Bijira]
+  - name: WSO2 Developer Platform
+    short: Developer Platform
+    formerly: [Choreo]
+  - name: WSO2 Integration Platform
+    short: Integration Platform
+    formerly: [Devant]
+  - name: WSO2 Micro Integrator
+    short: Micro Integrator
+    wrong: ['WSO2 MI\b', 'WSO2 micro integrator']
+  - name: WSO2 Agent Manager
+    short: Agent Manager
+    wrong: ['\bthe AMP\b', 'Agent Management Platform']
+
+# Terms that keep their capitals in headings and prose (WSO2 Docs glossary
+# terms, products and tools).
+capitalized: [Edition, Editions, URL, URLs, API, APIs, SDK, CLI, ID, IDs, JSON, YAML, HTTP, OAuth, PKCE, Cloud, Doc space, Doc spaces, Content repository, Platform, Markdown, GitHub, VS Code, Node.js, Docker, Vale, Diátaxis, Microsoft]
+
+# Preferred terms: the left side is flagged, the right side suggested.
+preferred:
+  - use: sign in
+    instead: ['\blog in\b', '\blogin to\b', '\blog into\b', '\bsign-in to\b']
+    note: A verb. "Login" stays for system terms (login endpoint, `login_hint`, social login).
+  - use: sign out
+    instead: ['\blog out\b', '\blogout of\b']
+  - use: select
+    instead: ['\bclick on\b']
+  - use: email
+    instead: ['\be-mail\b']
+  - use: allowlist
+    instead: ['\bwhitelist\b']
+  - use: denylist
+    instead: ['\bblacklist\b']
+  - use: primary
+    instead: ['\bmaster node\b']
+  - use: organization
+    instead: ['\bsub[- ]organization\b']
+    note: Identity Platform calls every child organization an organization.
+  - use: configuration
+    instead: ['\bconfig\b']
+  - use: repository
+    instead: ['\brepo\b']
+  - use: to
+    instead: ['\bin order to\b']
+  - use: use
+    instead: ['\butilize\b']
+  - use: placeholder value
+    instead: ['\bdummy value\b']
+
+# Words to avoid: flagged wherever they appear in prose.
+avoid:
+  - word: click here
+    why: Link text says where the link goes.
+  - word: simply
+    why: Condescending; cut it.
+  - word: easily
+    why: Condescending; cut it.
+  - word: obviously
+    why: Condescending; cut it.
+  - word: please note
+    why: Filler; state the point.
+  - word: it is important to note that
+    why: Filler; state the point.
+  - word: leverage
+    why: Use "use".
+  - word: seamless
+    why: Promotional; describe the behavior.
+  - word: seamlessly
+    why: Promotional; describe the behavior.

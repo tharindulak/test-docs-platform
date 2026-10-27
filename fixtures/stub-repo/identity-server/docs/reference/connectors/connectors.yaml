@@ -1,0 +1,35 @@
+# Catalog data file (schemas/catalog.schema.json), drawn by index.mdx
+# (layout: catalog). In a real Doc space it is generated upstream and synced
+# by bot PR.
+schemaVersion: 1
+categories:
+  - { id: authentication, label: Authentication }
+  - { id: fraud-detection, label: Fraud detection }
+items:
+  - id: totp
+    name: TOTP authenticator
+    description: Time-based one-time passwords as a second factor. MARKER-CATALOG-TOTP
+    href: guides/mfa
+    links:
+      - { label: Source code, url: 'https://github.com/wso2-extensions/identity-outbound-auth-totp' }
+    category: authentication
+    tags: [mfa, otp]
+    logo: assets/logos/totp.svg
+  - id: fraud-signals
+    name: Fraud signals
+    description: Scores each sign-in attempt. MARKER-CATALOG-SELF-HOSTED
+    href: 'https://store.wso2.com/connector/fraud-signals'
+    category: fraud-detection
+    status: beta
+    editions: [self-hosted]
+  - id: billing-alerts
+    name: Billing alerts
+    description: Alerts when usage nears the plan's limits. MARKER-CATALOG-CLOUD
+    href: ../../guides/cloud-billing.mdx
+    category: fraud-detection
+    editions: [cloud]
+  - id: api-publishing
+    name: API publishing
+    description: Publish the APIs your applications call.
+    href: 'docs:api-manager/latest/guides/'
+    category: authentication

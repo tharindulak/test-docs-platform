@@ -1,0 +1,91 @@
+# Roll back by pointer (Guide for running WSO2 Docs: Roll back a Docs
+# release). Points one or more Docs deployments back at an earlier release
+# folder, with no build: `wso2-release rollback` per deployment (the previous
+# release, or the one named), then the runtime files and the redirect table,
+# then the search index repaired from the live release folders. Run by the
+# Platform team (Actions > Roll back docs > Run workflow); the Doc space's team
+# then pins the Edition in its docspace.yaml so the next release doesn't undo
+# it. An Edition that feeds /latest/ has two deployments: roll back both.
+# PENDING INFRA: the same secrets and variables as release.yml.
+name: Roll back docs
+run-name: "Roll back docs: ${{ inputs.deployments }} on ${{ inputs.environment }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployments:
+        description: "Docs deployments, space-separated: <doc space>/<edition|latest>, such as ai-gateway/latest ai-gateway/1.2.0"
+        type: string
+        required: true
+      to:
+        description: The release to go back to, such as 1.2.0-docs.2 (default each deployment's previous release)
+        type: string
+        required: false
+      environment:
+        description: Which environment
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    # Production is OFF for the Pilot, as in release.yml.
+    if: inputs.environment == 'staging' || vars.DOCS_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    # No concurrency group: GitHub keeps one waiting run per group and cancels
+    # an older waiting one. Each state-writing command waits its turn on the
+    # bucket's state lock instead (lib/state-lock.mjs).
+    env:
+      ENV_NAME: ${{ inputs.environment }}
+      STORAGE: ${{ inputs.environment == 'production' && 's3://docs-prod' || 's3://docs-staging' }}
+      DEPLOYMENTS: ${{ inputs.deployments }}
+      TO: ${{ inputs.to }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Production flips with the manifest staging composed (release.yml's promote).
+      - name: The stored composed manifest
+        run: node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json
+      - name: Point each deployment back
+        run: |
+          for d in $DEPLOYMENTS; do
+            [[ "$d" =~ ^[a-z0-9][a-z0-9-]*/[A-Za-z0-9._-]+$ ]] || { echo "::error::bad deployment $d"; exit 1; }
+            args=(rollback --storage "$STORAGE" --env "$ENV_NAME" --policy composed.json --deployment "$d")
+            [ -n "$TO" ] && args+=(--to "$TO")
+            node bin/wso2-release.mjs "${args[@]}" | tee -a rollback.txt
+          done
+      - name: Redirect table
+        run: node bin/wso2-release.mjs redirects --storage "$STORAGE" --kv "cloudflare:${{ vars.REDIRECTS_KV_ID }}"
+      # The index still holds the newer release's records: the consistency
+      # check re-indexes each drifted deployment from its live release folder.
+      - name: Search index
+        continue-on-error: true
+        env:
+          TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node bin/wso2-release.mjs search-check --env "$ENV_NAME" --storage "$STORAGE" --policy composed.json --fix --out search.json
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Rollback on $ENV_NAME"
+            echo
+            echo '```text'
+            cat rollback.txt 2>/dev/null || true
+            echo '```'
+            echo
+            echo "Hold it: pin each Edition in its docspace.yaml (pin: <tag>), or the next Docs release moves it forward again."
+          } >> "$GITHUB_STEP_SUMMARY"

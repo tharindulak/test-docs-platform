@@ -1,0 +1,21 @@
+INHERIT: ../base.yml
+site_name: &site_name WSO2 Identity Platform
+site_url: https://wso2.com/asgardeo/docs/
+extra:
+  base_path: /asgardeo/docs
+  product: asgardeo
+  product_name: *site_name
+  product_toggle:
+    target_url: !ENV [DOCS_PRODUCT_TOGGLE_TARGET_URL, 'https://is.docs.wso2.com/en/latest/']
+plugins:
+  - redirects:
+      redirect_maps:
+        'guides/old-mfa.md': 'guides/mfa.md'
+nav:
+  - Home:
+    - Home: index.md
+  - Guides:
+    - Add MFA: guides/mfa.md
+    - Cloud billing: guides/billing.md
+  - APIs:
+    - Users API: apis/users.md

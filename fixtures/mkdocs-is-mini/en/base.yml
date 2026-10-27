@@ -1,0 +1,7 @@
+# Shared by every tree (docs-is en/base.yml).
+theme:
+  name: material
+extra:
+  redoc_theme: light
+markdown_extensions:
+  - admonition
