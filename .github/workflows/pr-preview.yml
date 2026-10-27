@@ -49,6 +49,10 @@ permissions:
 
 env:
   VALE_VERSION: 3.24.0
+  # The published manifest.json that check, preview and bundle compose this
+  # repo's Doc space manifests into: the caller's DOCS_PUBLISHED_MANIFEST
+  # variable (as its compose job reads it), else staging's (lib/published.mjs).
+  WSO2_DOCS_PUBLISHED_MANIFEST: ${{ vars.DOCS_PUBLISHED_MANIFEST }}
 
 jobs:
   build:
