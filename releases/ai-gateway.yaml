@@ -6,6 +6,11 @@ docSpace: ai-gateway
 repo: tharindulak/docs-api-platform
 editions:
   1.2.0:
+    - tag: ai-gateway/1.2.0-docs.3
+      asset: ai-gateway-1.2.0-docs.3.docs.zip
+      sha256: d7b52a82ebb2da1696464d4e1ac06769cf64336a04a3d616754914f44f5d11f1
+      sourceCommit: 8a75392ea79135ea08eab9ea1f833f25ad7a2641
+      acceptedAt: "2026-10-28T11:10:19.318Z"
     - tag: ai-gateway/1.2.0-docs.2
       asset: ai-gateway-1.2.0-docs.2.docs.zip
       sha256: c0c27b653f86ab46db19506713ad6028926feaa0b6a5e614819f8b3033cf17a3
