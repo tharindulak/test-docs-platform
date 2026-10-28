@@ -1,0 +1,13 @@
+# The intake record of ai-gateway: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: ai-gateway
+repo: tharindulak/docs-api-platform
+editions:
+  1.2.0:
+    - tag: ai-gateway/1.2.0-docs.2
+      asset: ai-gateway-1.2.0-docs.2.docs.zip
+      sha256: c0c27b653f86ab46db19506713ad6028926feaa0b6a5e614819f8b3033cf17a3
+      sourceCommit: 57a661c7472bc1ba1050a66ea8a926c75dafe874
+      acceptedAt: "2026-10-28T05:25:29.679Z"
