@@ -1,0 +1,13 @@
+# The intake record of integrator: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: integrator
+repo: tharindulak/docs-integrator
+editions:
+  5.1.0:
+    - tag: integrator/5.1.0-docs.1
+      asset: integrator-5.1.0-docs.1.docs.zip
+      sha256: 06b5bf188b9d8afaaaf92b7e9a1afe160a3d459ad7ae100bf6dc16b80ebd8293
+      sourceCommit: 2421375b5031dc6c2fb435819cf0d419ab635a57
+      acceptedAt: "2026-10-28T17:45:12.772Z"
