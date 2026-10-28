@@ -156,6 +156,7 @@ jobs:
           change=$(jq -c --arg s "$SLUG" '.changes[] | select(.slug == $s)' "$RUNNER_TEMP/intake/intake.json")
           # The branch is main plus the new record, so it never falls behind.
           git switch -C "$branch"
+          mkdir -p releases   # the first record ever: no releases/ on main yet
           cp "$RUNNER_TEMP/intake/records/$SLUG.yaml" "releases/$SLUG.yaml"
           git add "releases/$SLUG.yaml"
           if git diff --cached --quiet; then echo "releases/$SLUG.yaml is already up to date"; exit 0; fi
