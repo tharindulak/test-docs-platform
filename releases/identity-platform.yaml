@@ -1,0 +1,13 @@
+# The intake record of identity-platform: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: identity-platform
+repo: tharindulak/docs-is
+editions:
+  cloud:
+    - tag: identity-platform/cloud-2026.10.28.1
+      asset: identity-platform-cloud-2026.10.28.1.docs.zip
+      sha256: edd52bf8de35496f88ec79fe6c42d086ed83097f971ad561c326f4556ab39e27
+      sourceCommit: 0cf6f48262edd3ab0a39ca0ff9e061fd0ac33417
+      acceptedAt: "2026-10-28T08:22:05.920Z"
