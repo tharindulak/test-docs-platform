@@ -1,0 +1,13 @@
+# The intake record of identity-server: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: identity-server
+repo: tharindulak/docs-is
+editions:
+  7.3.0:
+    - tag: identity-server/7.3.0-docs.1
+      asset: identity-server-7.3.0-docs.1.docs.zip
+      sha256: 30d125290343856a020850210773331f49b218b7311b1bdf43265ddb2f7b7046
+      sourceCommit: ecd619e87314dd3bd1eac197f43794612932207a
+      acceptedAt: "2026-10-28T08:28:59.578Z"
