@@ -1,0 +1,13 @@
+# The intake record of api-manager: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: api-manager
+repo: tharindulak/docs-api-platform
+editions:
+  4.7.0:
+    - tag: api-manager/4.7.0-docs.1
+      asset: api-manager-4.7.0-docs.1.docs.zip
+      sha256: 89fc1e84e93defd4bb55b25170bb9a5a633a04c1778ac8e5259e4968a2e29916
+      sourceCommit: fb5901b519f8f30cf5533fa9762d0f294087ac05
+      acceptedAt: "2026-10-28T09:51:49.137Z"
