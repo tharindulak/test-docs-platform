@@ -3,8 +3,11 @@
 # list, reports drift (missing pages, removed pages, records from an old
 # release, Editions with no live deployment) and repairs it from the release
 # folders. Drift is a warning annotation for the owners; it blocks nothing.
-# PENDING INFRA (ticket 15): TYPESENSE_URL, TYPESENSE_ADMIN_KEY and the R2
-# credentials in the staging and production environments.
+# The check runs on the search host, through its gate (hosting/vm/, the 141 VM
+# for staging): CI uploads the live deployments' search files with the
+# write-only key and runs search-check with the gate key. Secrets per
+# environment: DOCS_SEARCH_HOST, DOCS_SEARCH_KNOWN_HOSTS, DOCS_SEARCH_UPLOAD_KEY,
+# DOCS_SEARCH_GATE_KEY, and the R2 credentials (PENDING INFRA for production).
 name: Search consistency
 
 on:
@@ -37,8 +40,6 @@ jobs:
       R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
-      TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,16 +58,20 @@ jobs:
           ENV_NAME: ${{ matrix.env }}
           STORAGE: ${{ matrix.storage }}
           FIX: ${{ github.event_name == 'schedule' || inputs.fix }}
+          DOCS_SEARCH_HOST: ${{ secrets.DOCS_SEARCH_HOST }}
+          DOCS_SEARCH_KNOWN_HOSTS: ${{ secrets.DOCS_SEARCH_KNOWN_HOSTS }}
+          DOCS_SEARCH_UPLOAD_KEY: ${{ secrets.DOCS_SEARCH_UPLOAD_KEY }}
+          DOCS_SEARCH_GATE_KEY: ${{ secrets.DOCS_SEARCH_GATE_KEY }}
         run: |
-          args=(search-check --env "$ENV_NAME" --storage "$STORAGE" --out report.json)
+          args=(check --storage "$STORAGE" --out report.json)
           [ "$FIX" = "true" ] && args+=(--fix)
           status=0
-          node bin/wso2-release.mjs "${args[@]}" || status=$?
+          hosting/vm/search-via-gate.sh "${args[@]}" || status=$?
           {
             echo "## Search consistency: $ENV_NAME"
             echo
             echo '```json'
-            jq '{ok, orphans, fixed, drifted: [.deployments[] | select(.ok | not)]}' report.json
+            jq '{ok, orphans, fixed, drifted: [.deployments[] | select(.ok | not)]}' report.json 2>/dev/null || echo '(no report: see the log)'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"

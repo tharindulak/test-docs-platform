@@ -31,7 +31,7 @@ The Platform team keeps the Platform, the one codebase that builds every Docs de
 | A search collection | Environment | The search records of every live Docs deployment except `/latest/` |
 | The Edge Worker | Environment | Serves the bucket at the environment's host |
 | A previews bucket | Staging only | Pull request previews, kept 14 days |
-| GitHub settings | Repository | Rulesets, secrets and variables, the GitHub App that opens Branch cut pull requests |
+| GitHub settings | Repository | Rulesets, secrets and variables, and permission for GitHub Actions to open the Branch cut's draft pull request |
 
 Production is off for the Pilot. Every job that writes to production runs only when the repository variable `DOCS_PRODUCTION_ENABLED` is `true`, so staging is the only environment for now.
 
@@ -69,7 +69,7 @@ Going live, rolling back and taking a Docs deployment down are all writes to `st
 ## Limits
 
 - Hosting isn't decided. Hosts, the Cloudflare account, bucket credentials and the search host are placeholders. See [Secrets, variables and hosting values](../../reference/platform-team/secrets-and-variables.mdx#hosting-values).
-- The Platform team holds every credential that writes to a bucket, the redirect table or a search collection. Content repositories hold only the GitHub App's key, a read token while repositories are private, and the previews bucket's credential.
+- The Platform team holds every credential that writes to a bucket, the redirect table or a search collection. Content repositories hold only a read token while repositories are private, and the previews bucket's credential.
 - Nothing posts to owners yet. Release summaries, compose alerts and reports are in each workflow run's summary and annotations, until a channel is chosen.
 
 ## Related

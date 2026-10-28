@@ -157,6 +157,8 @@ node bin/wso2-release.mjs flip --storage s3://docs-staging --env staging --deplo
 | The intake pull request doesn't merge | Read its failed check. `intake-record` fails when the branch changes more than the record's release entries: someone pushed to it. Close it; the next poll opens a fresh one. |
 | A build job fails | Nothing went live. Fix the page in the Content repository: its next merge or **Release docs** run makes a new tag. |
 | Fetch: `The asset's sha256 … is not the record's` | The asset on GitHub isn't the one intake verified. Nothing went live. Withdraw the release, and release a new tag. |
+| The **store** job fails | Nothing was built and nothing went live. `GitHub answered 404` or `has no asset`: GitHub no longer serves a bundle the Platform has no copy of, so it can't be rebuilt; release a new tag. `sha256 … is not the record's`: as for a fetch, below. A storage error: re-run the run. |
+| A build's **Bundle copy** warning | GitHub no longer serves that bundle, so the build used the Platform's copy, with its sha256 checked against the record. Nothing to fix. |
 | `Release <x> is missing or incomplete; publish it first` | An upload was interrupted. Re-run the run: the upload starts again. |
 | The crawl gate fails | The flip stands on staging, and the release isn't promoted. Fix the links it lists. Links to Doc spaces not deployed in that environment fail until they are. |
 | `finalize-staging` waits with `waiting for the state lock, held by …` | Another run, or someone running a command by hand, is writing the state. It goes on when that finishes. After 45 minutes it fails: see who holds the lock with `node bin/wso2-release.mjs state-lock --storage s3://docs-staging`, and re-run the run. |

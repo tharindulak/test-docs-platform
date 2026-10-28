@@ -12,6 +12,7 @@
     "bin/wso2-docs.mjs",
     "bin/wso2-reports.mjs",
     "lib/",
+    "!lib/bundle-store.mjs",
     "!lib/compose-command.mjs",
     "!lib/contrast.mjs",
     "!lib/crawl.mjs",

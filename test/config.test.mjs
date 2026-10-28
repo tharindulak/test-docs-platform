@@ -38,7 +38,7 @@ test('release.yml: starts from the intake records or a rebuild dispatch, one mat
   assert.deepEqual(w.on.push, { branches: ['main'], paths: ['releases/*.yaml'] }, 'a merged intake record change starts the release');
   assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['repo', 'tag', 'scope', 'space']);
   assert.equal(w.on.release, undefined, 'a Platform release dispatches the rebuild (platform-release.yml)');
-  assert.deepEqual(Object.keys(w.jobs), ['plan', 'build-latest', 'build', 'publish', 'finalize-staging', 'promote']);
+  assert.deepEqual(Object.keys(w.jobs), ['plan', 'store', 'build-latest', 'build', 'publish', 'finalize-staging', 'promote']);
   for (const job of ['build-latest', 'build']) {
     assert.equal(w.jobs[job].uses, './.github/workflows/build-deployment.yml');
     assert.match(w.jobs[job].strategy.matrix, /fromJSON\(needs\.plan\.outputs\.(latest|others)\)/);
@@ -86,6 +86,57 @@ test('release.yml: starts from the intake records or a rebuild dispatch, one mat
   assert.match(buildRun, /--env production/, 'release builds are production builds (README: Release builds add --env production)');
   const cache = b.jobs.build.steps.find((s) => s.name === 'Docusaurus caches for this deployment').with;
   for (const k of [cache.key, cache['restore-keys']]) assert.match(k, /\$\{\{ github\.sha \}\}/, 'a Platform change never restores another Platform commit\'s webpack cache');
+});
+
+test('release.yml keeps a copy of each bundle before any build, hands a copy to a build GitHub fails, and collects the copies no record names', () => {
+  const w = wf('release.yml');
+  const store = w.jobs.store;
+  // The store job: staging's storage credential, no content code (fetch, hash, upload).
+  assert.equal(store.environment, 'staging');
+  assert.equal(store.needs, 'plan');
+  assert.match(store.if, /has-latest == 'true' \|\| needs\.plan\.outputs\.has-others == 'true'/);
+  assert.equal(store.env.R2_SECRET_ACCESS_KEY, '${{ secrets.R2_SECRET_ACCESS_KEY }}');
+  const runs = store.steps.map((s) => s.run ?? '').join('\n');
+  assert.match(runs, /store-bundles --storage "\$STAGING_STORAGE" --plan "\$RUNNER_TEMP\/plan\.json"/);
+  assert.equal(store.steps.find((s) => /store-bundles/.test(s.run ?? '')).env.ALL, '${{ needs.plan.outputs.all }}');
+  assert.doesNotMatch(runs, /wso2-docs\.mjs|fetch-bundle|unpack/, 'the bundle is never unpacked or built here');
+  assert.ok(store.steps.some((s) => s.uses === 'actions/checkout@v4' && s.with['persist-credentials'] === false));
+  // Before any build; a failed store stops the release like a failed build.
+  assert.deepEqual(w.jobs['build-latest'].needs, ['plan', 'store']);
+  assert.ok(w.jobs.build.needs.includes('store'));
+  assert.match(w.jobs.build.if, /needs\.store\.result == 'success'/);
+  for (const job of ['publish', 'finalize-staging']) {
+    assert.ok(w.jobs[job].needs.includes('store'), `${job} stops on a failed store`);
+    assert.match(w.jobs[job].if, /!contains\(needs\.\*\.result, 'failure'\)/);
+  }
+  // The fallback: the plan job (storage credential, no content code) hands a
+  // stored copy over as an artifact; the build job still holds no credential.
+  const plan = w.jobs.plan.steps;
+  const copies = plan.find((s) => /bundle-copies --storage/.test(s.run ?? ''));
+  assert.match(copies.run, /bundle-copies --storage "\$STAGING_STORAGE" --plan plan\.json --out "\$RUNNER_TEMP\/bundle-copies"/);
+  assert.ok(plan.indexOf(copies) > plan.findIndex((s) => s.id === 'plan'));
+  const upload = plan.find((s) => s.uses === 'actions/upload-artifact@v4' && s.with.name === 'bundle-copies');
+  assert.equal(upload.with['if-no-files-found'], 'ignore');
+  assert.ok(plan.indexOf(upload) > plan.indexOf(copies));
+  const b = wf('build-deployment.yml').jobs.build.steps;
+  const handed = b.find((s) => s.uses === 'actions/download-artifact@v4' && s.with.name === 'bundle-copies');
+  assert.equal(handed['continue-on-error'], true, 'usually there is no copy to hand over');
+  const fetchStep = b.find((s) => s.id === 'bundle');
+  assert.ok(b.indexOf(handed) < b.indexOf(fetchStep));
+  assert.match(fetchStep.run, /--copy "\$RUNNER_TEMP\/bundle-copies\/\$SHA256\.zip"/);
+  // GC: after the release GC, against main's records read just before it.
+  const fin = w.jobs['finalize-staging'].steps;
+  const names = fin.map((s) => s.name);
+  const gc = fin.find((s) => /gc-bundles/.test(s.run ?? ''));
+  assert.match(gc.run, /gc-bundles --storage "\$STAGING_STORAGE" --records main-records\/releases/);
+  const main = fin[fin.indexOf(gc) - 1];
+  assert.equal(main.uses, 'actions/checkout@v4');
+  assert.equal(main.with.ref, '${{ github.event.repository.default_branch }}');
+  assert.equal(main.with.path, 'main-records');
+  assert.equal(main.with['persist-credentials'], false);
+  assert.ok(names.indexOf('Keep the last 5 releases') < fin.indexOf(main));
+  const prod = w.jobs.promote.steps.map((s) => s.run ?? '').join('\n');
+  assert.doesNotMatch(prod, /store-bundles|gc-bundles|_bundles/, 'production keeps no copy');
 });
 
 test('intake.yml: polls on a schedule or by hand, proposes with an App token in a job that runs no Platform code, reports once', () => {
@@ -205,7 +256,7 @@ test('rollback.yml points deployments back with no build, then the redirect tabl
   assert.match(runs, /rollback --storage "\$STORAGE" --env "\$ENV_NAME" --policy composed\.json --deployment "\$d"/);
   assert.match(runs, /--to "\$TO"/);
   assert.match(runs, /redirects --storage "\$STORAGE" --kv "cloudflare:/);
-  assert.match(runs, /search-check --env "\$ENV_NAME" --storage "\$STORAGE" --policy composed\.json --fix/);
+  assert.match(runs, /search-via-gate\.sh check --storage "\$STORAGE" --policy composed\.json --fix/);
   assert.doesNotMatch(runs, /wso2-docs\.mjs build/, 'no build');
   assert.match(job.env.STORAGE, /docs-prod.*docs-staging/);
   assert.match(job.if, /vars\.DOCS_PRODUCTION_ENABLED == 'true'/, 'production stays off');
@@ -262,10 +313,10 @@ test('Content repo template: path-filtered previews on PRs, tags then calls the 
     assert.deepEqual(w.jobs[job].with, { tag: tagged }, job);
     assert.deepEqual(w.jobs[job].permissions, { contents: 'write', 'id-token': 'write', attestations: 'write' }, job);
   }
-  // No Platform credential in the release path; the branch cut keeps the App key.
+  // No Platform credential anywhere: not in the release path, not in the branch cut.
   const text = fs.readFileSync(path.join(templateDir, 'docs.yml'), 'utf8');
-  assert.doesNotMatch(text, /gh workflow run release\.yml|create-github-app-token/);
-  assert.deepEqual(Object.keys(w.jobs['branch-cut'].secrets), ['DOCS_PLATFORM_APP_KEY', 'DOCS_PLATFORM_READ_TOKEN']);
+  assert.doesNotMatch(text, /gh workflow run release\.yml|create-github-app-token|DOCS_PLATFORM_APP/);
+  assert.deepEqual(Object.keys(w.jobs['branch-cut'].secrets), ['DOCS_PLATFORM_READ_TOKEN']);
 });
 
 test('docs-bundle.yml: called with a tag; checks, packs, attests and publishes with the Platform at v1, least privilege', () => {
@@ -341,17 +392,36 @@ test('Branch cut: a created release branch starts the bot, which opens the pull 
   assert.match(job.if, /github\.event_name == 'create' && github\.ref_type == 'branch'/);
   assert.match(job.if, /startsWith\(github\.ref_name, 'release\/'\) \|\| contains\(github\.ref_name, '\/release\/'\)/);
   assert.equal(job.with.branch, '${{ github.ref_name }}');
+  // No App and no token for the Platform: the workflow's own token, with the
+  // two permissions the draft needs.
+  assert.deepEqual(job.permissions, { contents: 'write', 'pull-requests': 'write' });
+  assert.deepEqual(Object.keys(job.secrets ?? {}), ['DOCS_PLATFORM_READ_TOKEN']);
+  // A draft opened with the workflow token starts no checks; an owner
+  // marking it ready does.
+  assert.deepEqual(w.on.pull_request.types, ['opened', 'synchronize', 'reopened', 'ready_for_review']);
 
   const bot = wf('branch-cut.yml');
   assert.ok(bot.on.workflow_call.inputs.branch.required);
+  assert.deepEqual(Object.keys(bot.on.workflow_call.secrets ?? {}), ['DOCS_PLATFORM_READ_TOKEN']);
+  assert.deepEqual(bot.jobs['main-markers'].permissions, { contents: 'write', 'pull-requests': 'write' });
+  const botText = fs.readFileSync(path.join(platformDir, 'branch-cut.yml'), 'utf8');
+  assert.doesNotMatch(botText, /create-github-app-token|DOCS_PLATFORM_APP|steps\.app\./);
   const steps = bot.jobs['main-markers'].steps;
+  assert.ok(!steps.some((s) => s.uses?.startsWith('actions/create-github-app-token')), 'no App token step');
+  assert.equal(steps.find((s) => s.name === 'Check out main').with.token, undefined, 'the workflow token pushes the branch');
   const cut = steps.find((s) => s.id === 'cut').run;
   assert.match(cut, /wso2-docs\.mjs branch-cut --branch "origin\/\$BRANCH" --repo content --report report\.md/);
   assert.match(cut, /ls-remote --exit-code --heads origin "\$cleanup"/, 'a writer who ran branch-cut locally already has the change');
   const pr = steps.at(-1);
   assert.equal(pr.if, "steps.cut.outputs.changes != '0'");
   assert.match(pr.run, /git -C content push origin "\$CLEANUP"/);
-  assert.match(pr.run, /gh pr create --repo "\$GITHUB_REPOSITORY" --base main --head "\$CLEANUP"[\s\S]*--body-file report\.md/);
+  assert.match(pr.run, /gh pr create --draft --repo "\$GITHUB_REPOSITORY" --base main --head "\$CLEANUP"[\s\S]*--body-file report\.md/);
+  assert.equal(pr.env.GH_TOKEN, '${{ github.token }}');
+  // Onboarding sets up no App secrets: not the template, init, the guides or the spec.
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+  for (const dir of ['templates', 'lib', 'bin', 'standards', 'spec', '.github']) {
+    for (const f of walk(path.join(root, dir))) assert.doesNotMatch(fs.readFileSync(f, 'utf8'), /DOCS_PLATFORM_APP_(ID|KEY)/, path.relative(root, f));
+  }
   assert.doesNotMatch(cut, /git[^\n]*push/, 'the release branch itself is never changed');
 });
 

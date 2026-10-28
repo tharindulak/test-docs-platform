@@ -53,10 +53,10 @@
         // The MCP endpoint runs on staging only during the Pilot. Search for it
         // needs the secret TYPESENSE_SEARCH_KEY (wrangler secret put, search-only key).
         "MCP_ENABLED": "true",
-        // The 141 VM's search host replaces this (and lib/search's staging URL)
-        // when its kit is applied; without the TYPESENSE_SEARCH_KEY secret the
-        // Worker makes no search calls.
-        "TYPESENSE_HOST": "https://search-staging.docs.wso2.com",
+        // The 141 VM's search endpoints (hosting/vm/), the same URL as
+        // lib/search/environments.mjs staging; without the TYPESENSE_SEARCH_KEY
+        // secret (the gate's search-key) the Worker makes no search calls.
+        "TYPESENSE_HOST": "https://141-148-145-173.sslip.io/_typesense",
         "TYPESENSE_COLLECTION": "wso2docs-staging"
       },
       // PR previews (the PREVIEWS bucket) are out of scope for the Pilot staging.

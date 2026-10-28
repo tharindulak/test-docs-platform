@@ -53,7 +53,7 @@ On-site search across independently deployed Docs deployments: the engine, the r
 
 ## Keys
 
-- **The Typesense admin key lives only where Typesense runs**: on the 141 VM for the Pilot's staging, made there and never copied off; indexing goes through the VM's gate. Elsewhere, only in the Platform's environments. Browsers get a scoped, search-only key baked into the build; the Edge Worker has its own search key as a secret. [F11] [F30] [N23]
+- **The Typesense admin key lives only where Typesense runs**: on the 141 VM for the Pilot's staging, made there and never copied off; indexing, the consistency check and the browser key go through the VM's gate ([edge-and-hosting.md](edge-and-hosting.md#vm-search)). CI holds only the gate's two deploy keys. Browsers get a scoped, search-only key baked into the build; the Edge Worker has its own search key as a secret. [F11] [F30] [N23]
 - **`search-setup` makes a collection's search-only parent key once and reuses it on every later run** (the newest such key), so a run after a Platform release makes no new key. Its value is printed only when it is made; `--new-key` makes another for a key change. `search-keys` lists every key by id and value prefix, never its full value, and `search-key-delete` deletes one; browser keys scoped from a deleted parent stop working. [N23] [N25]
 
 ## MCP

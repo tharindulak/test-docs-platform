@@ -28,7 +28,10 @@
 #   a created release branch ([<doc space>/]release/<version>: a Branch cut)
 #                    -> the bot's pull request on main that removes the
 #                       Edition markers the new version covers, with the
-#                       branch cut report (the Platform's branch-cut.yml)
+#                       branch cut report (the Platform's branch-cut.yml),
+#                       opened as a draft with the workflow token: an owner
+#                       marks it Ready for review, which starts its checks
+#                       (pull_request listens for ready_for_review)
 # A Docs release carries a Docs bundle (Releases and deployments, Docs
 # bundles): the Platform's reusable docs-bundle.yml, at the pinned Platform
 # major, checks the tagged commit, packs its Doc space directory, attests the
@@ -36,14 +39,17 @@
 # prerelease). The Platform's intake picks the bundle up from there; nothing
 # here holds a Platform credential. Turn on immutable releases for this repo.
 # PENDING INFRA: while the repos are private, the read-only
-# DOCS_PLATFORM_READ_TOKEN secret for checking out the Platform. The
-# branch-cut job still takes the GitHub App key (DOCS_PLATFORM_APP_KEY).
+# DOCS_PLATFORM_READ_TOKEN secret for checking out the Platform. No other
+# secret: the branch cut uses the workflow token.
 name: Docs
 
 on:
   create:
   pull_request:
     branches: [main, 'release/**', '*/release/**']
+    # The defaults, plus ready_for_review: the Branch cut's draft starts its
+    # checks when an owner marks it ready.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
     tags: ['*-docs.*', 'cloud-*', '*/*-docs.*', '*/cloud-*']
@@ -255,17 +261,18 @@ jobs:
       DOCS_PLATFORM_READ_TOKEN: ${{ secrets.DOCS_PLATFORM_READ_TOKEN }}
 
   # After a Branch cut: the release branch stays a plain copy of main, and
-  # a pull request on main removes the markers the new version covers.
+  # a draft pull request on main removes the markers the new version covers.
+  # The workflow token pushes its branch and opens it.
   branch-cut:
     if: github.event_name == 'create' && github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || contains(github.ref_name, '/release/'))
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
     uses: tharindulak/test-docs-platform/.github/workflows/branch-cut.yml@v1
     with:
       branch: ${{ github.ref_name }}
       platform-ref: v1
     secrets:
-      DOCS_PLATFORM_APP_KEY: ${{ secrets.DOCS_PLATFORM_APP_KEY }}
       DOCS_PLATFORM_READ_TOKEN: ${{ secrets.DOCS_PLATFORM_READ_TOKEN }}
 
   # A tag pushed by hand: its Docs bundle.

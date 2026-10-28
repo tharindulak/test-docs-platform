@@ -20,7 +20,7 @@ What the spec has not decided, and where the code on `main` contradicts a decide
 | **Questions for the owning teams**: whether API Control Plane and Security Token Service get docs; which repo builds the Developer Platform site; what Integrator's `wso2-agent-builder` branch is for; AI Gateway's seven same-name Cloud/Self-hosted pairs and two unpaired quick starts in the diff report. | product-placement | [N12] [N16] |
 | **Agent ID as a Cloud part**: the walkthrough lists Agent ID as a Cloud part of Identity Platform Cloud, but a Cloud part is a Doc space's main line and Agent ID has no Doc space (the mapping has it as a page). | product-placement, navigation | [N06] [N12] |
 | **R2 conditional writes**: the state lock needs `If-None-Match`/`If-Match` on PUT; only Miniflare's emulation is tested. The deploy bundle's runbook checks it on the first real run, before any release (decided 2026-10-27). | edge-and-hosting, releases-and-deployments | [N22] [N25] |
-| **Human items**: writer sign-off on samples, the three-writer walkthrough, the GitHub steps of onboarding (repo, App, secrets, rulesets), the Platform release's version bump and tag, the npm trusted publisher for `@wso2/docs` and the `npm` environment, extension-proposal review. | authoring-and-preview, releases-and-deployments | [N23] [N24] [F34] |
+| **Human items**: writer sign-off on samples, the three-writer walkthrough, the GitHub steps of onboarding (repo, secrets, rulesets), the Platform release's version bump and tag, the npm trusted publisher for `@wso2/docs` and the `npm` environment, extension-proposal review. | authoring-and-preview, releases-and-deployments | [N23] [N24] [F34] |
 | **Pilot-time actions**: agree with the `identity-platform-cloud` team that the Identity Platform Doc spaces supersede their build; raise the five Oxygen UI fixes upstream. | chrome-and-version-switching | [F13] [F29] |
 | **Docs bundles and VM hosting** (map [Docs bundles and VM hosting](../.scratch/wso2-docs-bundles/map.md), charted 2026-10-27): decided; staging is on Cloudflare and search on the 141 VM, decided without the VM's facts, which `setup.sh check` verifies before any change (see below). | releases-and-deployments, edge-and-hosting, search, repo-structure | [B-map] |
 | **"Try it" for Cloud API pages** once sign-in exists; **operation-level Edition markers** in specs. Deferred. | extension-points | [F20] |
@@ -31,7 +31,7 @@ Each is a bug against the rule named, unless the user changes the rule.
 
 | Rule | Code today | Source |
 |---|---|---|
-| [Staging on Cloudflare and VM search](edge-and-hosting.md#vm-search): docs-platform's Worker at `wso2-docs-site.tharinduj.workers.dev`; Typesense on the 141 VM with its admin key kept there | Deployed by hand 2026-10-27 (no pipeline yet); no VM search kit or gate; Built by the map's build tasks. | [B06] |
+| [Staging on Cloudflare and VM search](edge-and-hosting.md#vm-search): docs-platform's Worker at `wso2-docs-site.tharinduj.workers.dev`; Typesense on the 141 VM with its admin key kept there | Deployed by hand 2026-10-27 (no pipeline from bundles to Cloudflare yet). The VM search kit and gate are built (`hosting/vm/`; CI indexes through the gate) but not yet applied on the VM. Built by the map's build tasks. | [B06] |
 
 [Close the spec's code gaps][N25] fixed every earlier row and built the six items the user decided on 2026-10-27. The 301 from an unmapped old page moved to the porting and cutover effort.
 

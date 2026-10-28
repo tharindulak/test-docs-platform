@@ -43,7 +43,7 @@ A new Self-hosted version gets its own release branch, an Edition in the Doc spa
 4. Decide on each `next` block in the report. To ship one in 7.4.0, change `next` to `7.4.0` on the release branch and remove the marker on `main`. To hold it for a later version, leave it.
 5. From now on, fixes for 7.4.0 go to `main` first and are backported to this branch. See [Backport a fix](../backport-a-fix.mdx).
 
-If you create the release branch on GitHub instead, the repository's Docs workflow does steps 2 and 3 for you: it opens the pull request on `main` with the report as its description, and shows the report in the run's summary.
+If you create the release branch on GitHub instead, the repository's Docs workflow does steps 2 and 3 for you: it opens the pull request on `main` as a draft, with the report as its description, and shows the report in the run's summary. Its checks don't start until a Doc space owner reviews it and marks it **Ready for review**.
 
 ## List the Edition
 

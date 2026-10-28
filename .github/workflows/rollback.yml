@@ -6,7 +6,8 @@
 # Platform team (Actions > Roll back docs > Run workflow); the Doc space's team
 # then pins the Edition in its docspace.yaml so the next release doesn't undo
 # it. An Edition that feeds /latest/ has two deployments: roll back both.
-# PENDING INFRA: the same secrets and variables as release.yml.
+# PENDING INFRA: the same secrets and variables as release.yml (the DOCS_SEARCH_*
+# secrets for the search host's gate).
 name: Roll back docs
 run-name: "Roll back docs: ${{ inputs.deployments }} on ${{ inputs.environment }}"
 
@@ -70,13 +71,16 @@ jobs:
       - name: Redirect table
         run: node bin/wso2-release.mjs redirects --storage "$STORAGE" --kv "cloudflare:${{ vars.REDIRECTS_KV_ID }}"
       # The index still holds the newer release's records: the consistency
-      # check re-indexes each drifted deployment from its live release folder.
+      # check, through the search host's gate (hosting/vm/), re-indexes each
+      # drifted deployment from its live release folder.
       - name: Search index
         continue-on-error: true
         env:
-          TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
-          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
-        run: node bin/wso2-release.mjs search-check --env "$ENV_NAME" --storage "$STORAGE" --policy composed.json --fix --out search.json
+          DOCS_SEARCH_HOST: ${{ secrets.DOCS_SEARCH_HOST }}
+          DOCS_SEARCH_KNOWN_HOSTS: ${{ secrets.DOCS_SEARCH_KNOWN_HOSTS }}
+          DOCS_SEARCH_UPLOAD_KEY: ${{ secrets.DOCS_SEARCH_UPLOAD_KEY }}
+          DOCS_SEARCH_GATE_KEY: ${{ secrets.DOCS_SEARCH_GATE_KEY }}
+        run: hosting/vm/search-via-gate.sh check --storage "$STORAGE" --policy composed.json --fix --out search.json
       - name: Summary
         if: always()
         run: |

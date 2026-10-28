@@ -3,7 +3,9 @@
 # A Content repo's deployment builds from its recorded Docs bundle: the
 # asset is fetched, its sha256 checked against the intake record, and it is
 # unpacked into an empty folder; the Edition and the files on main come from
-# its bundle.json, and nothing is read from git. The Platform's own Doc space
+# its bundle.json, and nothing is read from git. When GitHub no longer serves
+# the asset, the Platform's stored copy, handed over by release.yml's plan
+# job, is used instead (sha256 checked the same way). The Platform's own Doc space
 # (Contribute) builds from this repo at its tag; the Landing deployment
 # (space _landing) from this Platform checkout alone: no Content repo, no
 # latest page list, no content checks.
@@ -91,6 +93,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The Platform's stored copies (_bundles/<sha256>.zip) of the bundles
+      # GitHub no longer serves, which release.yml's plan job hands over.
+      # Usually there are none, and this step finds no artifact.
+      - name: The stored bundle copies the plan handed over
+        if: inputs.asset != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: bundle-copies
+          path: ${{ runner.temp }}/bundle-copies
       - name: Fetch the recorded bundle, check its sha256 against the intake record, unpack it
         id: bundle
         if: inputs.asset != ''
@@ -102,9 +114,10 @@ jobs:
         # Into the Platform checkout, as content/ is: Docusaurus resolves the
         # pages' imports from there (a folder outside it fails to render).
         # bundle.json, not this checkout's git, gives the repo path and main.
+        # GitHub first; when it fails, the stored copy (sha256 checked too).
         run: |
           node bin/wso2-release.mjs fetch-bundle --repo "$REPO" --tag "$TAG" --asset "$ASSET" --sha256 "$SHA256" \
-            --out "$GITHUB_WORKSPACE/bundle" --github-output "$GITHUB_OUTPUT"
+            --out "$GITHUB_WORKSPACE/bundle" --copy "$RUNNER_TEMP/bundle-copies/$SHA256.zip" --github-output "$GITHUB_OUTPUT"
       - name: Where the source is
         id: source
         env:

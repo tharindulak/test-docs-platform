@@ -1,0 +1,100 @@
+---
+title: Set up staging search on the VM
+description: Install Typesense, the search gate and the public search endpoints on the 141 VM, make the two deploy keys, and give their secrets to the staging environment.
+type: how-to
+sidebar_position: 9.5
+---
+
+Staging's pages are on Cloudflare; its search runs on the 141 VM, apart from wso2-docs-site. The kit in `hosting/vm/` installs it, and its `README.md` is the full runbook. Do these steps once, and again to change the Platform release the gate runs or a deploy key. [Search in operation](../../concepts/platform-team/search-operations.mdx) explains the keys and the gate.
+
+## Prerequisites
+
+- You're on the Platform team, with SSH to the VM as `ubuntu`, with sudo.
+- A Platform release tag that includes `hosting/vm/`, in a public Platform repository, such as `tharindulak/test-docs-platform`.
+- `gh`, signed in as an admin of the repository that runs Release docs for staging.
+
+## Install it on the VM
+
+1. Make the two deploy keys on your computer:
+
+   ```bash
+   mkdir -m 700 docs-platform-keys && cd docs-platform-keys
+   ssh-keygen -t ed25519 -N '' -C docs-platform-search-upload -f search-upload
+   ssh-keygen -t ed25519 -N '' -C docs-platform-search-gate -f search-gate
+   ```
+
+2. Copy the kit and the two `.pub` files to the VM:
+
+   ```bash
+   VM=ubuntu@141.148.145.173
+   rsync -rp hosting/vm/ "$VM:docs-platform-vm/"
+   ssh "$VM" 'mkdir -p docs-platform-keys'
+   scp docs-platform-keys/search-upload.pub docs-platform-keys/search-gate.pub "$VM:docs-platform-keys/"
+   ```
+
+3. Check the VM. Each line must say `ok`. A `FAIL` line names what to fix, and `apply` refuses to change anything until it passes.
+
+   ```bash
+   ssh "$VM" 'sudo docs-platform-vm/setup.sh check'
+   ```
+
+4. Apply, with the tag of the Platform release the gate runs:
+
+   ```bash
+   ssh "$VM" 'sudo docs-platform-vm/setup.sh apply --keys docs-platform-keys --host 141-148-145-173.sslip.io --platform-ref <tag> --platform-repo tharindulak/test-docs-platform'
+   ```
+
+   It backs up the Caddyfile, adds one import line for `/etc/caddy/docs-platform.caddy`, and reloads Caddy only after `caddy validate` passes.
+
+5. Run `check` again. Every line must say `ok`, with no `DRIFT` lines.
+
+## Give the keys to the staging environment
+
+1. Pin the VM's host key. The fingerprint `ssh-keygen -lf known_hosts` prints must match the one the VM prints:
+
+   ```bash
+   ssh-keyscan -t ed25519 141.148.145.173 > known_hosts && ssh-keygen -lf known_hosts
+   ssh "$VM" 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+   ```
+
+2. Set the four secrets in the `staging` environment:
+
+   ```bash
+   REPO=tharindulak/test-docs-platform
+   gh secret set DOCS_SEARCH_HOST --env staging --repo "$REPO" --body 141.148.145.173
+   gh secret set DOCS_SEARCH_KNOWN_HOSTS --env staging --repo "$REPO" < known_hosts
+   gh secret set DOCS_SEARCH_UPLOAD_KEY --env staging --repo "$REPO" < docs-platform-keys/search-upload
+   gh secret set DOCS_SEARCH_GATE_KEY --env staging --repo "$REPO" < docs-platform-keys/search-gate
+   ```
+
+3. Make the browser key with the gate, and set it for builds and the Edge Worker:
+
+   ```bash
+   ssh -i docs-platform-keys/search-gate -o IdentitiesOnly=yes docs-platform@141.148.145.173 search-key > search-key.txt
+   gh variable set SEARCH_KEY_STAGING --repo "$REPO" < search-key.txt
+   npx wrangler secret put TYPESENSE_SEARCH_KEY -c worker/wrangler.jsonc --env staging < search-key.txt
+   ```
+
+4. Delete the two private keys from your computer.
+5. Rebuild every staging Docs deployment, so pages carry the key, then select **Actions** > **Search consistency** > **Run workflow** with **fix** on, to index them.
+
+## Verify
+
+1. `https://141-148-145-173.sslip.io/_typesense/health` answers `{"ok":true}`, and `https://141-148-145-173.sslip.io/_typesense/keys` answers 404.
+2. The **Search consistency** run's summary for staging shows `"ok": true`.
+3. The search box on `https://wso2-docs-site.tharinduj.workers.dev/` finds pages.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `check` says `FAIL root login is not off` | Set `PermitRootLogin no` in `/etc/ssh/sshd_config`, then `sudo systemctl reload ssh` |
+| `apply` says the Platform release predates the VM search gate | Release a newer Platform and pass its tag |
+| `caddy validate rejected the change` | Nothing changed. Read the lines above it; another site may already use `/_typesense`. |
+| A release's summary says the staging search index failed, with `DOCS_SEARCH_HOST is not set` | Set the four secrets in the `staging` environment |
+| The gate answers `refused: not an allowed command` | Only `search-index`, `search-check`, `search-check --fix`, `search-key`, `search-key --expires <date>` and `status` run |
+
+## Next steps
+
+- [Run the search index](run-the-search-index.mdx)
+- [Search in operation](../../concepts/platform-team/search-operations.mdx)

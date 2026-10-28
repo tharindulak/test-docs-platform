@@ -30,13 +30,11 @@ This page uses Agent Manager as the example: a new Doc space in a new repository
 
 1. Create `wso2/docs-agent-platform` with a first commit on `main`, such as a README. Compose clones each repository's `main`, so a repository without one breaks compose for everyone.
 2. Give the Doc space's team write access, and the Platform team admin.
-3. Give the repository the Platform's GitHub App, with contents and pull requests write. Releases need no App: `docs.yml` publishes each tag's Docs bundle with the workflow token. After a Branch cut, `docs.yml` pushes the `branch-cut/` branch and opens its pull request on `main` with the App's token, because a pull request opened with the workflow token runs no checks. The repository needs only the App's ID and key, below.
+3. In **Settings** > **Actions** > **General**, turn on **Allow GitHub Actions to create and approve pull requests**. The repository holds no App or token for the Platform: `docs.yml` publishes each tag's Docs bundle with the workflow token, and after a Branch cut it pushes the `branch-cut/` branch and opens its pull request on `main` as a draft with the same token. A pull request opened that way starts no checks, so an owner marks it **Ready for review**, which starts them.
 4. Set the repository's secrets and variables:
 
    | Name | Kind | Value |
    |---|---|---|
-   | `DOCS_PLATFORM_APP_ID` | Variable | The GitHub App's ID |
-   | `DOCS_PLATFORM_APP_KEY` | Secret | The GitHub App's private key |
    | `DOCS_PLATFORM_READ_TOKEN` | Secret | A read-only token for `wso2/docs-platform`, while it is private |
    | `DOCS_PREVIEW_R2_ACCESS_KEY_ID`, `DOCS_PREVIEW_R2_SECRET_ACCESS_KEY` | Secret | The previews bucket's credential, which can write nothing else |
    | `R2_ENDPOINT` | Variable | `<r2-endpoint>`, for publishing previews |

@@ -82,7 +82,7 @@ Releases need no work from the Platform team. A Platform release rebuilds every 
 
 ## Limits
 
-- The Platform's workflows need secrets while the repositories are private: `DOCS_PLATFORM_READ_TOKEN` in each Content repository, to check out the Platform, and `CONTENT_READ_TOKEN` in the Platform, to read the Content repositories. The Branch cut job uses a GitHub App key (`DOCS_PLATFORM_APP_KEY`); releases need none. These are set up with WSO2 infra.
+- The Platform's workflows need secrets while the repositories are private: `DOCS_PLATFORM_READ_TOKEN` in each Content repository, to check out the Platform, and `CONTENT_READ_TOKEN` in the Platform, to read the Content repositories. These are set up with WSO2 infra. Releases and the Branch cut need no other secret: they use the workflow token.
 - Turn on immutable releases in each Content repository, so a published Docs bundle can't change. `wso2-docs init` reminds you.
 - A Docs bundle holds at most 1 GiB and 30,000 files, with a warning above 500 MB. Pages carry no code of their own: see [Content safety](../../reference/checks.mdx#content-safety).
 - Docs release tags come only from the workflow. A tag ruleset keeps others from making them. See [Protect the main and release branches](../../guides/owners/branch-protection.mdx).

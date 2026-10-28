@@ -10,8 +10,29 @@ The release pipeline indexes every Docs deployment it flips, and the weekly chec
 ## Prerequisites
 
 - You're on the Platform team.
-- The environment's Typesense address and admin key, in `TYPESENSE_URL` and `TYPESENSE_ADMIN_KEY`. For staging they are `<search-staging-host>` and the staging environment's `TYPESENSE_ADMIN_KEY` secret. Locally, your own Typesense: see [Run WSO2 Docs locally](run-it-locally.mdx#start-search).
+- For staging, the gate key's private half, as in [Set up staging search on the VM](set-up-staging-search.mdx). Staging's admin key never leaves the 141 VM, so on staging every step below runs through the gate.
+- Elsewhere, the environment's Typesense address and admin key in `TYPESENSE_URL` and `TYPESENSE_ADMIN_KEY`. Locally, your own Typesense: see [Run WSO2 Docs locally](run-it-locally.mdx#start-search).
 - For `--storage`, the environment's bucket credentials: `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
+
+## On staging
+
+The gate runs these, and nothing else:
+
+```bash
+GATE="ssh -i search-gate -o IdentitiesOnly=yes docs-platform@141.148.145.173"
+$GATE status
+$GATE search-key
+$GATE search-check
+```
+
+`search-key` makes the collection and the parent key the first time, and prints only the browser key. To index or repair by hand, run the script CI runs, with the four `DOCS_SEARCH_*` values and the bucket credentials in your environment:
+
+```bash
+hosting/vm/search-via-gate.sh index --storage s3://<staging-bucket> --deploy "identity-platform/cloud=cloud-2026.10.26.1"
+hosting/vm/search-via-gate.sh check --storage s3://<staging-bucket> --fix --out search-check.json
+```
+
+The sections below are the same commands off the VM: production, or your own Typesense.
 
 ## Set up a collection
 

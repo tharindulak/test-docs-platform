@@ -46,11 +46,13 @@ The 141 VM runs only search for staging; pages, redirects and state stay on Clou
 
 | Concern | On the VM |
 |---|---|
-| Account and folders | User `docs-platform` (no sudo); settings `/etc/docs-platform/`; nothing of wso2-docs-site's touched |
-| Search | Typesense on `127.0.0.1:8109`, keys made and kept on the VM; browsers reach only search endpoints through the VM's web server |
-| Indexing | A gate key whose forced command runs only `search-index`, `search-check` and `search-key` from records uploaded with a write-only key, one at a time under `flock` |
-| Platform code | A Platform release under `/opt/docs-platform/<version>`, installed by `setup.sh apply --platform-ref` |
-| Setup | `hosting/vm/setup.sh apply|check`; `check` verifies the VM (Ubuntu 22.04+, 4 GB for Typesense, port 8109 free, Docker, front server, root login off) before `apply` changes anything |
+| Account and folders | User `docs-platform` (no sudo, `/bin/sh`, password locked); settings `/etc/docs-platform/`; uploads in `/srv/docs-platform/search/incoming/`; nothing of wso2-docs-site's touched (`/srv/docs`, user `deploy`, port 8108, its Caddy site blocks) |
+| Search | Typesense in compose project `docs-platform-typesense` on `127.0.0.1:8109` (pinned multi-arch image, 4 GB limit); its admin key and search-only parent key made on the VM in `/etc/docs-platform/typesense.env` (root:docs-platform 640), never printed or copied off |
+| Public search endpoints | One Caddy snippet, `/etc/caddy/docs-platform.caddy`, imported once from the Caddyfile: `https://141-148-145-173.sslip.io/_typesense/` proxies only `GET /collections/<c>/documents/search`, `POST /multi_search` and `GET /health`, with CORS for the staging origin; everything else answers 404. The browser's staging search URL and the Worker's `TYPESENSE_HOST` are this address |
+| Keys | In a root-owned `/etc/ssh/authorized_keys/docs-platform` with an sshd `Match User` block: an upload key (`rrsync -wo -no-del`, into the incoming folder only) and a gate key (forced command `docs-platform-gate`). Private halves in the `staging` environment: `DOCS_SEARCH_UPLOAD_KEY`, `DOCS_SEARCH_GATE_KEY`, with `DOCS_SEARCH_HOST` and `DOCS_SEARCH_KNOWN_HOSTS` |
+| Indexing | A job that runs no content code exports each new deployment's search files (`wso2-release search-export`: the state, the composed manifest, `edition.json`, `search-records.json`, `pages.json`, laid out as the bucket), uploads them, and runs the gate. The gate allows only `search-index <deployment...>`, `search-check [--fix]`, `search-key [--expires <date>]` and `status`, whole-string, one at a time under `flock`, and runs the Platform's own search commands against the uploaded files. `search-key` prints only the scoped key |
+| Platform code | A Platform release under `/opt/docs-platform/<tag>` with `current` pointing at it, root-owned, and Node 22 from the official tarball, checksum-pinned; installed by `setup.sh apply --platform-ref <tag> --platform-repo <owner/name>` |
+| Setup | `hosting/vm/setup.sh apply|check`, idempotent; `check` verifies the VM (Ubuntu 22.04+, arm64 or amd64, 4 GB memory free for Typesense, port 8109 free, Docker, Caddy, rrsync, root login off) before `apply` changes anything, then reports drift. `apply` backs up the Caddyfile and runs `caddy validate` before reloading |
 
 [B06]
 

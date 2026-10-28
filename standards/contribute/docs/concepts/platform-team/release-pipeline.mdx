@@ -50,13 +50,14 @@ A merged change to `releases/*.yaml` starts **Release docs**: tag scope for each
 |---|---|---|
 | 1 | plan | Clone every Content repository's `main`, compose, and store the result as `_platform/composed.json`. A failed compose keeps the last good copy. |
 | 2 | plan | Plan the Docs deployments the record change makes, from the stored copy and the intake records, and read what the builds need from staging |
-| 3 | build-latest, build | One job per Docs deployment, the `/latest/` twin first: download the recorded bundle, check its sha256 against the record, unpack it into an empty folder, build the Doc space's directory with the stored manifest and the Edition and `main` file list from `bundle.json`, run the release's blocking checks |
+| 2 | store | Before any build, keep the Platform's copy of each bundle the plan builds from: see [Copies of the bundles](#copies-of-the-bundles) |
+| 3 | build-latest, build | One job per Docs deployment, the `/latest/` twin first: download the recorded bundle (the Platform's copy, when GitHub fails), check its sha256 against the record, unpack it into an empty folder, build the Doc space's directory with the stored manifest and the Edition and `main` file list from `bundle.json`, run the release's blocking checks |
 | 3 | publish | One job per Docs deployment: upload its build to a new release folder |
 | 4 | finalize-staging | Flip: one write of the deployment state points every planned Docs deployment at its new folder (for a withdrawal, back), then `manifest.json`, the sitemap index and `llms.txt` are published again |
 | 5 | finalize-staging | Write the redirect table to Workers KV |
 | 6 | finalize-staging | The staging crawl gate: every page of each new Docs deployment, and every link on it into WSO2 Docs, must answer 200 |
 | 7 | finalize-staging | Index search: upsert each new Docs deployment's records, then delete its stale ones. `/latest/` is never indexed. |
-| 8 | finalize-staging | Keep the last 5 releases of each Docs deployment, plus the live one |
+| 8 | finalize-staging | Keep the last 5 releases of each Docs deployment, plus the live one, and only the bundle copies an intake record names |
 | 9 | promote | Only when the crawl gate passed and production is on: copy the same folders to production, flip there with the manifest staging used, index, write the redirect table |
 
 A tag of the first Self-hosted Edition makes two Docs deployments, `/<doc space>/<version>/` and `/<doc space>/latest/`, from one build each. The latest twin builds first, because older versions take their canonicals from its page list. Cloud is never built twice.
@@ -64,6 +65,15 @@ A tag of the first Self-hosted Edition makes two Docs deployments, `/<doc space>
 A family Cloud is one Docs deployment. Its bundle holds each Cloud part's directory beside its own, so `identity-platform/cloud-2026.10.26.1` builds Identity Platform Cloud with Identity Server's Cloud part in it, from one commit.
 
 MDX is code, so the build job runs bundle content. It has no environment and holds no storage, search or edge credential: the plan job hands it what it reads from staging, and it hands its build to the publish job, which uploads it. The flip, the search index and the App token run in jobs that run no content code, so a bad bundle can reach only a release folder nothing points to yet. The Platform's own Doc space, Contribute, builds from the Platform repository at its tag, and the Landing deployment from the Platform alone.
+
+### Copies of the bundles
+
+The Platform keeps its own copy of every bundle an intake record names, in the staging bucket at `_bundles/<sha256>.zip`, so a rebuild never depends on a Content repository still being reachable. Production keeps none: promotion copies built release folders.
+
+- **The store job** runs after the plan and before any build. For each bundle the plan builds from that isn't stored yet, it downloads the recorded asset from GitHub, checks its sha256 against the record, and uploads it. It holds the staging storage credential and never unpacks a bundle. If it fails, nothing is built, as when a build fails.
+- **When GitHub fails.** Builds still download their bundle from GitHub. For a bundle GitHub no longer serves, the plan job hands the build the stored copy as the `bundle-copies` artifact, and the build uses it, with its sha256 checked against the record too. The build job still holds no credential. A build from a copy shows a **Bundle copy** warning.
+- **How long.** A copy is kept while any intake record names its sha256, up to 5 per Edition. After the release GC, `finalize-staging` deletes the other copies, reading the records on `main`. A withdrawn release loses its record entry, and then its copy.
+- The Edge Worker never serves `_bundles/`.
 
 ### Release folders and pointers
 

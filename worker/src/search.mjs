@@ -11,7 +11,7 @@
 // { search({ query, scope, limit }) → hits }, so tests use a fake; the real one
 // queries Typesense with a search-only key.
 //
-// Vars: TYPESENSE_HOST (https://search-staging.docs.wso2.com), TYPESENSE_COLLECTION,
+// Vars: TYPESENSE_HOST (staging: https://141-148-145-173.sslip.io/_typesense), TYPESENSE_COLLECTION,
 // secret TYPESENSE_SEARCH_KEY. Document fields follow the search collection
 // (lib/search/schema.mjs: url, lvl0-3, content, formerNames, docSpace, edition), which the
 // release's search-index step fills from _platform/search-records.json.

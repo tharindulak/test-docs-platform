@@ -1,0 +1,31 @@
+# docs-platform's Typesense on the 141 VM (installed by ../setup.sh as
+# /opt/docs-platform/typesense/compose.yaml), apart from wso2-docs-site's on
+# 8108: its own compose project, volume and port. The pinned digest is a
+# multi-arch list (amd64 and arm64; the VM is arm64), the same Typesense 30.2
+# the local preview runs (search/docker-compose.yml). Loopback only: the gate
+# indexes over local HTTP and Caddy proxies only the search endpoints, with
+# CORS for the staging origin (../setup.sh's Caddy snippet), so Typesense's own
+# CORS stays off. The admin key comes from /etc/docs-platform/typesense.env
+# (root:docs-platform 640), made on the VM and never copied off it.
+name: docs-platform-typesense
+services:
+  typesense:
+    image: typesense/typesense:30.2@sha256:610f2d34b1f93d00762869da2c67736775e5798d19a2c8b91b014b8a0cc1e110
+    restart: unless-stopped
+    mem_limit: 4g
+    environment:
+      TYPESENSE_API_KEY: ${TYPESENSE_ADMIN_KEY:?set TYPESENSE_ADMIN_KEY}
+      TYPESENSE_DATA_DIR: /data
+      TYPESENSE_ENABLE_CORS: "false"
+      TYPESENSE_ENABLE_SEARCH_ANALYTICS: "true"
+      TYPESENSE_ANALYTICS_DIR: /data/analytics
+      TYPESENSE_ANALYTICS_FLUSH_INTERVAL: "300"
+      # A single node may come back on another internal address after a
+      # restart; any release or search-check --fix rebuilds the index.
+      TYPESENSE_RESET_PEERS_ON_ERROR: "true"
+    ports:
+      - 127.0.0.1:8109:8108
+    volumes:
+      - data:/data
+volumes:
+  data:

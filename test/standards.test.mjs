@@ -117,7 +117,7 @@ test('Content repo templates: editor extensions, branch protection and the PR ch
   // The compose check on a PR to main, against the published manifest: no secrets, no other checkout.
   assert.equal(docs.jobs.compose.if, "github.event_name == 'pull_request' && github.base_ref == 'main'");
   assert.match(docs.jobs.compose.steps.at(-1).run, /wso2-release\.mjs compose --pr --published "\$PUBLISHED" --repo-dir content/);
-  assert.ok(!JSON.stringify(docs.jobs.compose).includes('secrets.DOCS_PLATFORM_APP_KEY'), 'no release secret in the PR check');
+  assert.deepEqual([...new Set(JSON.stringify(docs.jobs.compose).match(/secrets\.[A-Z_]+/g) ?? [])], ['secrets.DOCS_PLATFORM_READ_TOKEN'], 'no release secret in the PR check');
   assert.deepEqual(docs.jobs.checks.needs, ['plan', 'preview', 'compose'], 'the required status sums up the compose check too');
   const sync = yaml.load(tpl('.github/workflows/docs-sync.yml'));
   assert.deepEqual(Object.keys(sync.on), ['workflow_dispatch'], 'optional: by hand until a team schedules it');

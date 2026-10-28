@@ -10,11 +10,11 @@
 # branch-cut/<doc space>/<version> branch already has that change: the run
 # finds the branch and stops.
 #
-# PENDING INFRA: the GitHub App (DOCS_PLATFORM_APP_ID variable,
-# DOCS_PLATFORM_APP_KEY secret) installed on the Content repo with contents
-# and pull-requests write, so the bot's pull request runs the "Docs"
-# workflow's checks (a pull request opened with the workflow token starts no
-# workflow).
+# It runs with the workflow's own token (the caller grants contents: write
+# and pull-requests: write), so the Content repo holds no token or App for
+# the Platform. A pull request opened with that token starts no workflow, so
+# the bot opens it as a draft: an owner, who must review it anyway, marks it
+# Ready for review, and docs.yml's ready_for_review starts its checks.
 name: Docs branch cut
 
 on:
@@ -28,8 +28,6 @@ on:
         type: string
         default: v1
     secrets:
-      DOCS_PLATFORM_APP_KEY:
-        required: true
       DOCS_PLATFORM_READ_TOKEN:
         required: false
 
@@ -41,21 +39,16 @@ jobs:
     name: markers on main
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
     steps:
-      - id: app
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ vars.DOCS_PLATFORM_APP_ID }}
-          private-key: ${{ secrets.DOCS_PLATFORM_APP_KEY }}
-          repositories: ${{ github.event.repository.name }}
+      # The workflow token, kept for the push of branch-cut/<doc space>/<version>.
       - name: Check out main
         uses: actions/checkout@v4
         with:
           ref: main
           path: content
           fetch-depth: 0
-          token: ${{ steps.app.outputs.token }}
       - name: Check out the Platform
         uses: actions/checkout@v4
         with:
@@ -90,13 +83,15 @@ jobs:
           node platform/bin/wso2-docs.mjs branch-cut --branch "origin/$BRANCH" --repo content --report report.md
           cat report.md >> "$GITHUB_STEP_SUMMARY"
           echo "changes=$(jq '.main.changes | length' plan.json)" >> "$GITHUB_OUTPUT"
-      - name: Open the pull request on main
+      # A draft: its checks start when an owner marks it Ready for review.
+      - name: Open the pull request on main, as a draft
         if: steps.cut.outputs.changes != '0'
         env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           CLEANUP: ${{ steps.cut.outputs.cleanup }}
           BRANCH: ${{ inputs.branch }}
         run: |
           git -C content push origin "$CLEANUP"
-          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$CLEANUP" \
+          gh pr create --draft --repo "$GITHUB_REPOSITORY" --base main --head "$CLEANUP" \
             --title "Remove the Edition markers covered by $BRANCH" --body-file report.md
+          echo "Opened as a draft: mark it **Ready for review** to start its checks." >> "$GITHUB_STEP_SUMMARY"

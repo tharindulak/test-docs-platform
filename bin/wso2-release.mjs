@@ -16,6 +16,7 @@ import {
   RECORD_DIR, bundlesFor, checkRecordChange, fetchBundle, planFromRecords, readRecord, recordChanges, runIntake,
 } from '../lib/intake.mjs';
 import { platformRepoOf } from '../lib/platform-pins.mjs';
+import { bundleKey, collectBundles, handOverCopies, plannedBundles, storeBundles } from '../lib/bundle-store.mjs';
 import { execFileSync } from 'node:child_process';
 
 // The version of this Platform checkout (package.json): its major is the one a
@@ -30,7 +31,9 @@ import {
   readState, releaseIdFor, releasePrefix, retire, rollback, syncRedirects,
 } from '../lib/release.mjs';
 import { COLLECTIONS } from '../lib/search/environments.mjs';
-import { checkConsistency, ensureCollection, ensureSearchOnlyKey, indexDeployment, indexReleases, isSearchOnlyParent, readBuild } from '../lib/search/indexing.mjs';
+import {
+  checkConsistency, ensureCollection, ensureSearchOnlyKey, exportSearchInputs, indexDeployment, indexReleases, isSearchOnlyParent, readBuild,
+} from '../lib/search/indexing.mjs';
 import { scopedSearchKey, typesenseClient } from '../lib/search/typesense.mjs';
 
 const USAGE = `Usage: wso2-release <command> [options]
@@ -62,8 +65,16 @@ const USAGE = `Usage: wso2-release <command> [options]
             GITHUB_TOKEN reads the releases; gh verifies attestations
   record-check --base <ref> --branch <name> [--head <ref>]
             the intake PR check: an intake/<slug> branch changes only releases/<slug>.yaml's release entries
-  fetch-bundle --repo <owner/name> --tag <tag> --asset <name> --sha256 <hex> --out <empty dir> [--github-output <f>]
-            a build's bundle: the recorded asset, its sha256 checked against the record, unpacked safely
+  fetch-bundle --repo <owner/name> --tag <tag> --asset <name> --sha256 <hex> --out <empty dir> [--copy <zip>] [--github-output <f>]
+            a build's bundle: the recorded asset, its sha256 checked against the record, unpacked safely; when
+            GitHub fails, the stored copy the plan job handed over (--copy), checked against the record too
+  store-bundles --storage <s> --plan <plan.json> [--work <dir>]
+            copy each planned bundle not stored yet to _bundles/<sha256>.zip: fetched from GitHub, its sha256
+            checked against the record; no bundle is unpacked. --plan is the plan's output (deployments or include)
+  bundle-copies --storage <s> --plan <plan.json> --out <dir>
+            for each planned bundle GitHub no longer serves, its stored copy (sha256 checked) as <out>/<sha256>.zip
+  gc-bundles --storage <s> --records <dir> [--dry-run]
+            delete the _bundles/<sha256>.zip copies no intake record in <dir> names (a missing <dir>: none)
   check     --dir <build> --space <slug> --segment <seg> --edition <id>
   publish   --storage <s> --dir <build> --space <slug> --segment <seg> --edition <id> --tag <tag> [--release <id>]
             [--source-repo <owner/name>] [--source-sha <sha>]
@@ -91,14 +102,21 @@ const USAGE = `Usage: wso2-release <command> [options]
 
 Search (Typesense at TYPESENSE_URL with TYPESENSE_ADMIN_KEY; --env picks the collection):
   search-setup --env <name> [--collection <c>] [--new-key]   collection, analytics rules, search-only parent key
-                                                            (an existing parent is reused; --new-key makes another)
+                                                            (an existing parent is reused; --new-key makes another;
+                                                            with TYPESENSE_SEARCH_PARENT_KEY set, that value is the
+                                                            parent, made once and never printed: the VM gate's)
   search-keys --env <name> [--collection <c>]                every key: id, value prefix, actions, collections, expiry
   search-key-delete --env <name> --id <id>                   delete one key (browser keys scoped from it stop working)
   search-index --env <name> --storage <s> --deploy <space>/<segment>=<release> [...]
                                                             upsert each deployment's records, then delete its stale ones
   search-index --env <name> --dir <build> --release <id>     the same from a local build
   search-check --env <name> --storage <s> [--fix] [--out <f>] weekly consistency check against every live deployment
-  search-key  --parent <search-only key> [--expires <ISO date>]   scoped key for browsers
+  search-key  [--parent <search-only key>] [--expires <ISO date>]   scoped key for browsers (the parent from
+                                                            --parent, else TYPESENSE_SEARCH_PARENT_KEY)
+  search-export --storage <s> --out <dir> [--deploy <space>/<segment>=<release> ...] [--policy <f>]
+                                                            what a search host's gate indexes from (hosting/vm/): the
+                                                            state, the composed manifest and each deployment's search
+                                                            files, laid out as the bucket; no --deploy: every live one
 
 Every other command takes --policy <file>: a composed manifest from compose --out. Without it, a command
 with --storage reads the last good copy compose stored there (_platform/composed.json); otherwise it
@@ -178,6 +196,7 @@ async function main(argv) {
       records: { type: 'string' }, pending: { type: 'string' }, issues: { type: 'string' }, retry: { type: 'boolean' },
       work: { type: 'string' }, 'signer-repo': { type: 'string' }, report: { type: 'string' }, branch: { type: 'string' },
       asset: { type: 'string' }, sha256: { type: 'string' }, backwards: { type: 'boolean' },
+      plan: { type: 'string' }, copy: { type: 'string' },
     },
   });
   const storage = () => {
@@ -189,7 +208,7 @@ async function main(argv) {
   // composed here from the local checkouts.
   const policyFrom = async () => {
     if (o.policy) return { policy: loadPolicy(path.resolve(o.policy)), from: o.policy };
-    if (o.storage && !['check', 'composed', 'search-key', 'search-setup', 'search-keys', 'search-key-delete'].includes(command)) {
+    if (o.storage && !['check', 'composed', 'search-key', 'search-setup', 'search-keys', 'search-key-delete', 'search-export'].includes(command)) {
       const obj = await openStorage(o.storage).get(COMPOSED_KEY);
       if (obj) return { policy: JSON.parse(new TextDecoder().decode(obj.body)), from: `${o.storage} ${COMPOSED_KEY}` };
       console.warn(`warning: ${o.storage} has no ${COMPOSED_KEY} yet (run compose --storage first); composing from the local checkouts`);
@@ -299,11 +318,47 @@ async function main(argv) {
     case 'fetch-bundle': {
       need(o, 'repo', 'tag', 'asset', 'sha256', 'out');
       const token = process.env.CONTENT_READ_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
-      const r = await fetchBundle({ repo: o.repo, tag: o.tag, asset: o.asset, sha256: o.sha256, out: o.out, token });
+      const r = await fetchBundle({ repo: o.repo, tag: o.tag, asset: o.asset, sha256: o.sha256, out: o.out, token, copy: o.copy });
+      if (r.source === 'copy') {
+        const m = `${o.asset}: ${r.githubError}; built from the Platform's stored copy`;
+        console.log(process.env.GITHUB_ACTIONS ? `::warning title=Bundle copy::${m}` : `warning: ${m}`);
+      }
       console.log(`${o.asset}: sha256 matches the record; unpacked ${r.bundle.docSpace} (Edition ${r.edition}) into ${r.dir}`);
       if (o['github-output']) {
         fs.appendFileSync(o['github-output'], `dir=${r.dir}\nedition=${r.edition}\nmain-files=${r.mainFiles ?? ''}\nsource-commit=${r.bundle.sourceCommit}\n`);
       }
+      return 0;
+    }
+    case 'store-bundles':
+    case 'bundle-copies': {
+      need(o, 'storage', 'plan');
+      const token = process.env.CONTENT_READ_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+      const p = JSON.parse(fs.readFileSync(o.plan, 'utf8'));
+      const bundles = plannedBundles(p.deployments ?? p.include ?? []);
+      const log = (m) => console.log(m);
+      if (command === 'store-bundles') {
+        const r = await storeBundles(storage(), bundles, { token, workDir: path.resolve(o.work ?? path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'bundle-store')), log });
+        console.log(`Bundle store: ${r.stored.length} stored, ${r.present.length} already stored`);
+        return 0;
+      }
+      need(o, 'out');
+      const r = await handOverCopies(storage(), bundles, { token, out: path.resolve(o.out), log });
+      for (const s of r.missing) {
+        const m = `GitHub no longer serves the bundle ${s} and the Platform has no copy (${bundleKey(s)}): its build will fail`;
+        console.log(process.env.GITHUB_ACTIONS ? `::warning title=Bundle copy::${m}` : `warning: ${m}`);
+      }
+      console.log(`Bundle copies: ${r.handed.length} handed to the builds`);
+      return 0;
+    }
+    case 'gc-bundles': {
+      need(o, 'records');
+      const dir = path.resolve(o.records);
+      if (!fs.existsSync(dir)) {
+        console.log(`No intake records at ${o.records}: no bundle copy collected`);
+        return 0;
+      }
+      const removed = await collectBundles(storage(), readRecords(dir), { dryRun: o['dry-run'] });
+      console.log(removed.length ? `${o['dry-run'] ? 'Would remove' : 'Removed'}: ${removed.join(', ')}` : 'No bundle copy to collect');
       return 0;
     }
     case 'platform-release': {
@@ -462,9 +517,13 @@ async function main(argv) {
     case 'search-setup': {
       const { client, collection } = search();
       const r = await ensureCollection(client, collection);
-      const key = await ensureSearchOnlyKey(client, collection, undefined, { fresh: o['new-key'] });
+      const fixed = process.env.TYPESENSE_SEARCH_PARENT_KEY || undefined;
+      if (fixed && o['new-key']) throw new Error('--new-key makes a key of its own; unset TYPESENSE_SEARCH_PARENT_KEY (on the VM, change it in typesense.env)');
+      const key = await ensureSearchOnlyKey(client, collection, fixed, { fresh: o['new-key'] });
       console.log(`${collection}: ${r.created ? 'created' : `exists${r.added.length ? `, added ${r.added.join(', ')}` : ''}`}; analytics rules in place`);
-      if (key.existed) console.log(`Reusing search-only parent key ${key.id} (${key.value_prefix}…); its value was printed when it was made. Run with --new-key for another.`);
+      // A parent given by value (the VM's typesense.env) is never printed.
+      if (fixed) console.log(`${key.existed ? 'Reusing' : 'Made'} search-only parent key ${key.id} (${fixed.slice(0, 4)}…) from TYPESENSE_SEARCH_PARENT_KEY`);
+      else if (key.existed) console.log(`Reusing search-only parent key ${key.id} (${key.value_prefix}…); its value was printed when it was made. Run with --new-key for another.`);
       else console.log(`Search-only parent key ${key.id} (scope browser keys from it with search-key; printed only now): ${key.value}`);
       return 0;
     }
@@ -522,8 +581,17 @@ async function main(argv) {
       if (!report.ok) alert(`${collection} has drifted from the live deployments${o.fix ? ' (repaired)' : ''}`);
       return report.ok || o.fix ? 0 : 1;
     }
+    case 'search-export': {
+      need(o, 'out');
+      const deployments = o.deploy?.flatMap((d) => d.split(/\s+/).filter(Boolean)).map(parseDeploy);
+      const composed = o.policy ? fs.readFileSync(o.policy) : undefined;
+      const r = await exportSearchInputs(storage(), path.resolve(o.out), { deployments, composed });
+      console.log(`Wrote the search inputs of ${r.deployments.length ? r.deployments.join(' ') : 'no deployment'} to ${o.out}`);
+      return 0;
+    }
     case 'search-key': {
-      need(o, 'parent');
+      o.parent ??= process.env.TYPESENSE_SEARCH_PARENT_KEY || undefined;
+      if (!o.parent) throw new Error('--parent is required (or TYPESENSE_SEARCH_PARENT_KEY)');
       const embedded = o.expires ? { expires_at: Math.floor(Date.parse(o.expires) / 1000) } : {};
       if (o.expires && !Number.isFinite(embedded.expires_at)) throw new Error(`--expires "${o.expires}" is not a date`);
       console.log(scopedSearchKey(o.parent, embedded));

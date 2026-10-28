@@ -15,6 +15,7 @@ This page lists what each environment's bucket holds, with the fields of each fi
 | `_releases/…/<release>/_platform/release.json` | `publish`, last | Marks the folder complete |
 | `_platform/state.json` | `flip`, `rollback`, `retire` | Which release each Docs deployment points at |
 | `_platform/state.lock` | `flip`, `rollback`, `retire`, `manifest`, `redirects`, `gc`, while they run | The state lock: who is writing the state now (`owner`, `command`, `acquiredAt`, `expiresAt`). Absent when no one is. |
+| `_bundles/<sha256>.zip` | `store-bundles`; deleted by `gc-bundles` | Staging only: the Platform's copy of a bundle an intake record names, byte for byte. Never served. |
 | `_platform/composed.json` | `compose --storage` | The last good composed Deployment manifest |
 | `_platform/redirect-table.json` | `redirects` | The table last written to Workers KV, so the next run writes only the difference |
 | `manifest.json` | `flip`, `rollback`, `retire`, `manifest` | The published Deployment manifest |

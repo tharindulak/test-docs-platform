@@ -18,7 +18,8 @@ node bin/wso2-release.mjs <command> [options]
 | `--storage <s>` | `s3://<bucket>`, through R2's S3 API with `R2_ENDPOINT`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`; or `file:<dir>` | none |
 | `--policy <file>` | A composed manifest, from `compose --out` or `composed` | The bucket's `_platform/composed.json`, else composed from the checkouts in `WSO2_DOCS_CONTENT_REPOS` |
 | `--kv <sink>` | Where the redirect table goes: `cloudflare:<namespace id>` (with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`), `local:<url>` (the local edge) or `file:<path>` | none |
-| `TYPESENSE_URL`, `TYPESENSE_ADMIN_KEY` | The search commands' Typesense | none |
+| `TYPESENSE_URL`, `TYPESENSE_ADMIN_KEY` | The search commands' Typesense. On the staging VM, only the gate sets them. | none |
+| `TYPESENSE_SEARCH_PARENT_KEY` | The search-only parent key's value, for `search-setup` and `search-key`. The gate sets it from the VM's `typesense.env`. | none |
 | `--env <name>` | `staging` or `production`; for search also `local` | none |
 
 ## Compose
@@ -51,7 +52,10 @@ With `--records releases`, each planned Docs deployment names the bundle it buil
 |---|---|
 | `intake [--policy <file>] [--records <dir>] [--pending <dir>] [--out <dir>] [--issues <file>] [--retry] [--repo <owner/name> \| --space <slug>] [--work <dir>] [--signer-repo <owner/name>] [--report <file>]` | Reads each Content repository's releases, verifies the ones that count and writes the changed intake records to `--out` (default `--records`, `releases`). `--pending` holds the records of open intake pull requests, which win over `--records`. `--issues` is the JSON list (`[{ "title": … }]`) of `bundle-intake` issues: a tag one names isn't tried again unless `--retry`, and no issue is listed twice. `--report` gets `{ changes, issues, errors }`. `GITHUB_TOKEN` reads the releases; `gh attestation verify` checks the attestations, signed by `--signer-repo` (default `GITHUB_REPOSITORY`). |
 | `record-check --base <ref> --branch <name> [--head <ref>]` | The intake pull request's check: on `intake/<slug>`, only `releases/<slug>.yaml` changes, and only its release entries. On other branches, every changed record is valid. Exits 1 with each problem. |
-| `fetch-bundle --repo <owner/name> --tag <tag> --asset <name> --sha256 <hex> --out <empty dir> [--github-output <file>]` | A build's bundle: downloads the recorded asset, checks its sha256 against the record, and unpacks it safely into `--out`. Writes `dir`, `edition`, `main-files` and `source-commit` to `--github-output`. `CONTENT_READ_TOKEN` reads a private repository. |
+| `fetch-bundle --repo <owner/name> --tag <tag> --asset <name> --sha256 <hex> --out <empty dir> [--copy <zip>] [--github-output <file>]` | A build's bundle: downloads the recorded asset, checks its sha256 against the record, and unpacks it safely into `--out`. When GitHub fails and `--copy` exists (the Platform's copy the plan job handed over), it uses that, with its sha256 checked too, and warns. Writes `dir`, `edition`, `main-files` and `source-commit` to `--github-output`. `CONTENT_READ_TOKEN` reads a private repository. |
+| `store-bundles --storage <s> --plan <plan.json> [--work <dir>]` | Copies each bundle the plan builds from to `_bundles/<sha256>.zip`, unless it is stored already: downloaded from GitHub, its sha256 checked against the record, never unpacked. `--plan` is the plan's output, or its `{ include }` list. Exits 1 on any failure. |
+| `bundle-copies --storage <s> --plan <plan.json> --out <dir>` | For each planned bundle GitHub no longer serves, writes its stored copy to `<out>/<sha256>.zip`, its sha256 checked against the record. A bundle with no copy is a warning. |
+| `gc-bundles --storage <s> --records <dir> [--dry-run]` | Deletes the `_bundles/<sha256>.zip` copies no intake record in `--records` names. A missing folder deletes nothing. It takes no state lock. |
 | `plan --scope landing --rebuild-id <id> --storage <s>` | The Landing deployment, built from the Platform alone, under release id `landing-<YYYY.MM.DD>.<id>` |
 | `platform-changes --base <sha> [--head <sha>] [--github-output <file>]` | Whether a change on the Platform's `main` releases Contribute, the Landing deployment, or both. No base: both. |
 | `platform-release --tag v<major>.<minor>.<patch>` | Checks a Platform release tag against `package.json`, and says whether it moves the `v<major>` tag (only to the newest release of the major) |
@@ -82,7 +86,9 @@ With `--records releases`, each planned Docs deployment names the bundle it buil
 | `search-setup --env <name> [--collection <c>] [--new-key]` | Makes or updates the collection and its analytics rules. Makes a search-only parent key the first time, and reuses it after that; `--new-key` makes another |
 | `search-keys --env <name> [--collection <c>]` | Lists every key: id, the first four characters, actions, collections, expiry, and which is the collection's search-only parent |
 | `search-key-delete --env <name> --id <id>` | Deletes one key. Browser keys scoped from it stop working. |
-| `search-key --parent <key> [--expires <date>]` | A scoped browser key from the parent |
+| `search-setup --env <name>`, with `TYPESENSE_SEARCH_PARENT_KEY` | Makes the parent with that value the first time and reuses it after that. Never prints it. |
+| `search-key [--parent <key>] [--expires <date>]` | A scoped browser key from the parent, `--parent` or `TYPESENSE_SEARCH_PARENT_KEY` |
+| `search-export --storage <s> --out <dir> [--deploy <space>/<segment>=<release> […]] [--policy <file>]` | Copies what a search host's gate reads, laid out as the bucket: the deployment state, the composed manifest, and each Docs deployment's `edition.json`, `search-records.json` and `pages.json`. Without `--deploy`, every live Docs deployment. `/latest/` and the Landing deployment are left out. |
 | `search-index --env <name> --storage <s> --deploy <space>/<segment>=<release> […]` | Indexes Docs deployments from their release folders. Exits 1 if one failed. |
 | `search-index --env <name> --dir <build> --release <id>` | Indexes a local build |
 | `search-check --env <name> --storage <s> [--fix] [--out <file>]` | The consistency check. Exits 1 on drift, unless `--fix` repaired it. |

@@ -1,0 +1,146 @@
+#!/bin/bash
+# docs-platform-gate: the forced command of docs-platform's gate key on the 141 VM (spec/edge-and-hosting.md,
+# VM search). Runs as user docs-platform, never as root:
+#   restrict,command="/usr/local/sbin/docs-platform-gate" ssh-ed25519 ...
+# The upload key never reaches this script: its forced command is rrsync, write-only into the incoming folder.
+#
+# The verb is SSH_ORIGINAL_COMMAND, matched whole against an allow-list before it is split; it is never evaluated.
+#   search-index <space>/<segment>=<release> ...   index those deployments from their uploaded search files
+#   search-check | search-check --fix              compare the index with every live deployment (the uploaded state)
+#   search-key | search-key --expires <YYYY-MM-DD> the scoped search-only key for browsers and the Edge Worker
+#   status                                         key=value lines: Platform release, Node, Typesense, disk
+# Every verb runs under flock, one at a time. The search code is the installed Platform release's own
+# (wso2-release search-index, search-check, search-setup, search-key), reading the incoming folder as file storage:
+# what `wso2-release search-export` wrote in CI, uploaded with the upload key. The admin key stays on the VM.
+#
+# Usage outside sshd (tests): SSH_ORIGINAL_COMMAND='<verb>' docs-platform-gate [config file]
+set -euo pipefail
+export LC_ALL=C
+umask 027
+
+CONF=${1:-/etc/docs-platform/gate.conf}
+die() { echo "docs-platform-gate: $1" >&2; exit "${2:-1}"; }
+
+# Settings (gate.conf is root-owned on the VM; setup.sh writes it).
+SEARCH_ROOT=/srv/docs-platform/search          # incoming/ (the upload key's folder) and the gate's lock
+PLATFORM=/opt/docs-platform/current            # the installed Platform release
+NODE=/opt/docs-platform/node/bin/node
+SEARCH_ENV=staging                             # wso2-release --env: the collection (wso2docs-staging)
+TYPESENSE_URL=http://127.0.0.1:8109
+TYPESENSE_ENV=/etc/docs-platform/typesense.env # TYPESENSE_ADMIN_KEY, TYPESENSE_SEARCH_PARENT_KEY
+STALE_MINUTES=1440                             # uploaded release files no live deployment uses go after this
+[[ -r $CONF ]] || die "no config at $CONF" 78
+# shellcheck source=/dev/null
+source "$CONF"
+
+INCOMING=$SEARCH_ROOT/incoming
+SPACE_RE='(_landing|[a-z0-9][a-z0-9-]{0,62})'
+SEGMENT_RE='(_|[A-Za-z0-9][A-Za-z0-9._-]{0,63})'
+RELEASE_RE='[A-Za-z0-9][A-Za-z0-9._-]{0,127}'
+DEP_RE="${SPACE_RE}/${SEGMENT_RE}=${RELEASE_RE}"
+allow="^(status|search-check|search-check --fix|search-key|search-key --expires [0-9]{4}-[0-9]{2}-[0-9]{2}|search-index ${DEP_RE}( ${DEP_RE}){0,99})$"
+
+cmd=${SSH_ORIGINAL_COMMAND-}
+command -v logger >/dev/null && logger -t docs-platform-gate -- "${cmd:0:200}" || true
+(( ${#cmd} <= 16384 )) && [[ $cmd =~ $allow ]] || die "refused: not an allowed command" 65
+# Split only now, with globbing off: the allow-list leaves no shell syntax in it.
+set -f
+# shellcheck disable=SC2086
+set -- $cmd
+verb=$1
+shift
+
+TMP=$(mktemp -d)
+trap 'rm -rf -- "$TMP"' EXIT
+
+exec 9>"$SEARCH_ROOT/.gate.lock"
+flock -w 900 9 || die "another gate command holds the lock" 75
+
+# The Platform's own CLI, with the Typesense keys in its environment only (never on a command line).
+release() {
+  [[ -x $NODE ]] || die "no Node at $NODE (setup.sh apply)" 69
+  [[ -f $PLATFORM/bin/wso2-release.mjs ]] || die "no Platform release at $PLATFORM (setup.sh apply --platform-ref)" 69
+  [[ -r $TYPESENSE_ENV ]] || die "$TYPESENSE_ENV is not readable" 69
+  (
+    set -a
+    # shellcheck source=/dev/null
+    source "$TYPESENSE_ENV"
+    set +a
+    [[ -n ${TYPESENSE_ADMIN_KEY:-} ]] || die "$TYPESENSE_ENV has no TYPESENSE_ADMIN_KEY" 69
+    export TYPESENSE_URL
+    cd "$PLATFORM"
+    exec "$NODE" bin/wso2-release.mjs "$@"
+  )
+}
+
+# What CI uploaded: refuse links anywhere in it (rrsync -munge makes them dead, this keeps them out), and need the
+# state and the composed manifest search reads.
+check_incoming() {
+  [[ -d $INCOMING && ! -L $INCOMING ]] || die "no incoming folder at $INCOMING" 66
+  [[ -z $(find "$INCOMING" -type l -print -quit) ]] || die "the incoming folder holds a link; refusing it" 66
+  local f
+  for f in _platform/state.json _platform/composed.json; do
+    [[ -f $INCOMING/$f ]] || die "no $f uploaded (wso2-release search-export writes it)" 66
+  done
+}
+
+# Drop uploaded release folders that no live deployment uses and nothing touched for STALE_MINUTES.
+prune() {
+  command -v jq >/dev/null || return 0
+  local live d rel
+  live=$(jq -r '.deployments // {} | to_entries[] | "\(.key)/\(.value.release)"' "$INCOMING/_platform/state.json" 2>/dev/null) || return 0
+  [[ -d $INCOMING/_releases ]] || return 0
+  while IFS= read -r -d '' d; do
+    rel=${d#"$INCOMING/_releases/"}
+    grep -qxF -- "$rel" <<<"$live" && continue
+    rm -rf -- "$d" && echo "pruned=$rel"
+  done < <(find "$INCOMING/_releases" -mindepth 3 -maxdepth 3 -type d -mmin +"$STALE_MINUTES" -print0)
+  return 0
+}
+
+search_index() {
+  local d space segment release
+  check_incoming
+  for d in "$@"; do
+    space=${d%%/*}; segment=${d#*/}; segment=${segment%%=*}; release=${d#*=}
+    [[ $segment == latest || $space == _landing ]] && continue   # never indexed; search-index skips them
+    [[ -f $INCOMING/_releases/$space/$segment/$release/_platform/search-records.json ]] \
+      || die "no search records uploaded for $d" 66
+  done
+  local status=0
+  release search-index --env "$SEARCH_ENV" --storage "file:$INCOMING" --deploy "$*" || status=$?
+  prune
+  return "$status"
+}
+
+search_check() {
+  check_incoming
+  local status=0
+  release search-check --env "$SEARCH_ENV" --storage "file:$INCOMING" "$@" --out "$TMP/report.json" >&2 || status=$?
+  [[ -f $TMP/report.json ]] && cat "$TMP/report.json"
+  prune >&2
+  return "$status"
+}
+
+# The collection, its analytics rules and the search-only parent key from typesense.env (made once), then the key
+# scoped from it: the only line on stdout.
+search_key() {
+  release search-setup --env "$SEARCH_ENV" >&2
+  release search-key "$@"
+}
+
+status() {
+  echo "platform=$(basename -- "$(readlink -- "$PLATFORM" 2>/dev/null || echo none)")"
+  echo "node=$("$NODE" --version 2>/dev/null || echo none)"
+  echo "typesense=$(curl -fsS --max-time 5 "$TYPESENSE_URL/health" 2>/dev/null | grep -q '"ok":true' && echo ok || echo down)"
+  echo "environment=$SEARCH_ENV"
+  echo "free_gb=$(df -Pk -- "$SEARCH_ROOT" | awk 'NR == 2 { print int($4 / 1048576) }')"
+  echo "uploaded_releases=$(find "$INCOMING/_releases" -mindepth 3 -maxdepth 3 -type d 2>/dev/null | wc -l | tr -d ' ')"
+}
+
+case $verb in
+  search-index) search_index "$@" ;;
+  search-check) search_check "$@" ;;
+  search-key)   search_key "$@" ;;
+  status)       status ;;
+esac

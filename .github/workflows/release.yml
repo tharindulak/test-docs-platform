@@ -13,13 +13,16 @@
 #     space only (Contribute's Cloud tags, platform-deployments.yml). Content
 #     repos dispatch nothing: their releases reach the Platform by intake.
 # The release sequence:
-#   1-2 build and blocking checks      (one matrix job per Docs deployment; it runs
+#   0   keep a copy of each bundle     (store: to _bundles/<sha256>.zip on docs-staging,
+#                                       before any build; runs no content code)
+#   1-2 build and blocking checks     (one matrix job per Docs deployment; it runs
 #                                       bundle content and holds no storage credential)
 #   3   upload the release folder      (publish: one job per deployment, which runs
 #                                       no content code: immutable, to docs-staging)
 #   4   flip the staging pointer       (finalize-staging: one state write; back for a withdrawal)
 #   5   staging crawl gate
-#   6   staging search index           (upsert, then delete stale; retries and alerts, never blocks)
+#   6   staging search index           (through the 141 VM's gate: upsert, then delete stale;
+#                                       retries and alerts, never blocks)
 #   7   promote to production          (promote: OFF for the Pilot)
 #   8   production search index        (OFF for the Pilot, with promotion)
 #   9   sitemap index and edge redirect table
@@ -27,8 +30,10 @@
 # Staging for the Pilot is the Pilot's Cloudflare account (spec/edge-and-hosting.md).
 # PENDING INFRA (ticket 15): the staging and production environments need
 # R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / CLOUDFLARE_API_TOKEN secrets and
-# R2_ENDPOINT / CLOUDFLARE_ACCOUNT_ID / REDIRECTS_KV_ID variables, plus
-# TYPESENSE_ADMIN_KEY (secret) and TYPESENSE_URL (variable) for the search index.
+# R2_ENDPOINT / CLOUDFLARE_ACCOUNT_ID / REDIRECTS_KV_ID variables. The search
+# index goes through the search host's gate (hosting/vm/, the 141 VM for
+# staging): DOCS_SEARCH_HOST, DOCS_SEARCH_KNOWN_HOSTS, DOCS_SEARCH_UPLOAD_KEY
+# and DOCS_SEARCH_GATE_KEY secrets. The Typesense admin key never leaves it.
 name: Release docs
 run-name: "Release docs: ${{ github.event_name == 'push' && 'intake records' || inputs.tag || inputs.space || inputs.scope || 'all' }}"
 
@@ -150,6 +155,25 @@ jobs:
             echo "flip=$(jq -r .flip plan.json)"
             echo "flip-back=$(jq -r .flipBack plan.json)"
           } >> "$GITHUB_OUTPUT"
+      # The bundle store's fallback (Storage and pointers): builds fetch their
+      # bundle from GitHub; for one GitHub no longer serves, this job hands
+      # the build the Platform's stored copy (_bundles/<sha256>.zip, sha256
+      # checked against the record) as the bundle-copies artifact, so the
+      # build job still holds no storage credential. Usually there is none.
+      - name: Stored bundle copies for the builds GitHub no longer serves
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: node bin/wso2-release.mjs bundle-copies --storage "$STAGING_STORAGE" --plan plan.json --out "$RUNNER_TEMP/bundle-copies"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle-copies
+          path: ${{ runner.temp }}/bundle-copies
+          retention-days: 1
+          if-no-files-found: ignore
       # What the builds read from staging, read here, since the build jobs
       # hold no storage credential: the stored composed manifest (docs:
       # links, latest, Cloud parts), the deployment state (the menus built
@@ -176,10 +200,43 @@ jobs:
           path: inputs
           retention-days: 1
 
+  # The bundle store (Storage and pointers), before any build: each bundle the
+  # plan builds from is copied to _bundles/<sha256>.zip in the staging bucket,
+  # fetched from GitHub with its sha256 checked against the intake record,
+  # unless it is stored already. It holds the storage credential and runs no
+  # content code: bytes are only fetched, hashed and uploaded, never unpacked.
+  # A failure stops the release as a failed build does.
+  store:
+    needs: plan
+    if: needs.plan.outputs.has-latest == 'true' || needs.plan.outputs.has-others == 'true'
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Copy each planned bundle to the bundle store (sha256 checked against the record)
+        env:
+          ALL: ${{ needs.plan.outputs.all }}
+          GITHUB_TOKEN: ${{ github.token }}
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}
+        run: |
+          printf '%s' "$ALL" > "$RUNNER_TEMP/plan.json"
+          node bin/wso2-release.mjs store-bundles --storage "$STAGING_STORAGE" --plan "$RUNNER_TEMP/plan.json" --work "$RUNNER_TEMP/bundles"
+
   # Latest twins build first: older versions take their canonicals from the
   # new latest page list.
   build-latest:
-    needs: plan
+    needs: [plan, store]
     if: needs.plan.outputs.has-latest == 'true'
     strategy:
       fail-fast: false
@@ -200,9 +257,10 @@ jobs:
       CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}
 
   build:
-    needs: [plan, build-latest]
+    needs: [plan, store, build-latest]
     if: >-
       always() && needs.plan.result == 'success' && needs.plan.outputs.has-others == 'true'
+      && needs.store.result == 'success'
       && needs.build-latest.result != 'failure' && needs.build-latest.result != 'cancelled'
     strategy:
       fail-fast: false
@@ -227,7 +285,7 @@ jobs:
   # runs no content code (the files are only read and uploaded), so a bad
   # bundle can reach only a folder nothing points to yet.
   publish:
-    needs: [plan, build-latest, build]
+    needs: [plan, store, build-latest, build]
     if: >-
       always() && needs.plan.result == 'success'
       && (needs.plan.outputs.has-latest == 'true' || needs.plan.outputs.has-others == 'true')
@@ -271,7 +329,7 @@ jobs:
   # Any failed build or upload leaves the previous release live: nothing below runs.
   # Runs no content code: flips, crawls and indexes what the builds uploaded.
   finalize-staging:
-    needs: [plan, build-latest, build, publish]
+    needs: [plan, store, build-latest, build, publish]
     if: >-
       always() && needs.plan.result == 'success'
       && (needs.plan.outputs.flip != '' || needs.plan.outputs.flip-back != '')
@@ -315,18 +373,34 @@ jobs:
         id: crawl
         continue-on-error: true
         run: node bin/wso2-release.mjs crawl --storage "$STAGING_STORAGE" --host "$STAGING_HOST" --deploy "$FLIP $FLIP_BACK"
-      # Upserts _platform/search-records.json of each new deployment (never
-      # /latest/), then deletes that Edition's stale records. Each deployment
-      # retries; a failure is a warning annotation and never blocks the release.
+      # Uploads each new deployment's search files (search-export) with the
+      # write-only key, then the gate key runs search-index on the 141 VM:
+      # upserts _platform/search-records.json (never /latest/), then deletes
+      # that Edition's stale records. Retries; a failure is a warning
+      # annotation and never blocks the release.
       - name: Staging search index (step 6)
         id: search
         continue-on-error: true
         env:
-          TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
-          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
-        run: node bin/wso2-release.mjs search-index --env staging --storage "$STAGING_STORAGE" --deploy "$FLIP $FLIP_BACK"
+          DOCS_SEARCH_HOST: ${{ secrets.DOCS_SEARCH_HOST }}
+          DOCS_SEARCH_KNOWN_HOSTS: ${{ secrets.DOCS_SEARCH_KNOWN_HOSTS }}
+          DOCS_SEARCH_UPLOAD_KEY: ${{ secrets.DOCS_SEARCH_UPLOAD_KEY }}
+          DOCS_SEARCH_GATE_KEY: ${{ secrets.DOCS_SEARCH_GATE_KEY }}
+        run: hosting/vm/search-via-gate.sh index --storage "$STAGING_STORAGE" --deploy "$FLIP $FLIP_BACK"
       - name: Keep the last 5 releases
         run: node bin/wso2-release.mjs gc --storage "$STAGING_STORAGE"
+      # The bundle store's GC: copies no intake record names. It reads the
+      # records on main just before (not this run's commit), so a copy stored
+      # for an entry merged since this run started is kept.
+      - name: Main's intake records, for the bundle store's GC
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: main-records
+          sparse-checkout: releases
+          persist-credentials: false
+      - name: Keep only the bundle copies an intake record names
+        run: node bin/wso2-release.mjs gc-bundles --storage "$STAGING_STORAGE" --records main-records/releases
       - name: Summary (step 10)
         env:
           CRAWL: ${{ steps.crawl.outcome }}
@@ -388,12 +462,16 @@ jobs:
           [ -n "$FLIP" ] && node bin/wso2-release.mjs flip --storage "$PRODUCTION_STORAGE" --env production --policy composed.json --deploy "$FLIP" "${chrome[@]}"
           [ -n "$FLIP_BACK" ] && node bin/wso2-release.mjs flip --storage "$PRODUCTION_STORAGE" --env production --policy composed.json --deploy "$FLIP_BACK" --backwards "${chrome[@]}"
           exit 0
+      # The same gate on production's search host (PENDING INFRA: production
+      # search hosting); its gate.conf names the production collection.
       - name: Production search index (step 8)
         continue-on-error: true
         env:
-          TYPESENSE_URL: ${{ vars.TYPESENSE_URL }}
-          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
-        run: node bin/wso2-release.mjs search-index --env production --storage "$PRODUCTION_STORAGE" --policy composed.json --deploy "$FLIP $FLIP_BACK"
+          DOCS_SEARCH_HOST: ${{ secrets.DOCS_SEARCH_HOST }}
+          DOCS_SEARCH_KNOWN_HOSTS: ${{ secrets.DOCS_SEARCH_KNOWN_HOSTS }}
+          DOCS_SEARCH_UPLOAD_KEY: ${{ secrets.DOCS_SEARCH_UPLOAD_KEY }}
+          DOCS_SEARCH_GATE_KEY: ${{ secrets.DOCS_SEARCH_GATE_KEY }}
+        run: hosting/vm/search-via-gate.sh index --storage "$PRODUCTION_STORAGE" --policy composed.json --deploy "$FLIP $FLIP_BACK"
       - name: Production redirect table (step 9; the flip republished the sitemap index)
         run: node bin/wso2-release.mjs redirects --storage "$PRODUCTION_STORAGE" --kv "cloudflare:${{ vars.REDIRECTS_KV_ID }}"
       - name: Keep the last 5 releases

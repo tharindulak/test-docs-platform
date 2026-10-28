@@ -230,6 +230,21 @@ test('pages, Markdown twins, unversioned spaces and the Landing deployment', asy
   assert.equal((await call(e, '/identity-platform/7.3.0/', { method: 'DELETE' })).status, 405);
 });
 
+test('the bundle copies in the bucket (_bundles/) are never served, under any path', async () => {
+  const e = env();
+  const copy = `_bundles/${'a'.repeat(64)}.zip`;
+  e.DOCS.objects.set(copy, 'PK bundle bytes');
+  for (const p of [`/${copy}`, `/_bundles/`, `/identity-platform/latest/../../${copy}`, `/%5Fbundles/${'a'.repeat(64)}.zip`, `/contribute/../${copy}`]) {
+    const r = await call(e, p);
+    assert.notEqual(r.status, 200, p);
+    assert.doesNotMatch(await r.text(), /PK bundle bytes/, p);
+  }
+  for (const p of [`/${copy}`, `/identity-platform/7.3.0/${copy}`, `/contribute/${copy}`]) {
+    const r = route(manifest, p);
+    assert.ok(r.type !== 'object' || r.key.startsWith('_releases/'), `${p}: only release folders are served (${r.key})`);
+  }
+});
+
 test('noindex: end-of-life Editions in production, everything on staging', async () => {
   const prod = env();
   assert.equal((await call(prod, '/identity-platform/7.2.0/')).headers.get('x-robots-tag'), 'noindex, follow');

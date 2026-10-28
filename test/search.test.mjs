@@ -22,7 +22,8 @@ import {
 import { focus, sectionFor } from '../lib/switching.mjs';
 import { COLLECTIONS, pickEnvironment, searchConfigFromEnv } from '../lib/search/environments.mjs';
 import { scopedSearchKey, withRetry } from '../lib/search/typesense.mjs';
-import { checkConsistency, indexDeployment, indexReleases } from '../lib/search/indexing.mjs';
+import { checkConsistency, exportSearchInputs, indexDeployment, indexReleases } from '../lib/search/indexing.mjs';
+import { COMPOSED_KEY } from '../lib/compose.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const policy = loadPolicy();
@@ -367,6 +368,7 @@ test('"See all results" goes to the Landing search page, which reads its context
 test('the browser picks the search endpoint by host; staging and production collections differ', () => {
   const cfg = searchConfigFromEnv({ WSO2_DOCS_SEARCH_KEY_STAGING: 'stg', WSO2_DOCS_SEARCH_KEY_PRODUCTION: 'prd' });
   assert.equal(pickEnvironment(cfg, 'docs-staging.wso2.com').collection, COLLECTIONS.staging);
+  assert.deepEqual(pickEnvironment(cfg, 'wso2-docs-site.tharinduj.workers.dev'), { ...cfg.environments.staging, key: 'stg' }, 'the Pilot\'s staging host');
   assert.equal(pickEnvironment(cfg, 'docs.wso2.com').key, 'prd');
   assert.notEqual(COLLECTIONS.staging, COLLECTIONS.production);
   assert.equal(pickEnvironment(cfg, 'localhost'), null);
@@ -501,6 +503,61 @@ test('release step: latest twins are skipped, failures are reported (never throw
   assert.equal((await checkConsistency(ts, storage, { collection: 'c', policy })).ok, true);
 });
 
+test('search-export copies what the VM gate indexes and checks from, laid out as the bucket; the gate indexes the copy as it would the bucket', async () => {
+  const storage = new FsStorage(tmp());
+  const deployments = [
+    { space: 'identity-server', segment: 'latest', edition: '7.3.0', release: '7.3.0-docs.1', pages: ['', 'guides/mfa/'] },
+    { space: 'identity-server', segment: '7.3.0', edition: '7.3.0', release: '7.3.0-docs.1', pages: ['', 'guides/mfa/'] },
+    { space: 'identity-server', segment: '7.2.0', edition: '7.2.0', release: '7.2.0-docs.1', pages: ['', 'install/'] },
+  ];
+  for (const d of deployments) await publishRelease(storage, fakeBuild(d.edition, d.segment, d.pages), { ...d, tag: d.release });
+  await flip(storage, { environment: 'staging', policy, deployments });
+  await storage.put(COMPOSED_KEY, JSON.stringify(policy));
+
+  const out = tmp();
+  const one = await exportSearchInputs(storage, out, { deployments: [deployments[0], deployments[1]] });
+  assert.deepEqual(one.deployments, ['identity-server/7.3.0=7.3.0-docs.1'], '/latest/ is never indexed, so never copied');
+  const files = (dir) => fs.readdirSync(dir, { recursive: true }).filter((f) => fs.statSync(path.join(dir, f)).isFile()).sort();
+  assert.deepEqual(files(out), [
+    '_platform/composed.json', '_platform/state.json',
+    '_releases/identity-server/7.3.0/7.3.0-docs.1/_platform/edition.json',
+    '_releases/identity-server/7.3.0/7.3.0-docs.1/_platform/pages.json',
+    '_releases/identity-server/7.3.0/7.3.0-docs.1/_platform/search-records.json',
+  ].map((f) => f.split('/').join(path.sep)), 'only the three files search reads, never the pages');
+
+  // No list: every live deployment, for the consistency check.
+  const all = tmp();
+  assert.deepEqual((await exportSearchInputs(storage, all)).deployments, ['identity-server/7.2.0=7.2.0-docs.1', 'identity-server/7.3.0=7.3.0-docs.1']);
+  const copy = new FsStorage(all);
+  const ts = fakeTypesense();
+  const r = await indexReleases(ts, copy, { collection: 'c', policy, deployments: deployments.slice(1), delayMs: 1 });
+  assert.deepEqual(r.failures, []);
+  assert.equal((await checkConsistency(ts, copy, { collection: 'c', policy })).ok, true);
+  await assert.rejects(exportSearchInputs(storage, tmp(), { deployments: [{ space: 'identity-server', segment: '7.1.0', release: 'nope' }] }), /no _releases\/identity-server\/7.1.0\/nope\/_platform\/edition.json/);
+});
+
+test('search-setup with a parent key from the environment makes it once and never prints it; search-key scopes from it', async (t) => {
+  const { execFile } = await import('node:child_process');
+  const ts = await fakeTypesenseServer();
+  t.after(ts.close);
+  const parent = 'vmparent0123456789abcdef0123456789abcdef';
+  const cli = (...args) => new Promise((resolve) => {
+    execFile(process.execPath, [path.join(root, 'bin', 'wso2-release.mjs'), ...args], {
+      env: { ...process.env, TYPESENSE_URL: ts.url, TYPESENSE_ADMIN_KEY: 'admin', TYPESENSE_SEARCH_PARENT_KEY: parent }, encoding: 'utf8',
+    }, (err, stdout, stderr) => resolve({ code: err ? err.code : 0, stdout, stderr }));
+  });
+  for (let i = 0; i < 2; i += 1) {
+    const r = await cli('search-setup', '--env', 'staging');
+    assert.equal(r.code, 0, r.stderr);
+    assert.ok(!`${r.stdout}${r.stderr}`.includes(parent), 'the parent value is never printed');
+    assert.match(r.stdout, /search-only parent key \d+ \(vmpa…\) from TYPESENSE_SEARCH_PARENT_KEY/);
+  }
+  assert.deepEqual(ts.keys.map((k) => k.value), [parent], 'made once, with the value the VM keeps');
+  const key = await cli('search-key');
+  assert.equal(key.code, 0, key.stderr);
+  assert.equal(key.stdout.trim(), scopedSearchKey(parent, {}));
+});
+
 test('a family Cloud tree indexes and is checked per group: its own pages and each Cloud part; part pages filed under the family are drift', async () => {
   const storage = new FsStorage(tmp());
   const dir = tmp();
@@ -572,12 +629,12 @@ test('release workflows run the search steps and never block on them', () => {
   const s6 = step('finalize-staging', 'Staging search index (step 6)');
   assert.ok(names.indexOf('Staging crawl gate (step 5)') < names.indexOf('Staging search index (step 6)'));
   assert.equal(s6['continue-on-error'], true);
-  // New releases and, after a withdrawal, the deployments flipped back.
-  assert.match(s6.run, /search-index --env staging --storage "\$STAGING_STORAGE" --deploy "\$FLIP \$FLIP_BACK"/);
-  assert.equal(s6.env.TYPESENSE_ADMIN_KEY, '${{ secrets.TYPESENSE_ADMIN_KEY }}');
+  // New releases and, after a withdrawal, the deployments flipped back, through
+  // the search host's gate (test/vm-search.test.mjs has the rest).
+  assert.match(s6.run, /search-via-gate\.sh index --storage "\$STAGING_STORAGE" --deploy "\$FLIP \$FLIP_BACK"/);
   const s8 = step('promote', 'Production search index (step 8)');
   assert.equal(s8['continue-on-error'], true);
-  assert.match(s8.run, /--env production/);
+  assert.match(s8.run, /--storage "\$PRODUCTION_STORAGE"/);
   const weekly = wf('search-consistency.yml');
   assert.ok(weekly.on.schedule[0].cron);
   assert.deepEqual(weekly.jobs.check.strategy.matrix.include.map((m) => m.env), ['staging', 'production']);
