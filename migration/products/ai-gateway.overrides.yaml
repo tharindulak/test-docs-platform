@@ -2,12 +2,8 @@
 # legacy-broken links the converter accepts, each with its reason (paths are under en/). Proposed by
 # `node migration/overrides.mjs suggest ai-gateway ...` from the run reports of every
 # branch, then reviewed.
-patches:
-  - file: docs/cloud/ai-gateway/llm/quick-start-guide.md
-    find: '](./llm/guardrails/aws-bedrock-guardrail/)'
-    replace: ']({{base_path}}/cloud/ai-gateway/llm/guardrails/aws-bedrock-guardrail/)'
-    editions: [cloud]
-    why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+# The quick-start guardrail link patch was dropped on 2026-10-28: upstream fixed the link (e9987cde).
+patches: []
 accepted:
   - page: ai-gateway/1.2.0/README.md
     href: gateway-controller-management-api/

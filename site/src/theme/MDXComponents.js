@@ -6,6 +6,7 @@ import DocsLink from '@site/src/components/DocsLink';
 import FileLink from '@site/src/components/FileLink';
 import EditionMarker from '@site/src/components/EditionMarker';
 import SelfHostedAddition from '@site/src/components/SelfHostedAddition';
+import ThemedImage from '@site/src/components/ThemedImage';
 import ApiComponents from '@site/src/components/api';
 import PageActions from '@site/src/components/PageActions';
 import LayoutComponents from '@site/src/components/layouts';
@@ -17,6 +18,7 @@ export default {
   DocsLink,
   EditionMarker,
   SelfHostedAddition,
+  ThemedImage,
   ...ApiComponents,
   ...LayoutComponents,
   PageActions,

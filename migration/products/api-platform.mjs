@@ -94,6 +94,9 @@ export default {
     'API Manager': { folder: 'concepts/api-manager' },
     'API Platform Samples': { folder: 'reference/samples' },
     Tools: { folder: 'reference/tools' },
+    // Site-wide pages upstream added to the top level (2026-10-28).
+    FAQ: { page: 'reference/faq' },
+    Glossary: { page: 'reference/glossary' },
   },
   sectionFolders: {
     'Introduction > Quick Start Guide': 'get-started/quick-start-guide',

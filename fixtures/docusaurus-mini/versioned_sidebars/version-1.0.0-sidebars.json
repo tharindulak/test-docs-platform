@@ -1,0 +1,24 @@
+{
+  "mainSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "link": { "type": "doc", "id": "get-started/introduction" },
+      "items": ["get-started/install"]
+    },
+    {
+      "type": "category",
+      "label": "Develop",
+      "link": { "type": "doc", "id": "develop/develop" },
+      "items": [
+        { "type": "category", "label": "Services", "items": [{ "type": "doc", "id": "develop/http-service", "label": "HTTP Service" }] }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Connectors",
+      "link": { "type": "doc", "id": "connectors/overview" },
+      "items": []
+    }
+  ]
+}

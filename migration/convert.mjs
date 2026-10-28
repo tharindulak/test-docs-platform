@@ -12,12 +12,17 @@
 // version as folders (products/ai-gateway.mjs, api-platform.mjs) links to its
 // sibling Doc spaces through their redirects.yaml in <out>, so convert each
 // once more after the first pass.
+// A product read from a Docusaurus site (`source: 'docusaurus'` in its
+// config, products/integrator.mjs) takes --source <site> (the directory with
+// docs/, or a checkout with the site at the config's sourceRoot); --edition
+// next reads docs/, a version reads versioned_docs/version-<v>/.
 // Exit code 1 when any page fails the MDX compile check.
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { convertProduct } from './lib/run.mjs';
 import { convertFamily } from './lib/family.mjs';
+import { convertDocusaurus, siteDirOf } from './lib/docusaurus-run.mjs';
 
 const { values: o, positionals } = parseArgs({
   allowPositionals: true,
@@ -45,7 +50,9 @@ const outDir = path.join(path.resolve(o.out), config.slug);
 const t0 = Date.now();
 // A family-level Doc space with an `overview` writes only that overview
 // (lib/family.mjs); one with pages of its own converts like a product.
-const { summary } = config.kind === 'family' && config.overview
+const { summary } = config.source === 'docusaurus'
+  ? await convertDocusaurus({ config, siteDir: siteDirOf(sourceDir, config), outDir, edition, sourceRef, compile: !o['no-compile'], log: (m) => console.log(m) })
+  : config.kind === 'family' && config.overview
   ? await convertFamily({ config, sourceRoot: path.join(sourceDir, config.sourceRoot), repoDir: path.resolve(o.out), sourceRef, compile: !o['no-compile'], log: (m) => console.log(m) })
   : await convertProduct({
     config,

@@ -24,6 +24,7 @@ import { searchConfigFromEnv } from '../lib/search/environments.mjs';
 import remarkApiReference from '../plugins/remark-api-reference.mjs';
 import remarkPageActions from '../plugins/remark-page-actions.mjs';
 import remarkLayouts from '../plugins/remark-layouts.mjs';
+import remarkThemedImage from '../plugins/remark-themed-image.mjs';
 import { layoutFrontMatter } from '../lib/layouts.mjs';
 import { apiPageFrontMatter, apiSidebarItems } from '../lib/api-layout.mjs';
 import siteSource from '../plugins/site-source.mjs';
@@ -82,6 +83,8 @@ const remarkFor = (r, v, routeBase = '', additions = null) => [
   [remarkLayouts, { edition, docsDir: r.docsDir }],
   [remarkDocsLinks, { policy, host: linkHost }],
   [remarkApiReference, { docsDir: r.docsDir, edition, vars: v, routeBase, additions }],
+  // <ThemedImage light dark>: relative paths become bundled images.
+  remarkThemedImage,
   remarkPageActions,
 ];
 const additions = landing ? null : additionsOf(repo, baseUrl);

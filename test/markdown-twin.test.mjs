@@ -241,6 +241,23 @@ test('docs: links and DocCardList', () => {
   assert.match(md, /- \[A\]\(https:\/\/docs\.wso2\.com\/x\/a\.md\): About A/);
 });
 
+test('<ThemedImage light dark alt> keeps the light image; the theme\'s sources form too', () => {
+  const md = twin({ 'page.mdx': 'Before.\n\n<ThemedImage light="./img/flow.png" dark="./img/flow-dark.png" alt="The flow" />\n\nInline <ThemedImage light="../assets/icon.png" dark="../assets/icon-dark.png" alt="Icon" /> text.\n' });
+  assert.match(md, /Before\.\n\n!\[The flow\]\(https:\/\/docs\.wso2\.com\/x\/assets\/flow\.png\)\n\nInline !\[Icon\]\(https:\/\/docs\.wso2\.com\/x\/assets\/icon\.png\) text\./);
+  assert.doesNotMatch(md, /dark/);
+  const legacy = twin({ 'page.mdx': "import ThemedImage from '@theme/ThemedImage';\n\n<ThemedImage sources={{ light: '/img/a.png', dark: '/img/a-dark.png' }} alt=\"A\" />\n" });
+  assert.match(legacy, /!\[A\]\(https:\/\/docs\.wso2\.com\/x\/assets\/a\.png\)/);
+  // The built page holds both images, light first: the dark one is matched
+  // too, so a later image with the same alt text gets its own.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-twin-'));
+  fs.writeFileSync(path.join(dir, 'page.mdx'), '<ThemedImage light="./a.png" dark="./a-dark.png" alt="Step" />\n\n<ThemedImage light="./b.png" dark="./b-dark.png" alt="Step" />\n');
+  const html = '<article><img src="/x/assets/images/a-1.png" alt="Step" class="themedComponent--light"><img src="/x/assets/images/a-dark-2.png" alt="Step" class="themedComponent--dark">'
+    + '<img src="/x/assets/images/b-3.png" alt="Step"><img src="/x/assets/images/b-dark-4.png" alt="Step"></article>';
+  const ctx = { resolveLink: (u) => u, resolveImage: imageMatcher(html, 'https://docs.wso2.com'), siblingPages: () => [] };
+  const out = printMarkdown(exportPageTree(path.join(dir, 'page.mdx'), { edition: editionFromId('7.3.0'), vars: { id: '7.3.0' }, policy, linkHost: 'https://docs.wso2.com', docsDir: dir }, ctx));
+  assert.match(out, /!\[Step\]\(https:\/\/docs\.wso2\.com\/x\/assets\/images\/a-1\.png\)\n\n!\[Step\]\(https:\/\/docs\.wso2\.com\/x\/assets\/images\/b-3\.png\)/);
+});
+
 test('a component without a Markdown form fails the export', () => {
   assert.throws(() => twin({ 'page.mdx': 'Text.\n\n<FancyWidget kind="x" />\n' }), /<FancyWidget> has no Markdown form; declare one in lib\/markdown-forms\.mjs/);
   assert.throws(() => twin({ 'page.mdx': 'Total: {1 + 1}\n' }), /expression \{1 \+ 1\} has no Markdown form/);
@@ -363,4 +380,9 @@ test('images match the built <img> tags, inlined small images included', () => {
   assert.equal(match('../img/big.png', ''), 'https://docs.wso2.com/x/assets/images/big-cd34.png');
   assert.equal(match('../img/another-small.png', ''), null);
   assert.equal(match('../img/missing.png', ''), '../img/missing.png', 'no <img> left: unchanged, so the twin check reports it');
+  // An apostrophe in the alt text: Docusaurus writes it as &#39; (and an
+  // inlined SVG has no file name to match by).
+  const apos = imageMatcher('<article><img alt="The day&amp;#39;s orders" src="data:image/svg+xml;base64,AAA"><img alt="It&#x27;s &quot;on&quot;" src="/x/assets/images/b-1.png"></article>', 'https://docs.wso2.com');
+  assert.equal(apos("../img/architecture.svg", "The day's orders"), null);
+  assert.equal(apos('../img/other.png', 'It\'s "on"'), 'https://docs.wso2.com/x/assets/images/b-1.png');
 });

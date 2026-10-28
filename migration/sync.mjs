@@ -12,12 +12,16 @@
 // from main; there, only <slug>/ may change, and the run stops otherwise.
 // A missing main starts fresh (an orphan branch), so a repo can be
 // regenerated in the new layout next to its old branches.
+// A product read from a Docusaurus site (products/integrator.mjs) takes
+// --source <site>: main converts docs/ (`next`), a release branch the
+// version's versioned_docs/ (convert.mjs).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { convertProduct } from './lib/run.mjs';
 import { convertFamily } from './lib/family.mjs';
+import { convertDocusaurus, siteDirOf } from './lib/docusaurus-run.mjs';
 import { docSpaceDirs, editionForBranch, outsideReleaseDir, parseBranch, writeRepoRoot } from '../lib/content-repo.mjs';
 
 const { values: o, positionals } = parseArgs({
@@ -69,7 +73,9 @@ const compile = !o['no-compile'];
 const log = (m) => console.log(m);
 // A family-level Doc space with an `overview` writes only that overview
 // (lib/family.mjs); one with pages of its own converts like a product.
-const { summary } = config.kind === 'family' && config.overview
+const { summary } = config.source === 'docusaurus'
+  ? await convertDocusaurus({ config, siteDir: siteDirOf(sourceDir, config), outDir: path.join(repo, slug), edition, sourceRef, compile, log })
+  : config.kind === 'family' && config.overview
   ? await convertFamily({ config, sourceRoot: path.join(sourceDir, config.sourceRoot), repoDir: repo, sourceRef, compile, log })
   : await convertProduct({
     config, sourceRoot: path.join(sourceDir, config.sourceRoot), outDir: path.join(repo, slug), edition,

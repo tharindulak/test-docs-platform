@@ -126,6 +126,17 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
     assert.ok(!c.has('partials/sign-in-options') && !s.has('sign-in-options'), 'a partial is never a page');
   });
 
+  await t.test('<ThemedImage light dark alt>: both images bundled, one per theme; the twin keeps the light one', () => {
+    const imgs = [...s.html('guides/mfa').matchAll(/<img [^>]*alt="Second-factor options in each theme"[^>]*>/g)].map((m) => m[0]);
+    assert.equal(imgs.length, 2);
+    assert.match(imgs[0], /src="\/identity-server\/7\.3\.0\/assets\/images\/mfa-options-light-[0-9a-f]+\.png"/);
+    assert.match(imgs[0], /themedComponent--light/);
+    assert.match(imgs[1], /src="\/identity-server\/7\.3\.0\/assets\/images\/mfa-options-dark-[0-9a-f]+\.png"/);
+    assert.match(imgs[1], /themedComponent--dark/);
+    assert.match(s.text('guides/mfa.md'), /!\[Second-factor options in each theme\]\(https:\/\/docs\.wso2\.com\/identity-server\/7\.3\.0\/assets\/images\/mfa-options-light-[0-9a-f]+\.png\)/);
+    assert.doesNotMatch(s.text('guides/mfa.md'), /mfa-options-dark|ThemedImage/);
+  });
+
   await t.test('page-level markers drop pages', () => {
     assert.ok(c.has('guides/cloud-billing') && !s.has('guides/cloud-billing'));
     assert.ok(c.has('guides/agent-identities') && !s.has('guides/agent-identities'));

@@ -49,12 +49,14 @@ environments: [staging, production]
 sections:
   - { id: api-platform, in: api-platform }
   - { id: identity-platform, in: identity-platform }
+  - { id: integration-platform, in: integration-platform }
 
 # Where the Doc space manifests are: each repo's main line, at
 # <path>/<slug>/docspace.yaml.
 contentRepos:
   - repo: tharindulak/docs-api-platform
   - repo: tharindulak/docs-is
+  - repo: tharindulak/docs-integrator
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards
@@ -99,11 +101,6 @@ notYetOnWso2Docs:
     model: cloud-only
     formerNames: [Devant]
     legacyUrl: https://wso2.com/integration-platform/docs/saas/
-  integrator:
-    displayName: Integrator
-    in: integration-platform
-    model: versions-only
-    legacyUrl: https://wso2.com/integration-platform/docs/integrator/
   # On the Integrator site today ("ICP 2.1.0" in its menu).
   integration-control-plane:
     displayName: Integration Control Plane

@@ -23,6 +23,7 @@ What the spec has not decided, and where the code on `main` contradicts a decide
 | **Human items**: writer sign-off on samples, the three-writer walkthrough, the GitHub steps of onboarding (repo, secrets, rulesets), the Platform release's version bump and tag, the npm trusted publisher for `@wso2/docs` and the `npm` environment, extension-proposal review. | authoring-and-preview, releases-and-deployments | [N23] [N24] [F34] |
 | **Pilot-time actions**: agree with the `identity-platform-cloud` team that the Identity Platform Doc spaces supersede their build; raise the five Oxygen UI fixes upstream. | chrome-and-version-switching | [F13] [F29] |
 | **Docs bundles and VM hosting** (map [Docs bundles and VM hosting](../.scratch/wso2-docs-bundles/map.md), charted 2026-10-27): decided; staging is on Cloudflare and search on the 141 VM, decided without the VM's facts, which `setup.sh check` verifies before any change (see below). | releases-and-deployments, edge-and-hosting, search, repo-structure | [B-map] |
+| **Redirects on Cloudflare's free plan** (deferred by the user, 2026-10-28): Workers KV allows about 1,000 writes a day, and Identity Server alone needs 2,278 (4,629 entries in all); the redirect step sends them as one bulk call, which the free plan refuses whole. Options: Workers Paid, a write cap per run (`--max-writes`) catching up over days, or one KV value or R2 file per table. Until decided, a release's flip succeeds but its redirects, crawl gate, search step and GC do not run; search is repaired with the consistency check. | edge-and-hosting, releases-and-deployments | [B17] |
 | **"Try it" for Cloud API pages** once sign-in exists; **operation-level Edition markers** in specs. Deferred. | extension-points | [F20] |
 
 ## Code that contradicts the spec
@@ -61,3 +62,4 @@ Each is a bug against the rule named, unless the user changes the rule.
 [B-map]: ../.scratch/wso2-docs-bundles/map.md
 [B03]: ../.scratch/wso2-docs-bundles/issues/03-reusable-bundle-workflow-spec.md
 [B06]: ../.scratch/wso2-docs-bundles/issues/06-vm-hosting-spec.md
+[B17]: ../.scratch/wso2-docs-bundles/issues/17-identity-server-on-the-proof.md
