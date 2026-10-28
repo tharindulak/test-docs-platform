@@ -11,3 +11,9 @@ editions:
       sha256: 06b5bf188b9d8afaaaf92b7e9a1afe160a3d459ad7ae100bf6dc16b80ebd8293
       sourceCommit: 2421375b5031dc6c2fb435819cf0d419ab635a57
       acceptedAt: "2026-10-28T17:45:12.772Z"
+  5.0.0:
+    - tag: integrator/5.0.0-docs.1
+      asset: integrator-5.0.0-docs.1.docs.zip
+      sha256: d03230e86b8e8fb4822ed28f260c6d1df4fc7eb5e22176e428e3ec1bf01252aa
+      sourceCommit: 892edc8d73703a13841243596eba59946c5540aa
+      acceptedAt: "2026-10-28T18:06:38.667Z"
