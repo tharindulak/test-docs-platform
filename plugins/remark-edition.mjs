@@ -16,6 +16,7 @@ import matter from 'gray-matter';
 import {
   describeMarker, editionFromId, isSelfHostedAddition, markerFromFrontMatter, matches, pageShows, validateMarker, validateVariants,
 } from '../lib/edition.mjs';
+import { cloudLinkRewriter } from '../lib/cloud-links.mjs';
 
 const VAR_EXPRESSION = /^\s*edition\.([A-Za-z_]\w*)\s*$/;
 const VAR_IN_CODE = /\{edition\.([A-Za-z_]\w*)\}/g;
@@ -64,9 +65,12 @@ function label(additions, { page = false, inline = false, children = [] } = {}) 
 }
 
 // `additions` (lib/content.mjs additionsFor, plus the docs instance's base
-// URL) is set for a Cloud build whose Doc space has a newest release.
-export default function remarkEdition({ edition, vars, showMarkers = false, substituteCode = true, additions = null }) {
+// URL) is set for a Cloud build whose Doc space has a newest release. Inside
+// an addition, a link Cloud cannot resolve goes to the same page under
+// /latest/ (lib/cloud-links.mjs); `cloudLinks: false` leaves links alone.
+export default function remarkEdition({ edition, vars, showMarkers = false, substituteCode = true, additions = null, cloudLinks = true }) {
   const newest = additions?.newestRelease ?? null;
+  const rewriteLink = cloudLinks && !showMarkers ? cloudLinkRewriter({ edition, vars, additions }) : () => null;
   // How the newest release reads a Self-hosted addition shown in Cloud.
   const release = newest ? editionFromId(newest) : null;
   return (tree, file) => {
@@ -124,6 +128,7 @@ export default function remarkEdition({ edition, vars, showMarkers = false, subs
           }
         }
         if (substituteCode && (node.type === 'code' || node.type === 'inlineCode')) node.value = substitute(node.value);
+        if (ctx.addition && node.type === 'link') node.url = rewriteLink(node.url, file.path) ?? node.url;
         transform(node, ctx);
         out.push(node);
       }

@@ -15,6 +15,9 @@ import { similarity, words } from '../migration/lib/verify.mjs';
 import { convertProduct, generatedDescription, nearestAnchor } from '../migration/lib/run.mjs';
 import { loadOverrides, SourceOverrides } from '../migration/lib/overrides.mjs';
 import apim from '../migration/products/api-manager.mjs';
+import { loadContentRepo } from '../lib/content.mjs';
+import { loadContext } from '../lib/check/content.mjs';
+import { checkContentSafety } from '../lib/check/safety.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -104,6 +107,34 @@ test('links, lightbox images and image styles', () => {
   assert.match(out, /<img src=\{require\("..\/..\/assets\/img\/a.png"\).default\} alt="Shot" style=\{\{width: "50%"\}\} \/>/);
   assert.doesNotMatch(out, /\]\(\.\.\/\.\.\/assets\/img\/a\.png\)/, 'the lightbox link around the image is dropped');
   assert.match(out, /\[https:\/\/wso2\.com\]\(https:\/\/wso2\.com\)/);
+});
+
+test('YouTube embeds are written from youtube-nocookie.com, path and query kept, and pass content-safety', () => {
+  const { out } = convert([
+    '<iframe width="560" height="315" src="https://www.youtube.com/embed/ZnWnDZJ_c4o?rel=0&start=30" title="A" allowfullscreen></iframe>',
+    '',
+    '<div class="video"><iframe src="https://youtube.com/embed/abc_123" title="B"></iframe></div>',
+    '',
+    '<iframe src="https://youtu.be/xyz-9?t=5" title="C"></iframe>',
+    '',
+    '<iframe src="//www.youtube.com/embed/def" title="D"></iframe>',
+    '',
+    '<iframe src="https://www.youtube-nocookie.com/embed/ghi" title="E"></iframe>',
+    '',
+  ].join('\n'));
+  const srcs = [...out.matchAll(/<iframe [^>]*src="([^"]*)"/g)].map((m) => m[1]);
+  assert.deepEqual(srcs, [
+    'https://www.youtube-nocookie.com/embed/ZnWnDZJ_c4o?rel=0&start=30',
+    'https://www.youtube-nocookie.com/embed/abc_123',
+    'https://www.youtube-nocookie.com/embed/xyz-9?t=5',
+    'https://www.youtube-nocookie.com/embed/def',
+    'https://www.youtube-nocookie.com/embed/ghi',
+  ]);
+  // The content-safety check accepts the converted page.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-embeds-'));
+  fs.cpSync(path.join(here, '..', 'fixtures', 'stub-repo', 'identity-server'), dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'docs', 'videos.mdx'), `---\ntitle: Videos\ndescription: Product videos.\ntype: concept\n---\n\n${out}\n`);
+  assert.deepEqual(checkContentSafety(loadContext({ repo: loadContentRepo(dir), base: null })), []);
 });
 
 test('raw HTML: admonition divs, simple and complex tables, anchors', () => {

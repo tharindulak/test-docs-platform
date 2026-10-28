@@ -54,6 +54,7 @@ sections:
 # <path>/<slug>/docspace.yaml.
 contentRepos:
   - repo: tharindulak/docs-api-platform
+  - repo: tharindulak/docs-is
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards

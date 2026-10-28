@@ -31,7 +31,7 @@ Each is a bug against the rule named, unless the user changes the rule.
 
 | Rule | Code today | Source |
 |---|---|---|
-| [Staging on Cloudflare and VM search](edge-and-hosting.md#vm-search): docs-platform's Worker at `wso2-docs-site.tharinduj.workers.dev`; Typesense on the 141 VM with its admin key kept there | Deployed by hand 2026-10-27 (no pipeline from bundles to Cloudflare yet). The VM search kit and gate are built (`hosting/vm/`; CI indexes through the gate) but not yet applied on the VM. Built by the map's build tasks. | [B06] |
+| [Staging on Cloudflare and VM search](edge-and-hosting.md#vm-search): the Pilot's staging is `wso2-docs-site.tharinduj.workers.dev` with search on the 141 VM | Built, applied and proven on the forks (2026-10-28). `release.yml` and `manifests.yml` on `map/docs-bundles` still name the interim `s3://docs-staging` and `docs-staging.wso2.com`; the proof repo sets the Pilot's values. Moving them to `wso2/docs-platform` is the cutover. | [B06] |
 
 [Close the spec's code gaps][N25] fixed every earlier row and built the six items the user decided on 2026-10-27. The 301 from an unmapped old page moved to the porting and cutover effort.
 

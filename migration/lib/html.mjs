@@ -39,6 +39,15 @@ const safeLineStart = (s) => s
   .replace(/^(\s*)([#>+=]|[-*](?=\s)|-{3,})/, '$1\\$2')
   .replace(/^(\s*\d+)([.)])(?=\s)/, '$1\\$2');
 
+// A YouTube embed as YouTube's privacy-enhanced mode, the one video host the
+// content-safety check allows (standards/iframe-hosts.yaml): youtube.com/embed/
+// and youtu.be/ links become https://www.youtube-nocookie.com/embed/…, with
+// their path and query. Other URLs stay as they are.
+export function youtubeNocookie(src) {
+  const m = /^(?:https?:)?\/\/(?:(?:www\.|m\.)?youtube\.com\/embed\/|youtu\.be\/)([^]*)$/i.exec(String(src).trim());
+  return m ? `https://www.youtube-nocookie.com/embed/${m[1]}` : src;
+}
+
 export function htmlToMdx(html, ctx) {
   const frag = parseFragment(html);
   return new HtmlWriter(ctx).blocks(frag.childNodes).join('\n\n').split('\n');
@@ -237,6 +246,7 @@ class HtmlWriter {
 
   mediaElement(n) {
     const a = attrsOf(n);
+    if (n.tagName === 'iframe' && a.src) a.src = youtubeNocookie(a.src);
     const attrs = [];
     for (const [k, v] of Object.entries(a)) {
       if ((k === 'src' || k === 'poster' || k === 'data') && v && !/^[a-z]+:\/\//i.test(v)) {

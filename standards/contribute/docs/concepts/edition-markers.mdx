@@ -25,7 +25,7 @@ The main line of a Content repository holds the Cloud docs. When a self-hosted v
 
 Self-hosted-only content comes in two kinds, and Cloud treats them differently:
 
-- **A Self-hosted addition** has no Cloud counterpart, such as a page on clustering. Cloud shows it too, labelled **Self-hosted** with a link to see it in the newest release: a box around a block, and a badge under a page's title. In Cloud it reads as the newest release reads it, so its `{edition.*}` variables take the `self-hosted:` values, and `{edition.version}` is the newest release. Content in no release yet, such as `selfHostedFrom="next"`, stays out of Cloud. A Self-hosted-only page shown in Cloud has its canonical on the same page under `/latest/`.
+- **A Self-hosted addition** has no Cloud counterpart, such as a page on clustering. Cloud shows it too, labelled **Self-hosted** with a link to see it in the newest release: a box around a block, and a badge under a page's title. In Cloud it reads as the newest release reads it, so its `{edition.*}` variables take the `self-hosted:` values, and `{edition.version}` is the newest release. Content in no release yet, such as `selfHostedFrom="next"`, stays out of Cloud. A Self-hosted-only page shown in Cloud has its canonical on the same page under `/latest/`. Write links in it as usual: a link Cloud cannot follow, to a page Cloud leaves out or to a heading only the Self-hosted form of a `<Variants>` has, goes to the same page under `/latest/` in Cloud.
 - **An Edition variant** is one block written once for Cloud and once for Self-hosted, such as the same step in the Console and in the Management Console. Wrap the two forms in `<Variants>`, and each Edition, Cloud included, shows only its own form:
 
   ```mdx

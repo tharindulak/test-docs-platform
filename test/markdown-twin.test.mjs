@@ -31,7 +31,7 @@ function twin(files, { page = 'page.mdx', edition = '7.3.0', vars = { productNam
     resolveImage: (url) => `https://docs.wso2.com/x/assets/${path.basename(url)}`,
     siblingPages: () => [{ url: 'https://docs.wso2.com/x/a.md', title: 'A', description: 'About A' }],
   };
-  const opts = { edition: editionFromId(edition), vars: { id: edition, ...vars }, policy, linkHost: 'https://docs.wso2.com', docsDir: dir, additions };
+  const opts = { edition: editionFromId(edition), vars: { id: edition, ...vars }, policy, linkHost: 'https://docs.wso2.com', docsDir: dir, additions: additions && { ...additions, docsDir: dir } };
   return printMarkdown(exportPageTree(path.join(dir, page), opts, ctx));
 }
 
@@ -130,7 +130,7 @@ Self-hosted partial text.
 
 // Cloud of a Doc space whose newest release is 7.3.0 (lib/content.mjs additionsFor).
 const additions = {
-  newestRelease: '7.3.0', name: 'Identity Server 7.3.0', latest: '/identity-server/latest/',
+  newestRelease: '7.3.0', name: 'Identity Server 7.3.0', latest: '/identity-server/latest/', slug: 'identity-server',
   vars: { id: '7.3.0', version: '7.3.0', productName: 'WSO2 Identity Server', consoleUrl: 'https://localhost:9443/console' },
 };
 const cloudVars = { version: 'cloud', productName: 'WSO2 Identity Platform', consoleUrl: 'https://console.asgardeo.io' };
@@ -167,6 +167,62 @@ Port <Edition only="self-hosted">9443</Edition>.
   assert.equal(twin({ 'page.mdx': page }), 'Open WSO2 Identity Server.\n\nSelf-hosted form.\n\nTune WSO2 Identity Server 7.3.0 at `https://localhost:9443/console`.\n\nPort 9443.\n');
   // A family Cloud has no newest release: no additions.
   assert.equal(twin({ 'page.mdx': page }, { edition: 'cloud', vars: cloudVars }), 'Open WSO2 Identity Platform.\n\nCloud form.\n\nPort .\n');
+});
+
+test('Cloud: a link inside a Self-hosted addition that Cloud cannot resolve goes to the same page under /latest/', () => {
+  // As Identity Server's fido-attestation links to reference/apis#oauth-based-authentication,
+  // a heading only the Self-hosted form of a <Variants> has.
+  const files = {
+    'reference/apis/index.mdx': `---
+title: APIs
+---
+
+<Variants>
+<Edition only="cloud">
+## Get an access token
+</Edition>
+<Edition only="self-hosted">
+## OAuth-based authentication
+
+### Access the API {#access-the-api_1}
+</Edition>
+</Variants>
+
+## Best practices
+`,
+    'guides/licensing.mdx': '---\ntitle: Licensing\neditions: self-hosted\ncloudCounterpart: guides/billing\n---\n\nLicences.\n',
+    'guides/billing.mdx': '---\ntitle: Billing\neditions: cloud\n---\n\nBilling.\n',
+    'guides/coming.mdx': '---\ntitle: Coming\neditions: self-hosted\nselfHostedFrom: next\n---\n\nSoon.\n',
+    'guides/fido.mdx': `---
+title: FIDO
+editions: self-hosted
+---
+
+[Token](../reference/apis/index.mdx#oauth-based-authentication), [explicit id](../reference/apis/index.mdx#access-the-api_1), [practices](../reference/apis/index.mdx#best-practices), [licensing](licensing.mdx), [billing](billing.mdx), [coming](coming.mdx), [typo](../reference/apis/index.mdx#no-such-heading).
+`,
+    'guides/shared.mdx': `---
+title: Shared
+---
+
+[Token](../reference/apis/index.mdx#oauth-based-authentication).
+
+<Edition only="self-hosted">
+[Token](../reference/apis/index.mdx#oauth-based-authentication) in an addition.
+</Edition>
+`,
+  };
+  const latest = 'https://docs.wso2.com/identity-server/latest';
+  const fido = twin(files, { page: 'guides/fido.mdx', edition: 'cloud', vars: cloudVars, additions });
+  assert.equal(fido, `**Self-hosted only.**\n\n[Token](${latest}/reference/apis/#oauth-based-authentication), [explicit id](${latest}/reference/apis/#access-the-api_1), `
+    + '[practices](https://docs.wso2.com/x/../reference/apis/index.mdx#best-practices), '
+    + `[licensing](${latest}/guides/licensing/), [billing](https://docs.wso2.com/x/billing.mdx), `
+    + '[coming](https://docs.wso2.com/x/coming.mdx), [typo](https://docs.wso2.com/x/../reference/apis/index.mdx#no-such-heading).\n',
+  'links Cloud resolves stay; links the newest release cannot resolve either stay, for the build to report');
+  // On a shared page only the addition block's link changes.
+  assert.equal(twin(files, { page: 'guides/shared.mdx', edition: 'cloud', vars: cloudVars, additions }),
+    `[Token](https://docs.wso2.com/x/../reference/apis/index.mdx#oauth-based-authentication).\n\n**Self-hosted only.**\n\n[Token](${latest}/reference/apis/#oauth-based-authentication) in an addition.\n`);
+  // The newest release itself keeps every link.
+  assert.match(twin(files, { page: 'guides/fido.mdx' }), /^\[Token\]\(https:\/\/docs\.wso2\.com\/x\/\.\.\/reference\/apis\/index\.mdx#oauth-based-authentication\)/);
 });
 
 test('Cloud: a Self-hosted-only page carries the line under its title', () => {

@@ -45,7 +45,7 @@ Bundles are untrusted input, and MDX is code: a page runs in the build and in re
 
 - **Imports only from the component catalogue.** A page may `import` only module ids listed in `standards/components.yaml` (such as `@theme/Tabs`, `@theme/TabItem`) and relative `.mdx` partials inside its Doc space. Every `export` is rejected. [B04]
 - **Expressions are literals.** `{…}` holds only strings, numbers, booleans, arrays and objects of those, and `require("<relative path inside the Doc space>")`, optionally with `.default` (Docusaurus images need it; confirmed by the user 2026-10-27). Other function calls, arrow functions, template literals with expressions and member access are rejected. `{edition.*}` variables are replaced before compile and are not expressions. [B04]
-- **No scripts and no active HTML.** A Doc space holds no `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file. Pages hold no `<script>`, `on*=` attribute, `javascript:` URL or `dangerouslySetInnerHTML`; an `<iframe>` only from the hosts allow-listed in `standards/` (`youtube-nocookie.com` first), with no `srcdoc`, which would show its own HTML in place of the allow-listed page; no `<object>`, `<embed>` or `<frame>`, which would bypass the allow-list. [B04]
+- **No scripts and no active HTML.** A Doc space holds no `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file. Pages hold no `<script>`, `on*=` attribute, `javascript:` URL or `dangerouslySetInnerHTML`; an `<iframe>` only from the hosts allow-listed in `standards/` (`youtube-nocookie.com` first); the converter writes YouTube embeds as `www.youtube-nocookie.com/embed/…` [B17], with no `srcdoc`, which would show its own HTML in place of the allow-listed page; no `<object>`, `<embed>` or `<frame>`, which would bypass the allow-list. [B04]
 - **One blocking check, `content-safety`, runs three times**: in `wso2-docs check` (so pull requests show it), in `wso2-docs bundle`, and at intake on the unpacked bundle, reading files only, since intake cannot rely on a Content repo's own check. It is build-breaking, so the `quality-override` label never overrides it. [B04]
 - **What content needs beyond this goes through an extension proposal**, which adds it to `standards/components.yaml` for every team; there are no per-repo exceptions. [B04]
 
@@ -76,3 +76,4 @@ Bundles are untrusted input, and MDX is code: a page runs in the build and in re
 [N19]: ../.scratch/wso2-docs-navigation/issues/19-extensions.md
 [N25]: ../.scratch/wso2-docs-navigation/issues/25-close-spec-code-gaps.md
 [B04]: ../.scratch/wso2-docs-bundles/issues/04-executable-content-in-bundles.md
+[B17]: ../.scratch/wso2-docs-bundles/issues/17-identity-server-on-the-proof.md

@@ -92,6 +92,19 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
     assert.doesNotMatch(s.text('get-started/quick-start.md'), /Self-hosted only/);
   });
 
+  await t.test('a link inside a Self-hosted addition that Cloud cannot resolve goes to the same page under /latest/', () => {
+    // An anchor only the Self-hosted form of a <Variants> has, and a page Cloud leaves out (it names a Cloud counterpart).
+    const install = c.html('deploy-and-operate/install');
+    assert.match(install, /<a href="https:\/\/docs\.wso2\.com\/identity-server\/latest\/get-started\/quick-start\/#start-the-server" data-docs-link="">start the server<\/a>/);
+    assert.match(install, /<a href="https:\/\/docs\.wso2\.com\/identity-server\/latest\/guides\/server-licensing\/" data-docs-link="">licensing terms<\/a>/);
+    assert.match(install, /href="\/identity-platform\/cloud\/identity-server\/get-started\/quick-start\/#register-an-application">register an application/, 'a link Cloud resolves stays');
+    assert.match(between(c.html('get-started/quick-start'), 'data-self-hosted="block"', '</section>'), /href="https:\/\/docs\.wso2\.com\/identity-server\/latest\/get-started\/quick-start\/#start-the-server"/, 'in an addition block, a same-page anchor');
+    assert.match(c.text('identity-server/deploy-and-operate/install.md'), /\[start the server\]\(https:\/\/docs\.wso2\.com\/identity-server\/latest\/get-started\/quick-start\.md#start-the-server\)/);
+    // The release keeps its own links.
+    assert.match(s.html('deploy-and-operate/install'), /href="\/identity-server\/7\.3\.0\/get-started\/quick-start\/#start-the-server">start the server/);
+    assert.match(s.html('get-started/quick-start'), /href="#start-the-server"[^>]*>start the server/);
+  });
+
   await t.test('hidden headings never reach the table of contents', () => {
     const sq = s.html('get-started/quick-start');
     assert.doesNotMatch(sq, /agent-identities|Agent identities/);
