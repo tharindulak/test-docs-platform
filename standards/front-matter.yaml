@@ -27,6 +27,9 @@ keys:
   selfHostedFrom:
     type: version
     help: The first self-hosted version that has this page, or `next`.
+  cloudCounterpart:
+    type: string
+    help: "Self-hosted-only pages (`editions: self-hosted`): the Cloud page that covers the same task, as its path in docs/, such as `guides/cloud-billing`. The page then stays out of Cloud, and the version dropdown maps the two pages to each other. Without it, Cloud shows the page labelled Self-hosted."
   layout:
     type: enum
     values: [default, overview, catalog, api-reference, complete-guide, sdk, connector]

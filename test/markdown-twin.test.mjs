@@ -20,7 +20,7 @@ import { robotsTxt } from '../worker/src/robots.mjs';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const policy = loadPolicy();
 
-function twin(files, { page = 'page.mdx', edition = '7.3.0', vars = { productName: 'WSO2 Identity Server' } } = {}) {
+function twin(files, { page = 'page.mdx', edition = '7.3.0', vars = { productName: 'WSO2 Identity Server', consoleUrl: 'https://localhost:9443/console', version: '7.3.0' }, additions = null } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-twin-'));
   for (const [rel, body] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
@@ -31,7 +31,7 @@ function twin(files, { page = 'page.mdx', edition = '7.3.0', vars = { productNam
     resolveImage: (url) => `https://docs.wso2.com/x/assets/${path.basename(url)}`,
     siblingPages: () => [{ url: 'https://docs.wso2.com/x/a.md', title: 'A', description: 'About A' }],
   };
-  const opts = { edition: editionFromId(edition), vars: { id: edition, ...vars }, policy, linkHost: 'https://docs.wso2.com', docsDir: dir };
+  const opts = { edition: editionFromId(edition), vars: { id: edition, ...vars }, policy, linkHost: 'https://docs.wso2.com', docsDir: dir, additions };
   return printMarkdown(exportPageTree(path.join(dir, page), opts, ctx));
 }
 
@@ -126,6 +126,57 @@ Self-hosted partial text.
 `,
   });
   assert.equal(md, 'Intro for WSO2 Identity Server.\n\nOpen the console first.\n\nSelf-hosted partial text.\n');
+});
+
+// Cloud of a Doc space whose newest release is 7.3.0 (lib/content.mjs additionsFor).
+const additions = {
+  newestRelease: '7.3.0', name: 'Identity Server 7.3.0', latest: '/identity-server/latest/',
+  vars: { id: '7.3.0', version: '7.3.0', productName: 'WSO2 Identity Server', consoleUrl: 'https://localhost:9443/console' },
+};
+const cloudVars = { version: 'cloud', productName: 'WSO2 Identity Platform', consoleUrl: 'https://console.asgardeo.io' };
+
+test('Cloud: Self-hosted additions are labelled and read as the newest release; Edition variants show Cloud\'s form', () => {
+  const page = `Open {edition.productName}.
+
+<Variants>
+<Edition only="cloud">
+Cloud form.
+</Edition>
+<Edition only="self-hosted">
+Self-hosted form.
+</Edition>
+</Variants>
+
+<Edition only="self-hosted">
+Tune {edition.productName} {edition.version} at \`{edition.consoleUrl}\`.
+
+<Edition only="cloud">
+Never in an addition.
+</Edition>
+</Edition>
+
+<Edition only="self-hosted" selfHostedFrom="next">
+Not in a release yet.
+</Edition>
+
+Port <Edition only="self-hosted">9443</Edition>.
+`;
+  const md = twin({ 'page.mdx': page }, { edition: 'cloud', vars: cloudVars, additions });
+  assert.equal(md, 'Open WSO2 Identity Platform.\n\nCloud form.\n\n**Self-hosted only.**\n\nTune WSO2 Identity Server 7.3.0 at `https://localhost:9443/console`.\n\nPort **Self-hosted only:** 9443.\n');
+  // The same page in 7.3.0: its own form, no label.
+  assert.equal(twin({ 'page.mdx': page }), 'Open WSO2 Identity Server.\n\nSelf-hosted form.\n\nTune WSO2 Identity Server 7.3.0 at `https://localhost:9443/console`.\n\nPort 9443.\n');
+  // A family Cloud has no newest release: no additions.
+  assert.equal(twin({ 'page.mdx': page }, { edition: 'cloud', vars: cloudVars }), 'Open WSO2 Identity Platform.\n\nCloud form.\n\nPort .\n');
+});
+
+test('Cloud: a Self-hosted-only page carries the line under its title', () => {
+  const md = twin({ 'page.mdx': '---\ntitle: Install\neditions: self-hosted\n---\n\n# Install\n\nInstall {edition.productName}.\n' }, { edition: 'cloud', vars: cloudVars, additions });
+  assert.equal(md, '# Install\n\n**Self-hosted only.**\n\nInstall WSO2 Identity Server.\n');
+});
+
+test('<Variants> must hold one Cloud and one Self-hosted form', () => {
+  assert.throws(() => twin({ 'page.mdx': '<Variants>\n<Edition only="cloud">\nA\n</Edition>\n</Variants>\n' }), /exactly one <Edition only="cloud"> and one <Edition only="self-hosted">/);
+  assert.throws(() => twin({ 'page.mdx': '<Variants>\n<Edition only="cloud">\nA\n</Edition>\n\nB\n\n<Edition only="self-hosted">\nC\n</Edition>\n</Variants>\n' }), /and nothing else/);
 });
 
 test('docs: links and DocCardList', () => {

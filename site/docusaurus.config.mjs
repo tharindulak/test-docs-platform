@@ -8,8 +8,10 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import { themes as prismThemes } from 'prism-react-renderer';
-import { editionFromId } from '../lib/edition.mjs';
-import { editionVariables, excludedPages, loadContentRepo, mainBranchFiles, repoPathOf } from '../lib/content.mjs';
+import { editionFromId, isSelfHostedAddition, markerFromFrontMatter } from '../lib/edition.mjs';
+import {
+  additionsFor, cloudCounterparts, editionVariables, excludedPages, loadContentRepo, mainBranchFiles, repoPathOf, showsCloudOnlyContent,
+} from '../lib/content.mjs';
 import { checkoutCommit, cloudPartOf, loadCloudParts, partEditionName, treeSidebars } from '../lib/cloud-tree.mjs';
 import { DEFAULT_POLICY, docSpaceDir, loadPolicy } from '../lib/manifest.mjs';
 import { bakedManifest } from '../lib/release.mjs';
@@ -67,29 +69,37 @@ const latestPagesFile = env.WSO2_DOCS_LATEST_PAGES;
 const latestPages = latestPagesFile ? new Set(JSON.parse(fs.readFileSync(latestPagesFile, 'utf8')).map((p) => p.path)) : null;
 const mainFiles = landing || edition.kind === 'cloud' ? null : mainBranchFiles(repo, env.WSO2_DOCS_MAIN_FILES);
 
-const remarkFor = (r, v, routeBase = '') => [
+// Cloud's Self-hosted additions (lib/content.mjs additionsFor): per docs
+// instance, since each Cloud part has its own newest release.
+const additionsOf = (r, instBase) => {
+  const a = landing ? null : additionsFor(r, edition);
+  return a ? { ...a, base: instBase } : null;
+};
+const remarkFor = (r, v, routeBase = '', additions = null) => [
   // Unversioned spaces have no Edition variables; Contribute shows {edition.*} in code as written.
-  [remarkEdition, { edition, vars: v, showMarkers, substituteCode: !edition.unversioned }],
+  [remarkEdition, { edition, vars: v, showMarkers, substituteCode: !edition.unversioned, additions }],
   // Page layouts (overview cards, catalogs from data files), before docs: links resolve.
   [remarkLayouts, { edition, docsDir: r.docsDir }],
   [remarkDocsLinks, { policy, host: linkHost }],
-  [remarkApiReference, { docsDir: r.docsDir, edition, vars: v, routeBase }],
+  [remarkApiReference, { docsDir: r.docsDir, edition, vars: v, routeBase, additions }],
   remarkPageActions,
 ];
-const remarkPlugins = landing ? [] : remarkFor(repo, vars);
+const additions = landing ? null : additionsOf(repo, baseUrl);
+const remarkPlugins = landing ? [] : remarkFor(repo, vars, '', additions);
 
 // The tree's docs instances: the Doc space's own (`default`), then one per
 // Cloud part, each with its own content, variables and edit-link source.
 const instances = landing ? [] : [
   {
-    id: 'default', slug, repo, vars, docsDir: repo.docsDir, baseUrl, routeBase: '', space, remarkPlugins,
+    id: 'default', slug, repo, vars, docsDir: repo.docsDir, baseUrl, routeBase: '', space, remarkPlugins, additions,
     label: repo.docspace.displayName, editionName: partOf ? partEditionName(repo.docspace) : vars.displayName,
   },
   ...parts.map((p) => {
     const v = editionVariables(p.repo, edition);
+    const a = additionsOf(p.repo, `${baseUrl}${p.routeBasePath}/`);
     return {
       id: p.pluginId, slug: p.slug, repo: p.repo, vars: v, docsDir: p.repo.docsDir, baseUrl: `${baseUrl}${p.routeBasePath}/`, routeBase: p.routeBasePath,
-      space: policy.docSpaces[p.slug], remarkPlugins: remarkFor(p.repo, v, p.routeBasePath), label: p.displayName, editionName: p.editionName,
+      space: policy.docSpaces[p.slug], remarkPlugins: remarkFor(p.repo, v, p.routeBasePath, a), additions: a, label: p.displayName, editionName: p.editionName,
     };
   }),
 ];
@@ -106,7 +116,10 @@ async function parseFrontMatter(params) {
   if (landing) return result;
   result.frontMatter = layoutFrontMatter(apiPageFrontMatter(result.frontMatter));
   const inst = instanceOf(params.filePath);
-  const v = inst?.vars ?? vars;
+  // A Self-hosted-only page shown in Cloud takes the newest release's variables.
+  const a = inst?.additions;
+  const marker = a ? markerFromFrontMatter(result.frontMatter) : null;
+  const v = marker && isSelfHostedAddition(edition, marker, a.newestRelease) ? a.vars : inst?.vars ?? vars;
   // {edition.*} in a title, sidebar label or description (a page whose title
   // names the product), filled per Edition as in the page body.
   for (const key of ['title', 'sidebar_label', 'description']) {
@@ -122,6 +135,8 @@ async function parseFrontMatter(params) {
       result.frontMatter.wso2_edit_url = link.url;
       if (link.note) result.frontMatter.wso2_edit_note = link.note;
     }
+    // The Cloud notice claims the newest features only on a page with Cloud-only content.
+    if (inst.additions && showsCloudOnlyContent(params.filePath)) result.frontMatter.wso2_cloud_content = true;
   }
   return result;
 }
@@ -251,6 +266,8 @@ export default {
         latestEditionId: space?.latest ?? null,
         showMarkers,
         redirects: repo.redirects,
+        // Self-hosted-only pages and the Cloud pages they map to in the version dropdown.
+        cloudCounterparts: edition.kind === 'cloud' ? {} : cloudCounterparts(repo),
         platformVersion: pkg.version,
         // The Cloud parts in this tree: their redirects map under <base>/<part>/.
         parts: instances.slice(1).map((i) => ({ docSpace: i.slug, path: `${i.routeBase}/`, baseUrl: i.baseUrl, editionName: i.editionName, redirects: i.repo.redirects })),
@@ -262,11 +279,11 @@ export default {
       // Markdown twins, llms.txt and llms-full.txt (AI/LLM-friendly docs).
       path.join(platformRoot, 'plugins', 'markdown-export.mjs'),
       {
-        siteUrl, baseUrl, asLatest, latestPages, strict, edition, vars, policy, linkHost,
+        siteUrl, baseUrl, asLatest, latestPages, strict, edition, vars, policy, linkHost, additions,
         docsDir: repo.docsDir, docSpace: slug, docSpaceName: repo.docspace.displayName, editionName: instances[0].editionName,
-        editionId: edition.id, latestEditionId: space?.latest ?? null,
+        editionId: edition.id, latestEditionId: space?.latest ?? null, ...(partOf ? { cloudPartOf: partOf } : {}),
         parts: instances.slice(1).map((i) => ({
-          pluginId: i.id, path: `${i.routeBase}/`, baseUrl: i.baseUrl, docsDir: i.docsDir, vars: i.vars, docSpace: i.slug, docSpaceName: i.label, editionName: i.editionName,
+          pluginId: i.id, path: `${i.routeBase}/`, baseUrl: i.baseUrl, docsDir: i.docsDir, vars: i.vars, additions: i.additions, docSpace: i.slug, docSpaceName: i.label, editionName: i.editionName,
         })),
       },
     ],

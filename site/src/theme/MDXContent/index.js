@@ -20,7 +20,7 @@ export default function MDXContentWrapper(props) {
   if (!doc) return <MDXContent {...props} />;
   return (
     <>
-      <EditionNotices />
+      <EditionNotices cloudContent={doc.frontMatter?.wso2_cloud_content === true} />
       <MDXContent {...props} />
       <PageEnd doc={doc} />
     </>

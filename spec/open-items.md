@@ -31,10 +31,7 @@ Each is a bug against the rule named, unless the user changes the rule.
 
 | Rule | Code today | Source |
 |---|---|---|
-| [Intake](releases-and-deployments.md#intake): the Platform polls Content repo releases, verifies each bundle, records it in `releases/<slug>.yaml` through an auto-merging PR, and releases on the record's change | `docs.yml` publishes each tag's Docs bundle as a GitHub Release, but nothing takes it in: there is no `intake.yml` or `releases/`, and `release.yml`, started by hand, builds from the tagged git tree. Built by the map's build tasks. | [B05] |
-| [Content safety](build-and-quality-checks.md#content-safety): `content-safety` also runs at intake on the unpacked bundle; build jobs hold only their upload credential | `content-safety` runs in `wso2-docs check` and `wso2-docs bundle`, but there is no intake to run it; `release.yml`'s build jobs hold the storage keys that flip. Built by the map's build tasks. | [B04] |
-| [Cloud Edition content](editions-and-versions.md#content-per-edition) and [search's default](search.md#search-scopes): Cloud shows labelled Self-hosted additions, `<Variants>` and `cloudCounterpart`; search opens on This Edition | Cloud drops all Self-hosted-only content (`lib/edition.mjs` `matches`); no `<Variants>`, `cloudCounterpart` or label; the converter writes adjacent alternatives as separate markers; search opens on This Docs section. Built by the map's build tasks. | [B08] |
-| [Staging on Cloudflare and VM search](edge-and-hosting.md#vm-search): docs-platform's Worker at `wso2-docs-site.tharinduj.workers.dev`; Typesense on the 141 VM with its admin key kept there | No VM search kit or gate; staging values are placeholders; the user's Cloudflare token lacks Workers, KV and R2 API permissions (needed: Workers Scripts, Workers KV Storage and R2 edit on the account that owns the address). Built by the map's build tasks. | [B06] |
+| [Staging on Cloudflare and VM search](edge-and-hosting.md#vm-search): docs-platform's Worker at `wso2-docs-site.tharinduj.workers.dev`; Typesense on the 141 VM with its admin key kept there | Deployed by hand 2026-10-27 (no pipeline yet); no VM search kit or gate; Built by the map's build tasks. | [B06] |
 
 [Close the spec's code gaps][N25] fixed every earlier row and built the six items the user decided on 2026-10-27. The 301 from an unmapped old page moved to the porting and cutover effort.
 
@@ -63,7 +60,4 @@ Each is a bug against the rule named, unless the user changes the rule.
 [N25]: ../.scratch/wso2-docs-navigation/issues/25-close-spec-code-gaps.md
 [B-map]: ../.scratch/wso2-docs-bundles/map.md
 [B03]: ../.scratch/wso2-docs-bundles/issues/03-reusable-bundle-workflow-spec.md
-[B05]: ../.scratch/wso2-docs-bundles/issues/05-intake-spec.md
-[B04]: ../.scratch/wso2-docs-bundles/issues/04-executable-content-in-bundles.md
-[B08]: ../.scratch/wso2-docs-bundles/issues/08-cloud-edition-content.md
 [B06]: ../.scratch/wso2-docs-bundles/issues/06-vm-hosting-spec.md

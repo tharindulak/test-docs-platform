@@ -12,7 +12,10 @@ import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import { checkDataFile } from '../lib/data-files.mjs';
 import { tokenize, parse, parseExpr, evalExpr, expandIncludes, JinjaTables, Undefined, printValue } from '../migration/lib/jinja.mjs';
-import { Regions, renderStructured, renderFlat, makeScope, markerFor, markersToJsx, splitBlocks, filterLines } from '../migration/lib/variants.mjs';
+import {
+  Regions, adjacentAlternatives, cloudCounterpartsOf, renderStructured, renderFlat, makeScope, markerFor, markersToJsx, splitBlocks, filterLines, wrapVariants,
+} from '../migration/lib/variants.mjs';
+import { imageOrVariants } from '../migration/lib/mdx.mjs';
 import { fixSpec } from '../migration/lib/specs.mjs';
 import { readMkdocsConfig, redirectMaps } from '../migration/lib/mkdocs.mjs';
 import { checkEditions } from '../migration/lib/pagecheck.mjs';
@@ -114,9 +117,59 @@ test('a block-level condition becomes one region per branch; an inline one, per-
   const src = 'Intro.\n\n{% if product_name == "WSO2 Identity Platform" %}\n## Cloud only\n\nText.\n{% else %}\n## Server only\n{% endif %}\n\nShared {% if product_name == "WSO2 Identity Server" %}server{% endif %} word.\n\nEnd.\n';
   const { text, regions } = render(src, releaseContexts, g);
   const jsx = markersToJsx(text, regions);
-  assert.match(jsx, /Intro\.\n\n<Edition only="cloud">\n\n## Cloud only\n\nText\.\n\n<\/Edition>\n\n<Edition only="self-hosted">\n\n## Server only\n\n<\/Edition>/);
-  assert.match(jsx, /<Edition only="cloud">\n\nShared  word\.\n\n<\/Edition>\n\n<Edition only="self-hosted">\n\nShared server word\.\n\n<\/Edition>\n\nEnd\./);
+  // Adjacent Cloud and Self-hosted forms are an Edition variant: each Edition shows only its own.
+  assert.match(jsx, /Intro\.\n\n<Variants>\n\n<Edition only="cloud">\n\n## Cloud only\n\nText\.\n\n<\/Edition>\n\n<Edition only="self-hosted">\n\n## Server only\n\n<\/Edition>\n\n<\/Variants>/);
+  assert.match(jsx, /<Variants>\n\n<Edition only="cloud">\n\nShared  word\.\n\n<\/Edition>\n\n<Edition only="self-hosted">\n\nShared server word\.\n\n<\/Edition>\n\n<\/Variants>\n\nEnd\./);
+  assert.equal(adjacentAlternatives(jsx), 0);
   assert.deepEqual(filterLines(text.split('\n'), regions, 'cloud').filter((l) => l.startsWith('#')), ['## Cloud only'], 'headings stay with their Edition');
+});
+
+test('Edition variants: adjacent Cloud and Self-hosted forms at one level, never a Self-hosted addition alone', () => {
+  const md = (s) => s.join('\n');
+  // In a list item, after an addition, and a third form left alone.
+  const text = md([
+    '1. Step.', '', '    <Edition only="self-hosted">', '', '    Server step.', '', '    </Edition>', '',
+    '<Edition only="self-hosted">', '', 'Addition.', '', '</Edition>', '',
+    'Shared.', '',
+    '<Edition only="self-hosted" selfHostedFrom="next">', '', 'Next form.', '', '</Edition>', '',
+    '<Edition only="cloud">', '', 'Cloud form.', '', '</Edition>', '',
+    '<Edition only="self-hosted">', '', 'Third.', '', '</Edition>', '',
+    '> <Edition only="cloud">', '>', '> Quoted cloud.', '>', '> </Edition>', '>', '> <Edition only="self-hosted">', '>', '> Quoted server.', '>', '> </Edition>',
+  ]);
+  assert.equal(adjacentAlternatives(text), 3, 'next/cloud, cloud/self-hosted and the quoted pair');
+  const out = wrapVariants(text);
+  assert.equal(out.count, 2);
+  // A Cloud form pairs with the plain Self-hosted form next to it before one from a version.
+  assert.match(out.mdx, /<Edition only="self-hosted" selfHostedFrom="next">\n\nNext form\.\n\n<\/Edition>\n\n<Variants>\n\n<Edition only="cloud">\n\nCloud form\.\n\n<\/Edition>\n\n<Edition only="self-hosted">\n\nThird\.\n\n<\/Edition>\n\n<\/Variants>/);
+  assert.match(out.mdx, /> <Variants>\n>\n> <Edition only="cloud">[^]*> <\/Edition>\n>\n> <\/Variants>$/);
+  assert.match(out.mdx, /^1\. Step\.\n\n {4}<Edition only="self-hosted">/, 'a lone form is a Self-hosted addition');
+  assert.equal(adjacentAlternatives(out.mdx), 0, 'the next form stays Self-hosted only, next to the variant');
+  // Inline image alternatives become an inline variant.
+  assert.equal(imageOrVariants({ alternatives: [{ attrs: 'only="cloud"', src: 'a.png' }, { attrs: 'only="self-hosted"', src: 'b.png' }] }, { alt: 'x' }),
+    '<Variants><Edition only="cloud">![x](a.png)</Edition><Edition only="self-hosted">![x](b.png)</Edition></Variants>');
+  assert.equal(imageOrVariants({ alternatives: [{ attrs: 'only="self-hosted"', src: 'b.png' }, { attrs: null, src: 'c.png' }] }, { alt: 'x' }),
+    '<Edition only="self-hosted">![x](b.png)</Edition>![x](c.png)', 'not a Cloud and Self-hosted pair: as before');
+});
+
+test('cloudCounterpart: a Self-hosted-only page and a Cloud-only page in the same navigation slot', () => {
+  const page = (target, kind, navPath, inNav = true) => ({ target, url: `${target}/`, kind: 'page', marker: kind, navPath, inNav });
+  const pages = [
+    page('guides/mfa-server', 'self-hosted', ['Guides', 'MFA']),
+    page('guides/mfa-cloud', 'cloud', ['Guides', 'MFA']),
+    page('deploy/install', 'self-hosted', ['Deploy', 'Install']),
+    page('guides/a', 'self-hosted', ['Guides', 'Two']),
+    page('guides/b', 'cloud', ['Guides', 'Two']),
+    page('guides/c', 'cloud', ['Guides', 'Two']),
+    page('guides/hidden', 'self-hosted', ['(not in nav)'], false),
+    page('guides/hidden-cloud', 'cloud', ['(not in nav)'], false),
+  ];
+  const r = cloudCounterpartsOf(pages);
+  assert.deepEqual([...r.counterparts], [['guides/mfa-server', 'guides/mfa-cloud']]);
+  assert.deepEqual(r.ambiguous, [{ slot: 'Guides > Two', selfHosted: ['guides/a'], cloud: ['guides/b', 'guides/c'] }]);
+  // The same label in another slot is only reported as possible.
+  const moved = cloudCounterpartsOf([page('deploy/logs', 'self-hosted', ['Deploy', 'Logs']), page('guides/logs', 'cloud', ['Guides', 'Logs'])]);
+  assert.equal(moved.counterparts.size, 0);
+  assert.deepEqual(moved.possible, [{ selfHosted: ['deploy/logs'], cloud: ['guides/logs'] }]);
 });
 
 test('blocks keep containers and code fences whole', () => {
@@ -174,6 +227,10 @@ test('end to end: two trees and shared includes become one Content repo branch',
     'a file only Cloud pages use goes to assets/cloud/');
   assert.ok(fs.existsSync(path.join(out, 'assets/cloud/img/mfa.png')) && fs.existsSync(path.join(out, 'assets/self-hosted/img/mfa.png')));
   assert.ok(!fs.existsSync(path.join(out, 'assets/img/mfa.png')), 'an Edition-only file is not also in assets/');
+  // Adjacent Cloud and Self-hosted alternatives are Edition variants, so Cloud shows its own form only.
+  assert.match(mfa, /<Variants>\n\n<Edition only="cloud">\n\n## Cloud prerequisites[^]*?<\/Edition>\n\n<Edition only="self-hosted">\n\n## Server prerequisites[^]*?<\/Edition>\n\n<\/Variants>/);
+  assert.ok(summary.stats.variants >= 1);
+  assert.equal(summary.stats.adjacentAlternatives, 0);
 
   const billing = read('docs/guides/billing.mdx');
   assert.match(billing, /^editions: cloud$/m);

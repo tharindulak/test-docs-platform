@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  arrivalBanner, choose, editionLabel, editionList, focus, headerSelector, homeUrl, isArrival, landingGroups,
+  MAPPING_HINTS, arrivalBanner, choose, editionLabel, editionList, focus, headerSelector, homeUrl, isArrival, landingGroups,
   latestOf, mapPage, menu, mergeManifest, normaliseDeployment, opensUrl, permanentUrl, productLabel, productsMenu,
   rememberSection, sectionFor, spaceOf, toView, versionNotice, viewUrl,
 } from '../lib/switching.mjs';
@@ -122,7 +122,8 @@ test('walkthrough 1, Cloud first: same page, renamed page, missing page', () => 
     ['Self-hosted', ['Identity Server 7.3.0 (newest release)', 'Identity Server 7.2.0']],
     ['Older versions (old site)', ['Identity Server 7.1.0 ↗']],
   ]);
-  assert.equal(r.notice().text, 'Cloud has the newest features. Some may not be in a release yet; the newest release is Identity Server 7.3.0.');
+  assert.equal(r.notice().text, 'You\'re reading Identity Server Cloud. The newest release is Identity Server 7.3.0.', 'a shared page makes no newest-features claim');
+  assert.equal(versionNotice(M, r.s.view, { cloudContent: true }).text, 'Cloud has the newest features. Some may not be in a release yet; the newest release is Identity Server 7.3.0.', 'a page with Cloud-only content');
   r.openPage('identity-server/guides/mfa/');
   assert.deepEqual(r.header().items.map((i) => i.mapping), ['current', 'same', 'renamed', 'old site']);
   r.pick('identity-server', '7.3.0');
@@ -303,6 +304,24 @@ test('mapPage follows redirects across a Cloud tree and the component\'s own Doc
   assert.deepEqual(mapPage(D, from, to), { kind: 'renamed', view: { ...to, path: 'identity-server/guides/mfa/' } });
   assert.equal(mapPage({}, from, to).kind, 'unknown');
   assert.equal(mapPage({}, from, to).view.path, 'identity-server/', 'unknown or missing: the part\'s home');
+});
+
+test('mapPage maps a Self-hosted-only page and the Cloud page it names (cloudCounterpart) to each other', () => {
+  const pages = normaliseDeployment(
+    [{ path: '' }, { path: 'guides/mfa/' }, { path: 'deploy/licensing/', cloudCounterpart: 'guides/billing/' }],
+    [],
+    '/identity-server/7.3.0/',
+  );
+  assert.deepEqual(pages.counterparts, { 'deploy/licensing/': 'guides/billing/' });
+  const deps = { ...D, 'identity-server@7.3.0': pages, 'identity-platform@cloud': dep(['', 'identity-server/', 'identity-server/guides/billing/']) };
+  const self = { space: 'identity-server', edition: '7.3.0', path: 'deploy/licensing/', prefix: '' };
+  const cloud = { space: 'identity-platform', edition: 'cloud', path: 'identity-server/deploy/licensing/', prefix: 'identity-server/' };
+  assert.deepEqual(mapPage(deps, self, cloud), { kind: 'counterpart', view: { ...cloud, path: 'identity-server/guides/billing/' } });
+  const back = mapPage(deps, { ...cloud, path: 'identity-server/guides/billing/' }, { ...self, path: 'guides/billing/' });
+  assert.deepEqual(back, { kind: 'counterpart', view: { ...self, path: 'deploy/licensing/' } });
+  const chosen = choose(M, deps, { space: 'identity-platform', edition: 'cloud', path: 'identity-server/guides/billing/' }, 'identity-server', '7.3.0');
+  assert.deepEqual([chosen.kind, chosen.url, chosen.notice], ['counterpart', '/identity-server/7.3.0/deploy/licensing/', null]);
+  assert.equal(MAPPING_HINTS.counterpart, 'matching page');
 });
 
 test('section menu: home section, the session\'s section, other Doc spaces collapsed with their latest', () => {

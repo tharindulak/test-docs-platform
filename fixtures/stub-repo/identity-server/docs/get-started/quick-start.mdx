@@ -7,6 +7,7 @@ sidebar_position: 1
 
 Open the console at `{edition.consoleUrl}` and sign in.
 
+<Variants>
 <Edition only="cloud">
 ## Create your organization
 
@@ -17,6 +18,17 @@ Sign up and create an organization. MARKER-CLOUD-ONLY
 ## Start the server
 
 Run the server from `<IS_HOME>/bin`. MARKER-SELF-HOSTED-ONLY
+</Edition>
+</Variants>
+
+<Edition only="self-hosted">
+## Tune the server
+
+Raise the heap of {edition.productName} {edition.version} at `{edition.consoleUrl}`. MARKER-SELF-HOSTED-ADDITION
+</Edition>
+
+<Edition only="self-hosted" selfHostedFrom="next">
+Clustering is coming to self-hosted. MARKER-SELF-HOSTED-NEXT
 </Edition>
 
 ## Register an application
@@ -37,7 +49,7 @@ Agents can sign in with their own identities. MARKER-FROM-740
 Coming soon to self-hosted. MARKER-FROM-NEXT
 </Edition>
 
-The console runs at <Edition only="cloud">your organization URL</Edition><Edition only="self-hosted">port 9443</Edition>.
+The console runs at <Variants><Edition only="cloud">your organization URL</Edition><Edition only="self-hosted">port 9443</Edition></Variants>.
 
 ```bash
 open {edition.consoleUrl}

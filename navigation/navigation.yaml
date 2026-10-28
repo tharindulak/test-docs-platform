@@ -54,7 +54,7 @@ sections:
 # <path>/<slug>/docspace.yaml.
 contentRepos:
   - repo: wso2/docs-identity-platform
-  - repo: wso2/docs-api-platform
+  - repo: tharindulak/docs-api-platform
   - repo: wso2/docs-sandbox
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform

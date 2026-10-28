@@ -15,6 +15,7 @@
     "!lib/compose-command.mjs",
     "!lib/contrast.mjs",
     "!lib/crawl.mjs",
+    "!lib/intake.mjs",
     "!lib/kv.mjs",
     "!lib/platform-release.mjs",
     "!lib/state-lock.mjs",

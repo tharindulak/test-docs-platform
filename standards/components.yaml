@@ -32,6 +32,29 @@ components:
     accessibility: Adds no markup to a published page. In previews (EditionMarker) the label is text, not colour alone.
     owner: docs-platform
     since: first map (Edition markers)
+  - name: Variants
+    use: written
+    what: "An Edition variant: one block written once for Cloud and once for Self-hosted, as exactly one `<Edition only=\"cloud\">` and one `<Edition only=\"self-hosted\">`. Each Edition, Cloud included, shows only its own form. Without it, Cloud would also show the Self-hosted form, as a Self-hosted addition."
+    example: |
+      <Variants>
+      <Edition only="cloud">
+      Open the Console.
+      </Edition>
+      <Edition only="self-hosted">
+      Open the Management Console at `https://localhost:9443/console`.
+      </Edition>
+      </Variants>
+    markdownForm: The Edition's own form only; nothing marks the other.
+    accessibility: Adds no markup to a published page. In previews each form is outlined and labelled as an Edition variant (EditionMarker).
+    owner: docs-platform
+    since: Cloud Edition content
+  - name: SelfHostedAddition
+    use: generated
+    what: "A Self-hosted addition shown in Cloud: Self-hosted-only content (an `<Edition only=\"self-hosted\">` block or phrase, or an `editions: self-hosted` page) with no Cloud counterpart. Labelled \"Self-hosted\", with a link \"See it in\" the newest release (such as Identity Server 7.3.0) to the same page under `/latest/`: a box around a block, a badge under a page's title."
+    markdownForm: "A `**Self-hosted only.**` line before the block, or under the page's title; `**Self-hosted only:**` in front of a phrase. The page's llms.txt entry starts with `**Self-hosted only.**`."
+    accessibility: The label is text ("Self-hosted"), never colour alone; a block is a labelled section (aria-label "Self-hosted only"), and the link names the release it opens.
+    owner: docs-platform
+    since: Cloud Edition content
   - name: Anchor
     use: migration
     what: A link target that is not a heading, for migrated `<a name>` anchors. Links to it are checked like links to headings.

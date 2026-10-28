@@ -63,6 +63,14 @@ const CASES = [
   ['compile', () => append(PAGE, '\nA bare <tag here.\n'), () => append(PAGE, '\nA bare `<tag>` here.\n')],
   ['markers', () => append(PAGE, '\nUse {edition.nope} here.\n'), () => append(PAGE, '\nUse {edition.productName} here.\n')],
   ['markers', () => append(PAGE, '\n<Edition only="cloudy">Text.</Edition>\n'), () => append(PAGE, '\n<Edition only="cloud">Text.</Edition>\n')],
+  // An Edition variant: exactly one Cloud and one Self-hosted form (a catalogue component, so content-safety passes it).
+  ['markers', () => append(PAGE, '\n<Variants>\n<Edition only="cloud">\nOpen the Console.\n</Edition>\n</Variants>\n'),
+    () => append(PAGE, '\n<Variants>\n<Edition only="cloud">\nOpen the Console.\n</Edition>\n<Edition only="self-hosted">\nOpen the Management Console.\n</Edition>\n</Variants>\n')],
+  // cloudCounterpart: on a Self-hosted-only page, naming a page Cloud shows.
+  ['front-matter', () => write('docs/deploy-and-operate/tuning.mdx', '---\ntitle: Tune the server\ndescription: Tune the server.\ntype: how-to\neditions: self-hosted\ncloudCounterpart: guides/nope\n---\n\nText.\n'),
+    () => write('docs/deploy-and-operate/tuning.mdx', '---\ntitle: Tune the server\ndescription: Tune the server.\ntype: how-to\neditions: self-hosted\ncloudCounterpart: guides/cloud-billing\n---\n\nText.\n')],
+  ['front-matter', () => write('docs/deploy-and-operate/tuning.mdx', '---\ntitle: Tune the server\ndescription: Tune the server.\ntype: how-to\ncloudCounterpart: guides/cloud-billing\n---\n\nText.\n'),
+    () => write('docs/deploy-and-operate/tuning.mdx', '---\ntitle: Tune the server\ndescription: Tune the server.\ntype: how-to\neditions: self-hosted\n---\n\nText.\n')],
   ['front-matter', () => write(PAGE, read(PAGE).replace(/^description: .*\n/m, '')), () => write(PAGE, read(PAGE).replace(/^description: .*\n/m, 'description: A shorter description.\n'))],
   ['front-matter', () => write(PAGE, read(PAGE).replace('type: how-to', 'type: how-to\nauthor: someone')), () => write(PAGE, read(PAGE).replace('type: how-to', 'type: how-to\nsidebar_label: MFA'))],
   ['front-matter', () => write(PAGE, read(PAGE).replace(/^description: .*$/m, `description: ${'A'.repeat(161)}`)), () => write(PAGE, read(PAGE).replace(/^description: .*$/m, `description: ${'A'.repeat(160)}`))],

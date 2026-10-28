@@ -8,7 +8,14 @@ import { parse } from 'node-html-parser';
 
 const text = (el) => (el?.textContent ?? '').replace(/​/g, '').replace(/\s+/g, ' ').trim();
 
-export function canonicalFor(rel, o) {
+// `selfHosted`: a Self-hosted-only page shown in Cloud (a Self-hosted
+// addition), whose canonical is the same page under its Doc space's /latest/
+// (in a family Cloud tree, the Cloud part's Doc space).
+export function canonicalFor(rel, o, { selfHosted = false } = {}) {
+  if (selfHosted && o.editionId === 'cloud') {
+    const part = o.cloudPartOf ? null : (o.parts ?? []).find((p) => rel.startsWith(p.path));
+    return `${o.siteUrl}/${part ? part.docSpace : o.docSpace}/latest/${part ? rel.slice(part.path.length) : rel}`;
+  }
   const self = `${o.siteUrl}${o.baseUrl}${rel}`;
   const latest = (p) => `${o.siteUrl}/${o.docSpace}/latest/${p}`;
   if (o.asLatest || o.editionId === 'cloud' || !o.latestEditionId) return self;
@@ -33,7 +40,12 @@ export function searchRecords(root, url, o, owner = { docSpace: o.docSpace, lvl0
   const title = text(root.querySelector('article h1')) || text(root.querySelector('title'));
   const records = [];
   const base = { docSpace: owner.docSpace, edition: o.editionId, kind: o.editionKind, ...(owner.cloudIn ? { cloudIn: owner.cloudIn } : {}) };
-  let section = { lvl2: null, lvl3: null, anchor: '' };
+  // Self-hosted additions in Cloud stay in its records, tagged selfHosted
+  // (the search box badges them): every record of a Self-hosted-only page,
+  // and a section whose heading is in a Self-hosted box.
+  const selfHostedPage = Boolean(root.querySelector('[data-self-hosted="page"]'));
+  const tag = (heading) => (selfHostedPage || heading?.closest('[data-self-hosted]') ? { selfHosted: true } : {});
+  let section = { lvl2: null, lvl3: null, anchor: '', el: null };
   let buffer = [];
   const flush = () => {
     if (!buffer.length && section.lvl2 === null) return;
@@ -43,6 +55,7 @@ export function searchRecords(root, url, o, owner = { docSpace: o.docSpace, lvl0
       content: buffer.join(' ').slice(0, 2000),
       ...base,
       type: 'page',
+      ...tag(section.el),
     });
     buffer = [];
   };
@@ -59,6 +72,7 @@ export function searchRecords(root, url, o, owner = { docSpace: o.docSpace, lvl0
       content: [...words, ...extra].join(' ').slice(0, 2000),
       ...base,
       type: 'catalog-item',
+      ...tag(el),
     });
   };
   const body = root.querySelector('.theme-doc-markdown');
@@ -75,8 +89,8 @@ export function searchRecords(root, url, o, owner = { docSpace: o.docSpace, lvl0
     if (el.tagName === 'H2' || el.tagName === 'H3') {
       flush();
       section = el.tagName === 'H2'
-        ? { lvl2: text(el), lvl3: null, anchor: el.id }
-        : { ...section, lvl3: text(el), anchor: el.id };
+        ? { lvl2: text(el), lvl3: null, anchor: el.id, el }
+        : { ...section, lvl3: text(el), anchor: el.id, el };
     } else if (!el.closest('li li')) {
       buffer.push(text(el));
     }
@@ -142,7 +156,7 @@ export default function platformOutputs(context, o) {
         if (!fs.existsSync(htmlFile)) continue;
         let html = fs.readFileSync(htmlFile, 'utf8');
         const url = `${o.siteUrl}${route}`;
-        const canonical = canonicalFor(rel, o);
+        const canonical = canonicalFor(rel, o, { selfHosted: html.includes('data-self-hosted="page"') });
         html = html
           .replace(/(<link[^>]*rel="canonical"[^>]*href=")[^"]*(")/, `$1${canonical}$2`)
           .replace(/(<meta[^>]*property="og:url"[^>]*content=")[^"]*(")/, `$1${canonical}$2`);
@@ -151,7 +165,8 @@ export default function platformOutputs(context, o) {
         const root = parse(html);
         // Anchors let other Doc spaces' `docs:` links be checked down to the heading.
         const anchors = [...new Set(root.querySelectorAll('.theme-doc-markdown [id]').map((el) => el.id).filter(Boolean))];
-        pages.push({ path: rel, title: text(root.querySelector('article h1')) || text(root.querySelector('title')), canonical, anchors });
+        const counterpart = o.cloudCounterparts?.[rel];
+        pages.push({ path: rel, title: text(root.querySelector('article h1')) || text(root.querySelector('title')), canonical, anchors, ...(counterpart !== undefined ? { cloudCounterpart: counterpart } : {}) });
         allRecords.push(...searchRecords(root, url, o, recordOwner(rel, o)));
       }
 

@@ -33,7 +33,8 @@ The Platform chrome every Docs deployment shows alike: the header, both version 
   | Notice | Shown on | Text |
   |---|---|---|
   | Older release | A Self-hosted version that isn't the newest | "You're reading <Edition>. The newest release is <version>, and Cloud has the newest features." with a link to the page in the newest release; without Cloud, the second half is left out |
-  | Cloud | Cloud, in a Doc space that also has Self-hosted versions | "Cloud has the newest features. Some may not be in a release yet; the newest release is <Edition>." |
+  | Cloud, page with Cloud-only content | A Cloud page in a Doc space that also has Self-hosted versions, when the page is Cloud-only or holds a Cloud-only block | "Cloud has the newest features. Some may not be in a release yet; the newest release is <Edition>." [B08] |
+  | Cloud, shared page | Any other Cloud page in such a Doc space | "You're reading <Cloud Edition name>. The newest release is <Edition>." (decided 2026-10-27: the "newest features" claim only where the page shows it) [B08] |
   | End of life | An end-of-life Edition | "<Edition> has reached end of life. It is no longer updated." |
   | Team notice | The Editions a manifest notice names, until its date | The team's text, at `info` or `warning` |
 
@@ -89,3 +90,4 @@ The Platform chrome every Docs deployment shows alike: the header, both version 
 [N17]: ../.scratch/wso2-docs-navigation/issues/17-release-pipeline.md
 [N18]: ../.scratch/wso2-docs-navigation/issues/18-chrome-navigation.md
 [N19]: ../.scratch/wso2-docs-navigation/issues/19-extensions.md
+[B08]: ../.scratch/wso2-docs-bundles/issues/08-cloud-edition-content.md

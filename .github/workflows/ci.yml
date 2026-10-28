@@ -1,5 +1,7 @@
-# The Platform's own checks: unit and end-to-end tests (including the local
-# edge), the workflow linter and a dry-run bundle of the Edge Worker.
+# The Platform's own checks: the intake record check on pull requests (a
+# required check, for intake's auto-merging pull requests), unit and
+# end-to-end tests (including the local edge), the workflow linter and a
+# dry-run bundle of the Edge Worker.
 name: CI
 
 on:
@@ -13,6 +15,30 @@ permissions:
   contents: read
 
 jobs:
+  # Required on main, so an intake pull request (intake.yml, branch
+  # intake/<slug>) auto-merges only when it changes nothing but that Doc
+  # space's intake record's release entries. On other pull requests it checks
+  # that every changed record is valid; the Doc space's owners review them.
+  intake-record:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Only the release entries of the branch's own record change
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: node bin/wso2-release.mjs record-check --base "origin/$BASE_REF" --branch "$HEAD_REF"
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30

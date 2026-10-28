@@ -5,15 +5,13 @@ type: concept
 sidebar_position: 2
 ---
 
-The release pipeline turns one Docs release tag into live Docs deployments. It is the Platform's **Release docs** workflow, `.github/workflows/release.yml`, with one build job per Docs deployment. The developer guide's [Content repositories, branches and Docs releases](../product-teams/repositories-and-releases.mdx) says what a team sees. This page is what happens in between.
+The release pipeline turns one Docs release tag into live Docs deployments. The Platform's **Intake** workflow, `.github/workflows/intake.yml`, takes in the tag's Docs bundle; its **Release docs** workflow, `.github/workflows/release.yml`, builds it, with one build job per Docs deployment. The developer guide's [Content repositories, branches and Docs releases](../product-teams/repositories-and-releases.mdx) says what a team sees. This page is what happens in between.
 
 ## How it works
 
-### From a tag to a run
+### From a tag to a bundle
 
-A Content repository's `docs.yml` makes the tag, then calls the Platform's reusable **Docs bundle** workflow (`docs-bundle.yml@v1`) with it. That run checks the tagged commit, packs the Doc space directory as the tag's Docs bundle, attests it with build provenance and publishes it as the tag's GitHub Release. Nothing in the Content repository holds a Platform credential.
-
-The Platform's intake picks up the bundle and starts **Release docs** for its tag. Until intake is built, the Platform team starts that run by hand, as in [Follow and run a Docs release](../../guides/platform-team/run-a-docs-release.mdx#start-a-release-by-hand).
+A Content repository's `docs.yml` makes the tag, then calls the Platform's reusable **Docs bundle** workflow (`docs-bundle.yml@v1`) with it. That run checks the tagged commit, packs the Doc space directory as the tag's Docs bundle, attests it with build provenance and publishes it as the tag's GitHub Release. Nothing in the Content repository holds a Platform credential, and nothing is dispatched to the Platform.
 
 | Event in the Content repository | Tag it makes |
 |---|---|
@@ -24,14 +22,37 @@ The Platform's intake picks up the bundle and starts **Release docs** for its ta
 
 `<n>` is one more than the highest existing tag with the same start. Tags are made by the workflow only. A tag ruleset keeps others from making them.
 
+### Intake
+
+Intake polls. At minutes 7 and 37 of every hour, or when run by hand for one repository or Doc space, it composes the manifest and reads the releases of every Content repository the manifest lists. A release counts when:
+
+- its tag has the Doc space's prefix and a Docs release tag's form;
+- it is published, not a pre-release, and immutable;
+- it carries exactly one asset, `<slug>-<tag without its prefix>.docs.zip`;
+- it is newer than the newest release recorded for its Edition;
+- the manifest lists its Edition, and doesn't pin it to another tag.
+
+Older and equal releases are ignored. Of several new ones for an Edition, only the newest is taken. There is no check against the product's own release: the owner who ran **Release docs** is the gate.
+
+Each release that counts is verified once, before any content code runs. Intake downloads the asset into an empty folder and checks its sha256 against GitHub's digest. It checks the attestation with `gh attestation verify`: signed by the Platform's `docs-bundle.yml` at `refs/tags/v1`, on a GitHub-hosted runner, for that repository, from `main` (a Cloud release, or a version **Release docs** made) or from the tag itself (a tag pushed by hand). It unpacks the zip safely: no absolute paths, no `..`, no symbolic links, at most 1 GiB and 30,000 files, and no zip bomb. `bundle.json` must name the repository, the tag, the Edition and the Doc space's directory. Then `content-safety` runs on the unpacked files, read only.
+
+What passes goes into the Doc space's **intake record**, `releases/<slug>.yaml`: per Edition, the accepted bundles newest first, each with its tag, asset, sha256, source commit and when it was accepted, the last 5 kept. Intake changes it through one pull request per Doc space, on `intake/<slug>`, updated in place while it is open. A GitHub App opens it, since a pull request the workflow token opens starts no checks. It merges by itself once **CI** passes, including `intake-record`, which passes only a change to that record's release entries. Any other change under `releases/` needs the Doc space's owners.
+
+What fails opens one issue on the Platform repository, labelled `bundle-intake` and mentioning the Doc space's owners: one per Doc space and tag. Later polls add nothing, and intake doesn't try that tag again until a newer tag, or a run by hand.
+
+A recorded release that is deleted on GitHub is withdrawn: intake's pull request removes its entry, and an issue says so. Later builds trust only the sha256 in the record, so old bundles stay valid when `v1` moves.
+
 ### The run
+
+A merged change to `releases/*.yaml` starts **Release docs**: tag scope for each Edition's new newest entry, built from its bundle. A withdrawn newest entry flips its Docs deployments back to the previous entry's release folders, or rebuilds the previous bundle when its folders were collected.
 
 | Step | Job | What happens |
 |---|---|---|
 | 1 | plan | Clone every Content repository's `main`, compose, and store the result as `_platform/composed.json`. A failed compose keeps the last good copy. |
-| 2 | plan | Plan the Docs deployments the tag makes, from the stored copy |
-| 3 | build-latest, build | One job per Docs deployment, the `/latest/` twin first: check out the tag, build the Doc space's directory with the stored manifest, run the release's blocking checks, upload to a new release folder |
-| 4 | finalize-staging | Flip: one write of the deployment state points every planned Docs deployment at its new folder, then `manifest.json`, the sitemap index and `llms.txt` are published again |
+| 2 | plan | Plan the Docs deployments the record change makes, from the stored copy and the intake records, and read what the builds need from staging |
+| 3 | build-latest, build | One job per Docs deployment, the `/latest/` twin first: download the recorded bundle, check its sha256 against the record, unpack it into an empty folder, build the Doc space's directory with the stored manifest and the Edition and `main` file list from `bundle.json`, run the release's blocking checks |
+| 3 | publish | One job per Docs deployment: upload its build to a new release folder |
+| 4 | finalize-staging | Flip: one write of the deployment state points every planned Docs deployment at its new folder (for a withdrawal, back), then `manifest.json`, the sitemap index and `llms.txt` are published again |
 | 5 | finalize-staging | Write the redirect table to Workers KV |
 | 6 | finalize-staging | The staging crawl gate: every page of each new Docs deployment, and every link on it into WSO2 Docs, must answer 200 |
 | 7 | finalize-staging | Index search: upsert each new Docs deployment's records, then delete its stale ones. `/latest/` is never indexed. |
@@ -40,7 +61,9 @@ The Platform's intake picks up the bundle and starts **Release docs** for its ta
 
 A tag of the first Self-hosted Edition makes two Docs deployments, `/<doc space>/<version>/` and `/<doc space>/latest/`, from one build each. The latest twin builds first, because older versions take their canonicals from its page list. Cloud is never built twice.
 
-A family Cloud is one Docs deployment. Its build reads each Cloud part's directory from the same checkout, so `identity-platform/cloud-2026.10.26.1` builds Identity Platform Cloud with Identity Server's Cloud part in it, from one commit.
+A family Cloud is one Docs deployment. Its bundle holds each Cloud part's directory beside its own, so `identity-platform/cloud-2026.10.26.1` builds Identity Platform Cloud with Identity Server's Cloud part in it, from one commit.
+
+MDX is code, so the build job runs bundle content. It has no environment and holds no storage, search or edge credential: the plan job hands it what it reads from staging, and it hands its build to the publish job, which uploads it. The flip, the search index and the App token run in jobs that run no content code, so a bad bundle can reach only a release folder nothing points to yet. The Platform's own Doc space, Contribute, builds from the Platform repository at its tag, and the Landing deployment from the Platform alone.
 
 ### Release folders and pointers
 
@@ -50,11 +73,11 @@ Folders are never changed. Going live is a pointer in `_platform/state.json`. Th
 
 ### Rebuilds
 
-A rebuild builds Docs deployments again from the tags they already run, under a new release id, `<release>.r<run id>`:
+A rebuild builds Docs deployments again from the tags they already run, from each tag's recorded bundle, under a new release id, `<release>.r<run id>`. A deployed tag the intake record doesn't hold isn't rebuilt, with a notice.
 
 | Scope | Rebuilds | Started by |
 |---|---|---|
-| `tag` | The tag's Edition, and its latest twin | A Content repository, for each Docs release |
+| `tag` | The tag's Edition, and its latest twin | A merged intake record change, for each new entry; the Platform deployments workflow, for Contribute's Cloud tags |
 | `docspace` | Every deployed Edition of one Doc space | The Manifests workflow, when a merged manifest change adds an Edition or moves `latest`; or the Platform team |
 | `all` | Every deployed Edition whose Content repository pins the Platform's major, plus Contribute and the Landing deployment | A Platform release; or the Platform team |
 | `landing` | The Landing deployment, built afresh from the Platform | The Platform deployments workflow, when `navigation/` changes; or the Platform team |
@@ -63,8 +86,9 @@ So a Platform change reaches pages built long ago with no new Docs release.
 
 ### Who runs at once
 
-- Cloud releases of one Content repository share one concurrency group, and a newer one cancels an older one still running.
-- Other releases have one group per tag, or per Doc space for a rebuild, so different tags run side by side.
+- Intake runs one at a time. Each merged intake record change is its own release run.
+- The Platform's own Cloud releases (Contribute) share one concurrency group, and a newer one cancels an older one still running.
+- Rebuilds have one group per Doc space or scope.
 - Every change to an environment's published state waits its turn on one lock, `_platform/state.lock` in that environment's bucket: flips, rollbacks, retiring a Docs deployment, republishing the runtime files, the redirect table and the clean-up. Each command takes the lock, writes, and gives it back. Any number of runs can wait, and none is cancelled. A run that waits shows a notice, `waiting for the state lock, held by …`.
 - Write jobs have no GitHub concurrency group, because GitHub keeps only one waiting run per group and cancels an older waiting one.
 - A lock left by a run that died expires after 30 minutes, and the next writer takes it over.

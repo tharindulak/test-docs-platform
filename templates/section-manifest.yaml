@@ -1,5 +1,5 @@
 # A sample Docs section manifest, for the Platform side: it goes to
-# navigation/sections/<id>.yaml in wso2/docs-platform, and its team owns it
+# navigation/sections/<id>.yaml in tharindulak/test-docs-platform, and its team owns it
 # through the Platform's .github/CODEOWNERS. Only the Platform team adds a
 # section (a line under `sections:` in navigation/navigation.yaml); a section's
 # team then keeps this file. A Doc space team asks the home section's team to

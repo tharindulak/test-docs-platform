@@ -33,37 +33,88 @@ test('every workflow parses and has triggers and jobs', () => {
   }
 });
 
-test('release.yml: dispatch inputs, one matrix job per deployment, the release sequence, production off', () => {
+test('release.yml: starts from the intake records or a rebuild dispatch, one matrix job per deployment, the release sequence, production off', () => {
   const w = wf('release.yml');
+  assert.deepEqual(w.on.push, { branches: ['main'], paths: ['releases/*.yaml'] }, 'a merged intake record change starts the release');
   assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['repo', 'tag', 'scope', 'space']);
   assert.equal(w.on.release, undefined, 'a Platform release dispatches the rebuild (platform-release.yml)');
-  assert.deepEqual(Object.keys(w.jobs), ['plan', 'build-latest', 'build', 'finalize-staging', 'promote']);
+  assert.deepEqual(Object.keys(w.jobs), ['plan', 'build-latest', 'build', 'publish', 'finalize-staging', 'promote']);
   for (const job of ['build-latest', 'build']) {
     assert.equal(w.jobs[job].uses, './.github/workflows/build-deployment.yml');
     assert.match(w.jobs[job].strategy.matrix, /fromJSON\(needs\.plan\.outputs\.(latest|others)\)/);
+    assert.deepEqual(Object.keys(w.jobs[job].secrets), ['CONTENT_READ_TOKEN'], 'build jobs get no storage or search credential');
+    assert.equal(w.jobs[job].with.asset, '${{ matrix.asset }}');
   }
   assert.ok(w.jobs.build.needs.includes('build-latest'), 'latest twins build first');
   const plan = w.jobs.plan.steps.find((s) => s.id === 'plan').run;
   assert.match(plan, /--content "\$RUNNER_TEMP\/content"/, 'a Platform release reads each Content repo\'s pinned major from its main line');
+  assert.match(plan, /plan --scope records --base "\$BEFORE" --records releases/, 'a push plans from the intake records');
+  assert.match(plan, /--records releases\)/, 'rebuilds build from recorded bundles');
+  assert.match(plan, /Scope tag releases only this repo's own Doc space/, 'Content repos release through intake, not a dispatch');
   const steps = (job) => w.jobs[job].steps.map((s) => s.name ?? s.uses ?? s.run);
+  assert.match(w.jobs.publish.strategy.matrix, /fromJSON\(needs\.plan\.outputs\.all\)/);
+  assert.equal(w.jobs.publish.environment, 'staging');
+  assert.ok(steps('publish').includes('Upload the release folder to staging (step 3)'));
+  assert.ok(w.jobs['finalize-staging'].needs.includes('publish'));
   const fin = steps('finalize-staging');
   const order = ['Flip the staging pointer (step 4)', 'Staging redirect table', 'Staging crawl gate (step 5)', 'Keep the last 5 releases', 'Summary (step 10)'];
   assert.deepEqual(fin.filter((s) => order.includes(s)), order);
+  assert.match(w.jobs['finalize-staging'].steps.find((s) => s.name === 'Flip the staging pointer (step 4)').run, /--deploy "\$FLIP_BACK" --backwards/, 'a withdrawal flips back');
   assert.equal(w.jobs['finalize-staging'].concurrency, undefined, 'state writers queue on the state lock, not a concurrency group');
   assert.match(w.jobs.promote.if, /vars\.DOCS_PRODUCTION_ENABLED == 'true'/);
   assert.match(w.jobs.promote.if, /crawl-passed == 'true'/);
   assert.equal(w.jobs.promote.environment, 'production');
   assert.deepEqual(steps('promote').filter((s) => /step [79]/.test(s)).length, 3);
 
+  // The job that runs bundle content holds no storage, search or edge credential.
   const b = load(path.join(platformDir, 'build-deployment.yml'));
+  const text = fs.readFileSync(path.join(platformDir, 'build-deployment.yml'), 'utf8');
+  assert.equal(b.jobs.build.environment, undefined, 'no environment, so no environment secrets');
+  assert.doesNotMatch(text, /R2_|CLOUDFLARE_|TYPESENSE_ADMIN|secrets: inherit/);
+  assert.deepEqual(Object.keys(b.on.workflow_call.secrets), ['CONTENT_READ_TOKEN']);
   const bs = b.jobs.build.steps.map((s) => s.name ?? s.uses);
+  const fetchStep = b.jobs.build.steps.find((s) => s.id === 'bundle');
+  assert.match(fetchStep.run, /fetch-bundle --repo "\$REPO" --tag "\$TAG" --asset "\$ASSET" --sha256 "\$SHA256"/);
+  assert.match(fetchStep.run, /--out "\$GITHUB_WORKSPACE\/bundle"/, 'inside the Platform checkout: Docusaurus fails to render pages from outside it');
+  assert.equal(fetchStep.env.CONTENT_READ_TOKEN, '${{ secrets.CONTENT_READ_TOKEN }}', 'the read token reaches the download step alone');
+  assert.ok(b.jobs.build.steps.filter((s) => s.env?.CONTENT_READ_TOKEN).length === 1);
+  assert.ok(bs.indexOf(fetchStep.name) < bs.indexOf('Build (step 1)'));
   assert.ok(bs.indexOf('Build (step 1)') < bs.indexOf('Blocking checks (step 2)'));
-  assert.ok(bs.indexOf('Blocking checks (step 2)') < bs.indexOf('Upload the release folder to staging (step 3)'));
-  assert.equal(b.jobs.build.environment, 'staging', 'only staging credentials in build jobs');
+  assert.ok(bs.indexOf('Blocking checks (step 2)') < bs.indexOf('Hand the build to the publish job'));
+  assert.match(b.jobs.build.steps.find((s) => s.name === 'Build (step 1)').run, /--main-files "\$MAIN_FILES"/, '"Edit this page" from bundle.json');
   const buildRun = b.jobs.build.steps.find((s) => s.name === 'Build (step 1)').run;
   assert.match(buildRun, /--env production/, 'release builds are production builds (README: Release builds add --env production)');
   const cache = b.jobs.build.steps.find((s) => s.name === 'Docusaurus caches for this deployment').with;
   for (const k of [cache.key, cache['restore-keys']]) assert.match(k, /\$\{\{ github\.sha \}\}/, 'a Platform change never restores another Platform commit\'s webpack cache');
+});
+
+test('intake.yml: polls on a schedule or by hand, proposes with an App token in a job that runs no Platform code, reports once', () => {
+  const w = wf('intake.yml');
+  assert.deepEqual(w.on.schedule, [{ cron: '7,37 * * * *' }]);
+  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['repo', 'space']);
+  assert.deepEqual(w.permissions, {});
+  assert.deepEqual(Object.keys(w.jobs), ['poll', 'propose', 'report']);
+  const poll = w.jobs.poll;
+  assert.ok(Object.values(poll.permissions).every((p) => p === 'read'), 'the job that unpacks bundles can write nothing');
+  const run = poll.steps.find((s) => s.id === 'intake');
+  assert.match(run.run, /intake --policy "\$RUNNER_TEMP\/composed\.json" --records releases --pending "\$RUNNER_TEMP\/pending"/);
+  assert.match(run.run, /--issues "\$RUNNER_TEMP\/issues\.json"/);
+  assert.equal(run.env.RETRY, "${{ github.event_name == 'workflow_dispatch' }}", 'only a run by hand tries a failed tag again');
+  assert.doesNotMatch(JSON.stringify(poll), /DOCS_INTAKE_APP|R2_|CLOUDFLARE_|TYPESENSE/);
+  const propose = w.jobs.propose;
+  assert.deepEqual(propose.permissions, { contents: 'read' });
+  assert.equal(propose.steps[0].uses, 'actions/create-github-app-token@v2', 'the token is minted first');
+  assert.ok(!propose.steps.some((s) => /node |npm /.test(s.run ?? '') || s.uses?.startsWith('actions/setup-node')), 'no Platform or content code where the App token is');
+  const push = propose.steps.at(-1).run;
+  assert.match(push, /branch="intake\/\$SLUG"/);
+  assert.match(push, /git push --force origin "\$branch"/);
+  assert.match(push, /gh pr merge "\$branch" --auto --squash/);
+  assert.equal(propose.steps.at(-1).env.GH_TOKEN, '${{ steps.app.outputs.token }}');
+  assert.deepEqual(w.jobs.report.permissions, { issues: 'write' });
+  assert.match(w.jobs.report.steps.at(-1).run, /--label bundle-intake/);
+  // The record's required check, for auto-merge.
+  const ci = wf('ci.yml');
+  assert.match(ci.jobs['intake-record'].steps.at(-1).run, /record-check --base "origin\/\$BASE_REF" --branch "\$HEAD_REF"/);
 });
 
 test('platform-release.yml: a v<major>.<minor>.<patch> tag publishes @wso2/docs with trusted publishing, moves the major tag and rebuilds that major', () => {
@@ -113,7 +164,7 @@ test('platform-deployments.yml: a change on main releases Contribute and, for na
   assert.deepEqual(r.on.workflow_dispatch.inputs.scope.options, ['tag', 'docspace', 'all', 'landing']);
   assert.match(r.concurrency.group, /inputs\.scope/, 'a Landing release has its own group, not the Platform rebuild\'s');
   const b = wf('build-deployment.yml').jobs.build;
-  assert.equal(b.steps.find((s) => s.name === 'Check out the Content repo at the tag').if, "inputs.space != '_landing'");
+  assert.equal(b.steps.find((s) => s.name === 'Check out the Platform\'s own Doc space at the tag').if, "inputs.space != '_landing' && inputs.asset == ''");
   assert.match(b.steps.find((s) => s.name === 'Build (step 1)').run, /\[ "\$LANDING" = "true" \] && args=\(build --landing --env production --manifest/);
   assert.match(b.steps.find((s) => s.name === 'Blocking checks (step 2)').run, /check --dir build --space "\$SPACE"[^\n]*\n\s*\[ "\$LANDING" = "true" \] && exit 0/);
 });
@@ -223,7 +274,7 @@ test('docs-bundle.yml: called with a tag; checks, packs, attests and publishes w
   assert.equal(w.on.workflow_call.inputs.tag.required, true);
   assert.deepEqual(Object.keys(w.on.workflow_call.inputs), ['tag'], 'the caller chooses only the tag, never the Platform code');
   assert.deepEqual(w.permissions, {});
-  assert.deepEqual(w.env, { PLATFORM_REPO: 'wso2/docs-platform', PLATFORM_REF: 'v1' });
+  assert.deepEqual(w.env, { PLATFORM_REPO: 'wso2/docs-platform', PLATFORM_REF: 'v1', WSO2_DOCS_PUBLISHED_MANIFEST: '${{ vars.DOCS_PUBLISHED_MANIFEST }}' }, 'the caller\'s published manifest, so a release can run before staging exists');
   const job = w.jobs.bundle;
   assert.deepEqual(job.permissions, { contents: 'write', 'id-token': 'write', attestations: 'write' });
   const steps = job.steps;

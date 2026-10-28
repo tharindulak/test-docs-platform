@@ -5,7 +5,7 @@
 // client-side, so a writer or reviewer can check every Edition from one preview.
 import React, { useEffect, useState } from 'react';
 import { useLocation } from '@docusaurus/router';
-import { editionFromId, matches } from '../../../lib/edition.mjs';
+import { editionFromId, matches, shows } from '../../../lib/edition.mjs';
 import Announcement from '@site/src/components/chrome/Announcement';
 import { useManifest, usePlatform } from '@site/src/components/chrome/runtime';
 import { setAnalyticsContext, trackPageViewOnce } from '@site/src/components/chrome/analytics';
@@ -24,7 +24,7 @@ function applyEdition(id) {
     const marker = {};
     if (el.dataset.only) marker.only = el.dataset.only;
     if (el.dataset.selfHostedFrom) marker.selfHostedFrom = el.dataset.selfHostedFrom;
-    el.dataset.active = String(matches(edition, marker));
+    el.dataset.active = String(el.dataset.variant ? matches(edition, marker) : shows(edition, marker, el.dataset.newestRelease ?? null));
   }
 }
 

@@ -1,11 +1,11 @@
 ---
 title: Follow and run a Docs release
-description: Follow a Docs release from its tag to live Docs deployments, start one or a rebuild by hand, and run every step yourself to rehearse it.
+description: Follow a Docs release through intake to live Docs deployments, run intake or a rebuild by hand, withdraw a release, and rehearse every step.
 type: how-to
 sidebar_position: 5
 ---
 
-Docs releases start themselves: a merge to `main` makes a Cloud release, and a team's **Release docs** run makes a version release. Follow them when one fails, start one by hand when a run must be repeated, and rebuild Docs deployments after a Platform change. [The release pipeline](../../concepts/platform-team/release-pipeline.mdx) explains each step.
+Docs releases start themselves: a merge to `main` makes a Cloud release, and a team's **Release docs** run makes a version release. The Platform's intake takes in each one's Docs bundle within half an hour, and its merged intake record starts the release. Follow them when one fails, run intake by hand when one must be tried again, and rebuild Docs deployments after a Platform change. [The release pipeline](../../concepts/platform-team/release-pipeline.mdx) explains each step.
 
 ## Prerequisites
 
@@ -15,25 +15,31 @@ Docs releases start themselves: a merge to `main` makes a Cloud release, and a t
 
 ## Follow a release
 
-1. In the Content repository, open the **Docs** run of the merge or of **Release docs**. Its tag job made the tag, and its release job's summary names the Docs bundle with its sha256. The tag's GitHub Release holds the bundle. Until intake is built, start **Release docs** for the tag by hand (below).
-2. In `wso2/docs-platform`, open **Actions** > **Release docs**. The run is named `Release docs: <repo> <tag>`, such as `Release docs: wso2/docs-api-platform ai-gateway/1.2.0-docs.3`.
-3. Read the **plan** job's output. Its `flip` line lists the Docs deployments the tag makes, such as `ai-gateway/latest=1.2.0-docs.3 ai-gateway/1.2.0=1.2.0-docs.3`.
-4. Each build job is named `<doc space>/<segment>`. Its summary gives the build time. A failed step names the check and the page.
-5. The **finalize-staging** job's summary lists each Docs deployment with its release and staging address, then the crawl gate's and the search index's results.
+1. In the Content repository, open the **Docs** run of the merge or of **Release docs**. Its tag job made the tag, and its release job's summary names the Docs bundle with its sha256. The tag's GitHub Release holds the bundle.
+2. In `wso2/docs-platform`, open **Actions** > **Intake**. A run at minute 7 or 37 of the hour reads the release. Its **poll** job's log says, per tag, whether it was accepted, not counted (and why) or failed verification.
+3. An accepted bundle opens or updates the pull request `Intake: <doc space> <tag>`, on the branch `intake/<doc space>`, with auto-merge on. It merges once **CI** passes. A failure opens a `bundle-intake` issue instead.
+4. The merge starts **Release docs**, named `Release docs: intake records`. Read the **plan** job's output. Its `flip` line lists the Docs deployments the record change makes, such as `ai-gateway/latest=1.2.0-docs.3 ai-gateway/1.2.0=1.2.0-docs.3`, and `flipBack` those a withdrawn release moves back.
+5. Each build job is named `<doc space>/<segment>`. Its summary gives the build time. A failed step names the check and the page. Each **publish** job uploads one build.
+6. The **finalize-staging** job's summary lists each Docs deployment with its release and staging address, then the crawl gate's and the search index's results.
 
-## Start a release by hand
+## Run intake by hand
 
-Re-run a failed run from its page, with **Re-run all jobs**, when the cause is fixed outside the Content repository. To release a tag again, or a tag pushed by hand:
+Intake doesn't try a tag again once its issue is open. When the cause is fixed outside the Content repository, such as an attestation that GitHub was slow to serve, run intake by hand for that repository or Doc space. A run by hand tries failed tags again, but opens no second issue:
 
 ```bash
-gh workflow run release.yml --repo wso2/docs-platform --ref v1 -f repo=wso2/docs-sandbox -f tag=1.0.0-docs.1
+gh workflow run intake.yml --repo wso2/docs-platform -f space=ai-gateway
+gh workflow run intake.yml --repo wso2/docs-platform -f repo=wso2/docs-api-platform
 ```
 
-The run builds the tag as it is. Uploading a release folder that is already complete does nothing, so repeating a release that went live only flips again.
+To build a recorded release again, re-run its **Release docs** run from its page, with **Re-run all jobs**. Uploading a release folder that is already complete does nothing, so repeating a release that went live only flips again. A Content repository's tag can't be dispatched to **Release docs**: it releases only from the intake record.
+
+## Withdraw a release
+
+Delete the tag's GitHub Release in the Content repository. At its next poll, intake opens a pull request that removes the entry from `releases/<doc space>.yaml`, and an issue. When the entry was its Edition's newest, the merge flips that Edition back to the previous entry's release folder, or rebuilds the previous bundle when that folder was collected. With no earlier entry, the Docs deployment stays as it is: [roll it back](roll-back-a-release.mdx).
 
 ## Rebuild Docs deployments
 
-Rebuild every deployed Edition of one Doc space, or of every Doc space whose Content repository pins the Platform major you run at (`--ref v1`: those that pin `v1`), from the tags they run now:
+Rebuild every deployed Edition of one Doc space, or of every Doc space whose Content repository pins the Platform major you run at (`--ref v1`: those that pin `v1`), from the tags they run now and those tags' recorded bundles:
 
 ```bash
 gh workflow run release.yml --repo wso2/docs-platform --ref v1 -f scope=docspace -f space=identity-server
@@ -50,12 +56,16 @@ These are the commands the workflows run, in order, for Sandbox 1.0.0. Run them 
 R=~/wso2-docs-local/repos
 ```
 
-1. Make the tag, as the Content repository's **Release docs** run does. `spaces` gives the branch and the tag's prefix:
+1. Make the tag and its Docs bundle, as the Content repository's **Release docs** run does. `spaces` gives the branch and the tag's prefix:
 
    ```bash
    node bin/wso2-docs.mjs spaces $R/docs-sandbox --release "" --version 1.0.0
    git -C $R/docs-sandbox tag 1.0.0-docs.1 release/1.0.0
+   git -C $R/docs-sandbox checkout 1.0.0-docs.1
+   node bin/wso2-docs.mjs bundle $R/docs-sandbox --tag 1.0.0-docs.1 --repo wso2/docs-sandbox --out bundles
    ```
+
+   On GitHub, `docs-bundle.yml` attests the zip and publishes it as the tag's release, and intake verifies it and records it in `releases/sandbox.yaml`. To try intake against a real Content repository's releases, without opening a pull request: `node bin/wso2-release.mjs intake --repo <owner>/<repo> --out intake-records --report intake.json`, with `GITHUB_TOKEN` set and `gh` signed in.
 
 2. Compose every Content repository's `main` and store it, then plan from the stored copy:
 
@@ -66,22 +76,24 @@ R=~/wso2-docs-local/repos
    node bin/wso2-release.mjs status --storage s3://docs-staging > state.json
    ```
 
-   `state.json` is what is deployed now. The builds take it so that the menus in each page list only deployed Doc spaces, plus the one being built, as the live menus do. Without it, a menu entry for a Doc space that has no Docs release yet fails the crawl gate.
+   On GitHub, the plan comes from the intake record's change: `plan --scope records --base <commit before the merge> --records releases`, which also gives each Docs deployment its bundle's `asset` and `sha256`. `state.json` is what is deployed now. The builds take it so that the menus in each page list only deployed Doc spaces, plus the one being built, as the live menus do. Without it, a menu entry for a Doc space that has no Docs release yet fails the crawl gate.
 
-3. For each Docs deployment in `plan.json`, the latest twin first, check out the tag and build the Doc space's directory (`dir`). An Edition other than the latest twin takes the latest twin's page list, for its canonicals:
+3. For each Docs deployment in `plan.json`, the latest twin first, unpack the bundle into an empty folder and build the Doc space's directory, with the Edition and the files on `main` from its `bundle.json`. On GitHub, `fetch-bundle` downloads the recorded asset and checks its sha256 against the record first. An Edition other than the latest twin takes the latest twin's page list, for its canonicals:
 
    ```bash
-   git -C $R/docs-sandbox checkout 1.0.0-docs.1
-   node bin/wso2-docs.mjs build $R/docs-sandbox/sandbox --edition 1.0.0 --as-latest --env production --manifest composed.json --deployed state.json --out build-latest
-   node bin/wso2-docs.mjs build $R/docs-sandbox/sandbox --edition 1.0.0 --env production --manifest composed.json --deployed state.json --latest-pages build-latest/_platform/pages.json --out build-100
+   node -e "import('./lib/zip.mjs').then((z) => z.unpackZip('bundles/sandbox-1.0.0-docs.1.docs.zip', 'unpacked'))"
+   node bin/wso2-docs.mjs build unpacked/sandbox --edition 1.0.0 --as-latest --env production --manifest composed.json --deployed state.json --out build-latest
+   node bin/wso2-docs.mjs build unpacked/sandbox --edition 1.0.0 --env production --manifest composed.json --deployed state.json --latest-pages build-latest/_platform/pages.json --out build-100
    ```
 
-4. Check each build, and upload it to its release folder:
+   A build from an unpacked bundle reads the repository path, the files on `main` (for "Edit this page") and the source commit from `bundle.json`, never from git.
+
+4. Check each build, and upload it to its release folder. On GitHub, the upload is the **publish** job's, since the build job holds no storage credential:
 
    ```bash
    node bin/wso2-release.mjs route-lists --storage s3://docs-staging --policy composed.json --out routes
    node bin/wso2-release.mjs check --dir build-100 --space sandbox --segment 1.0.0 --edition 1.0.0
-   node bin/wso2-docs.mjs check $R/docs-sandbox/sandbox --release --edition 1.0.0 --manifest composed.json --build-dir build-100 --routes routes
+   node bin/wso2-docs.mjs check unpacked/sandbox --release --edition 1.0.0 --manifest composed.json --build-dir build-100 --routes routes
    node bin/wso2-release.mjs publish --storage s3://docs-staging --dir build-100 --space sandbox --segment 1.0.0 --edition 1.0.0 --tag 1.0.0-docs.1 --source-repo wso2/docs-sandbox
    ```
 
@@ -97,7 +109,7 @@ R=~/wso2-docs-local/repos
    node bin/wso2-release.mjs gc --storage s3://docs-staging
    ```
 
-A family Cloud is the same, with one deployment: `plan --repo wso2/docs-identity-platform --tag identity-platform/cloud-2026.10.26.1` plans `identity-platform/cloud`, and `build $R/docs-identity-platform/identity-platform --edition cloud` builds Identity Server's Cloud part into it from the same checkout.
+A family Cloud is the same, with one deployment: `plan --repo wso2/docs-identity-platform --tag identity-platform/cloud-2026.10.26.1` plans `identity-platform/cloud`, and `build unpacked/identity-platform --edition cloud` builds Identity Server's Cloud part into it from beside it in the same bundle.
 
 ## Release Contribute or the Landing page
 
@@ -105,7 +117,7 @@ Both release themselves from the **Platform deployments** workflow, when a chang
 
 | Deployment | Released when the merge changes | How |
 |---|---|---|
-| **Contribute**, the Doc space in `standards/contribute/` | Anything its build reads: `standards/`, `site/`, `plugins/`, `chrome/`, `lib/`, `bin/`, `schemas/`, `navigation/`, `package.json` or `package-lock.json` | Makes the next Cloud tag on the Platform repository, such as `cloud-2026.10.27.1`, and starts **Release docs** for it, as a Content repository's `docs.yml` does |
+| **Contribute**, the Doc space in `standards/contribute/` | Anything its build reads: `standards/`, `site/`, `plugins/`, `chrome/`, `lib/`, `bin/`, `schemas/`, `navigation/`, `package.json` or `package-lock.json` | Makes the next Cloud tag on the Platform repository, such as `cloud-2026.10.27.1`, and starts **Release docs** for it, built from the Platform repository at that tag, with no bundle |
 | **The Landing deployment** | `navigation/` or `chrome/landing.yaml` | Starts **Release docs** with scope `landing`: it builds the Landing deployment from the Platform alone, under release id `landing-<YYYY.MM.DD>.<run id>`, then flips, crawls and promotes it as any Docs deployment |
 
 A Platform release rebuilds both too. To release either by hand, run **Platform deployments** with **Run workflow**, which releases both, or start one:
@@ -136,11 +148,15 @@ node bin/wso2-release.mjs flip --storage s3://docs-staging --env staging --deplo
 
 | Problem | Fix |
 |---|---|
-| Plan: `Edition <v> of <doc space> is not in the manifest policy; add it by PR first` | The Edition isn't on the Content repository's `main` yet, or compose failed and kept the last good copy. Read the plan job's compose step. |
-| Plan: `… is pinned to <tag> in its docspace.yaml; remove the pin to release <tag>` | The Edition is held. Its team removes `pin` when it may move again. |
-| Plan: `<repo> holds several Doc spaces …: its tags are <doc space>/<tag>` | The tag has no Doc space prefix. Tag again with the prefix. |
-| Plan: `<part>'s Cloud is its Cloud part of <platform>` | A Cloud part has no Cloud tag. Release its platform's Cloud tag. |
+| A `bundle-intake` issue: `Edition <v> of <doc space> is not in the manifest; add it by PR first` | The Edition isn't on the Content repository's `main` yet, or compose failed. Once it is, run intake by hand. |
+| A `bundle-intake` issue: `… is pinned to <tag> in its docspace.yaml; remove the pin to release <tag>` | The Edition is held. Its team removes `pin` when it may move again, then runs intake by hand or releases a newer tag. |
+| A `bundle-intake` issue: `<part>'s Cloud is its Cloud part of <platform>` | A Cloud part has no Cloud tag. Release its platform's Cloud tag. |
+| A `bundle-intake` issue: `… is not immutable` or `… must carry exactly one asset` | Turn on immutable releases in the Content repository's settings, then release a new tag. A release is never edited. |
+| A `bundle-intake` issue: `The attestation does not verify` | The bundle wasn't made by the Platform's `docs-bundle.yml` at `v1`, on a GitHub-hosted runner, from `main` or the tag. Check the Content repository's `docs.yml` calls `docs-bundle.yml@v1`, then release a new tag. |
+| A `bundle-intake` issue: `sha256 … is not GitHub's digest`, `does not unpack safely`, `bundle.json names …` or `content-safety: …` | The bundle is damaged or isn't this release's. Fix the cause in the Content repository and release a new tag. |
+| The intake pull request doesn't merge | Read its failed check. `intake-record` fails when the branch changes more than the record's release entries: someone pushed to it. Close it; the next poll opens a fresh one. |
 | A build job fails | Nothing went live. Fix the page in the Content repository: its next merge or **Release docs** run makes a new tag. |
+| Fetch: `The asset's sha256 … is not the record's` | The asset on GitHub isn't the one intake verified. Nothing went live. Withdraw the release, and release a new tag. |
 | `Release <x> is missing or incomplete; publish it first` | An upload was interrupted. Re-run the run: the upload starts again. |
 | The crawl gate fails | The flip stands on staging, and the release isn't promoted. Fix the links it lists. Links to Doc spaces not deployed in that environment fail until they are. |
 | `finalize-staging` waits with `waiting for the state lock, held by …` | Another run, or someone running a command by hand, is writing the state. It goes on when that finishes. After 45 minutes it fails: see who holds the lock with `node bin/wso2-release.mjs state-lock --storage s3://docs-staging`, and re-run the run. |

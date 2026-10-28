@@ -24,7 +24,9 @@ import { mkdocsSlug, fileSlug } from './slug.mjs';
 import { pascalCase } from './mdx.mjs';
 import { compileCheck } from './compile.mjs';
 import { expandIncludes, tokenize, parse, evalExpr, printValue, truthyValue, JinjaTables, JinjaError } from './jinja.mjs';
-import { Regions, makeScope, renderFlat, renderStructured, mergeTexts, markersToJsx, markerFor, markerAttrs, filterLines } from './variants.mjs';
+import {
+  Regions, adjacentAlternatives, cloudCounterpartsOf, makeScope, renderFlat, renderStructured, mergeTexts, markersToJsx, markerFor, markerAttrs, filterLines,
+} from './variants.mjs';
 import { checkEditions } from './pagecheck.mjs';
 import { fixSpec } from './specs.mjs';
 import { loadOverrides, SourceOverrides } from './overrides.mjs';
@@ -247,7 +249,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     generatedDescriptions: 0, sidebarLabels: 0, relativeFallback: 0, unlisted: 0, placeholders_: 0,
     sharedPages: 0, cloudOnlyPages: 0, selfHostedOnlyPages: 0, markedPages: 0, markers: 0, flatMerged: 0,
     editionCheckFailures: 0, imageVariants: 0, linkVariants: 0, includesExpanded: 0, includeFrontMatter: 0,
-    flaggedOffPages: 0, specsFixed: 0, titlesVarying: 0,
+    flaggedOffPages: 0, specsFixed: 0, titlesVarying: 0, variants: 0, adjacentAlternatives: 0, cloudCounterparts: 0, ambiguousCounterparts: 0,
   };
   Object.defineProperty(stats, 'placeholders', { get: () => stats.placeholdersWrapped, set: (v) => { stats.placeholdersWrapped = v; } });
   for (const t of trees.values()) if (t.id === homeTreeId || !multi) stats.flaggedOffPages += t.flaggedOff.size;
@@ -877,6 +879,28 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
   };
 
   const exportFolders = new Set();
+  // Cloud counterparts (Content per Edition): a Self-hosted-only page and the
+  // Cloud-only page in the same navigation slot of the two legacy trees. A
+  // slot the converter can't tell is reported, never guessed.
+  const counterparts = new Map();
+  if (multi) {
+    const kinds = [...pages.values()].map((page) => {
+      const lp = [...page.srcs.values()][0];
+      const r = markerFor(new Set(page.ctxIds), new Set(allCtxIds), contexts);
+      const marker = r?.show && !r.marker?.selfHostedFrom ? r.marker?.only ?? null : null;
+      return { target: page.target, marker: page.kind === 'page' && page.srcs.size === 1 ? marker : null, navPath: lp.navPath, inNav: lp.inNav };
+    });
+    const found = cloudCounterpartsOf(kinds);
+    for (const [selfHosted, cloud] of found.counterparts) counterparts.set(selfHosted, docUrl(cloud).replace(/\/$/, ''));
+    for (const a of found.ambiguous) {
+      stats.ambiguousCounterparts++;
+      report.add('cloud-counterpart', a.selfHosted.join(', '), `navigation slot "${a.slot}" has Self-hosted-only pages ${a.selfHosted.join(', ')} and Cloud-only pages ${a.cloud.join(', ')}; set cloudCounterpart by hand if one covers the other`);
+    }
+    for (const p of found.possible) {
+      stats.possibleCounterparts = (stats.possibleCounterparts ?? 0) + 1;
+      report.add('cloud-counterpart', p.selfHosted.join(', '), `the same nav label in different navigation slots: Self-hosted-only ${p.selfHosted.join(', ')}, Cloud-only ${p.cloud.join(', ')}; set cloudCounterpart by hand if one covers the other`);
+    }
+  }
   for (const page of [...pages.values()].sort((a, b) => a.src.localeCompare(b.src))) {
     const file = page.file;
     const cur = { page, label: page.src, oldUrl: page.oldUrl, file, imports: new Map(), ctxIds: page.ctxIds, regions: null, reports: [] };
@@ -1001,12 +1025,20 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       }
       if (r.marker?.only) front.editions = r.marker.only;
       if (r.marker?.selfHostedFrom) front.selfHostedFrom = r.marker.selfHostedFrom;
+      if (r.marker?.only === 'self-hosted' && counterparts.get(page.target)) {
+        front.cloudCounterpart = counterparts.get(page.target);
+        stats.cloudCounterparts++;
+      }
       if (r.marker?.only === 'cloud') stats.cloudOnlyPages++;
       else if (r.marker?.only === 'self-hosted') stats.selfHostedOnlyPages++;
       else stats.sharedPages++;
       if (/<Edition /.test(bodyText)) {
         stats.markedPages++;
         stats.markers += (bodyText.match(/<Edition /g) ?? []).length;
+        stats.variants += (bodyText.match(/<Variants>/g) ?? []).length;
+        const left = adjacentAlternatives(bodyText);
+        stats.adjacentAlternatives += left;
+        if (left) report.add('edition-variants', page.src, `${left} adjacent Cloud and Self-hosted block${left === 1 ? '' : 's'} not in <Variants>: Cloud shows both; wrap the alternatives in <Variants> by hand`);
       }
     }
     page.written = true;
@@ -1477,6 +1509,9 @@ function reportMarkdown(summary, report) {
     ...(summary.navPagesByTree ? [
       ['Pages shared by every Edition', s.sharedPages], ['Cloud-only pages (`editions: cloud`)', s.cloudOnlyPages], ['Self-hosted-only pages', s.selfHostedOnlyPages],
       ['Pages with Edition markers', s.markedPages], ['Edition markers', s.markers], ['Pages merged block by block (structured markers did not hold)', s.flatMerged],
+      ['Edition variants (`<Variants>`)', s.variants], ['Adjacent Cloud and Self-hosted blocks left outside `<Variants>`', s.adjacentAlternatives],
+      ['Self-hosted-only pages with a Cloud counterpart (`cloudCounterpart`)', s.cloudCounterparts], ['Navigation slots with several Cloud or Self-hosted-only pages (counterpart not set)', s.ambiguousCounterparts],
+      ['Nav labels shared by Cloud-only and Self-hosted-only pages in different slots (possible counterparts, not set)', s.possibleCounterparts ?? 0],
       ['Pages failing the per-Edition check', s.editionCheckFailures], ['Pages whose title differs per Edition', s.titlesVarying],
       ['Images that differ per Edition', s.imageVariants], ['Links that differ per Edition', s.linkVariants],
       ['Includes expanded', s.includesExpanded], ['Pages left out by feature flags', s.flaggedOffPages], ['Folders exported as one file', s.exportSingleFolders],

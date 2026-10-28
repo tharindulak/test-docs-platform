@@ -16,6 +16,7 @@ import {
   referencedSchemas, resolveSpecFile, schemaAnchor, serverUrl, typeLabel, validateSpec,
 } from '../lib/openapi.mjs';
 import { apiFolder, backLink, indexFrontMatter, isApiPage, tagPages } from '../lib/api-pages.mjs';
+import { editionFromId, isSelfHostedAddition, markerFromFrontMatter } from '../lib/edition.mjs';
 
 const VAR = /\{edition\.([A-Za-z_]\w*)\}/g;
 const reported = new Set();
@@ -231,13 +232,19 @@ function navNodes(groups, hrefFor, current) {
 
 // `routeBase`: the docs instance's route under the site base ('' or, for a
 // Cloud part in its platform's tree, the part's slug).
-export default function remarkApiReference({ docsDir, edition, vars = {}, routeBase = '' }) {
+// `additions`: Cloud's Self-hosted additions (lib/content.mjs additionsFor); a
+// Self-hosted-only API page shown in Cloud reads as the newest release.
+export default function remarkApiReference({ docsDir, edition: built, vars: builtVars = {}, routeBase = '', additions = null }) {
   const R = routeBase ? `${routeBase.replace(/\/$/, '')}/` : '';
   return (tree, file) => {
     let fm = file.data?.frontMatter ?? {};
     if (!file.path || !isApiPage(fm)) return;
     // Tag pages inherit the index page's spec and server.
     if (fm.tag !== undefined) fm = { ...indexFrontMatter(path.dirname(file.path)), ...fm };
+    const marker = additions ? markerFromFrontMatter(fm) : null;
+    const addition = Boolean(marker && isSelfHostedAddition(built, marker, additions.newestRelease));
+    const edition = addition ? editionFromId(additions.newestRelease) : built;
+    const vars = addition ? additions.vars : builtVars;
     const where = path.relative(docsDir, file.path);
     if (!fm.spec) throw new Error(`${where}: layout: api-reference needs "spec:" (for example spec: ./openapi.yaml)`);
 

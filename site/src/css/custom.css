@@ -18,6 +18,28 @@
 }
 
 
+/* Self-hosted additions shown in Cloud (SelfHostedAddition): the label is
+   text ("Self-hosted"), never colour alone. */
+.wso2-self-hosted__tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--oxygen-palette-divider);
+  background: var(--oxygen-palette-background-paper);
+  color: var(--ifm-font-color-base);
+}
+.wso2-self-hosted__link { font-size: 0.85rem; }
+.wso2-self-hosted--page { margin: 0 0 1rem; }
+.wso2-self-hosted--block {
+  margin: 1.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--oxygen-palette-divider);
+  background: var(--oxygen-palette-background-paper);
+}
+.wso2-self-hosted__label { margin-bottom: 0.5rem; }
+
 /* Show-markers mode (local preview and PR previews only). */
 .wso2-edition-marker {
   position: relative;

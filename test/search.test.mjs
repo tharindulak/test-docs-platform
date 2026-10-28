@@ -56,6 +56,11 @@ test('records map to the collection schema', () => {
   assert.notEqual(top.id, section.id);
   const fields = new Set(collectionSchema('x').fields.map((f) => f.name));
   for (const d of docs) for (const k of Object.keys(d)) if (k !== 'id') assert.ok(fields.has(k), `schema has ${k}`);
+  assert.equal(top.selfHosted, undefined);
+  // A Self-hosted addition stays in Cloud's records, tagged for its badge.
+  const [addition] = toSearchDocuments([{ ...rec('cloud', 'deploy-and-operate/install/', '', null, 'Install.'), selfHosted: true }], meta('cloud'), policy, { release: 'r' });
+  assert.equal(addition.selfHosted, true);
+  assert.ok(fields.has('selfHosted'));
 });
 
 test('/latest/ twins, legacy versions and unknown Doc spaces are never indexed', () => {
@@ -157,12 +162,12 @@ const withStatus = (m, slug, id, status) => {
   return copy;
 };
 
-test('scopes: the Docs section first, then All of WSO2 Docs, This Edition and All Editions; only All of WSO2 Docs on the landing page', () => {
+test('scopes: search follows the selected version (This Edition first, then the Docs section, All of WSO2 Docs and All Editions); only All of WSO2 Docs on the landing page', () => {
   assert.deepEqual(scopesFor(ctx720), { scopes: ['edition', 'docspace', 'all'], default: 'edition' }, 'without a manifest: the first Pilot\'s three');
-  assert.deepEqual(scopesFor(sec720, manifest), { scopes: ['section', 'all', 'edition', 'docspace'], default: 'section' });
+  assert.deepEqual(scopesFor(sec720, manifest), { scopes: ['edition', 'section', 'all', 'docspace'], default: 'edition' });
   assert.deepEqual(scopesFor(landing, manifest), { scopes: ['all'], default: 'all' });
-  assert.deepEqual(scopesFor(ipCloud, manifest), { scopes: ['section', 'all', 'edition'], default: 'section' }, 'a Cloud-only family: one Edition, so no All Editions');
-  assert.deepEqual(scopesFor(isPart, manifest), { scopes: ['section', 'all', 'edition', 'docspace'], default: 'section' }, 'a Cloud part: its component\'s Editions');
+  assert.deepEqual(scopesFor(ipCloud, manifest), { scopes: ['edition', 'section', 'all'], default: 'edition' }, 'a Cloud-only family: one Edition, so no All Editions');
+  assert.deepEqual(scopesFor(isPart, manifest), { scopes: ['edition', 'section', 'all', 'docspace'], default: 'edition' }, 'a Cloud part: its component\'s Editions');
   assert.equal(scopeLabel('section', sec720, manifest), 'Identity Platform docs');
   assert.equal(scopeLabel('section', apim, manifest), 'API Platform docs');
   assert.equal(scopeLabel('all', sec720, manifest), 'All of WSO2 Docs');
@@ -351,7 +356,7 @@ test('"See all results" goes to the Landing search page, which reads its context
   assert.equal(sec, '/search/?q=mfa&scope=section&section=identity-platform&space=identity-server&edition=cloud');
   const back = parseSearchPageUrl(sec.split('?')[1], manifest);
   assert.equal(back.scope, 'section');
-  assert.deepEqual(back.offered, ['section', 'all', 'edition', 'docspace']);
+  assert.deepEqual(back.offered, ['edition', 'section', 'all', 'docspace']);
   assert.equal(buildFilter({ scope: 'section', ctx: back.ctx, manifest }), buildFilter({ scope: 'section', ctx: isPart, manifest }));
   assert.equal(hitTarget({ docSpace: 'identity-server', edition: 'cloud', cloudIn: 'identity-platform', page: '', anchor: '' }, back.ctx, manifest).sameDeployment, false);
   assert.equal(searchPageUrl({ query: 'x', scope: 'all', ctx: sec720 }), '/search/?q=x&scope=all&section=identity-platform&space=identity-server&edition=7.2.0', 'All of WSO2 Docs keeps the section it widens');
@@ -567,7 +572,8 @@ test('release workflows run the search steps and never block on them', () => {
   const s6 = step('finalize-staging', 'Staging search index (step 6)');
   assert.ok(names.indexOf('Staging crawl gate (step 5)') < names.indexOf('Staging search index (step 6)'));
   assert.equal(s6['continue-on-error'], true);
-  assert.match(s6.run, /search-index --env staging --storage "\$STAGING_STORAGE" --deploy "\$FLIP"/);
+  // New releases and, after a withdrawal, the deployments flipped back.
+  assert.match(s6.run, /search-index --env staging --storage "\$STAGING_STORAGE" --deploy "\$FLIP \$FLIP_BACK"/);
   assert.equal(s6.env.TYPESENSE_ADMIN_KEY, '${{ secrets.TYPESENSE_ADMIN_KEY }}');
   const s8 = step('promote', 'Production search index (step 8)');
   assert.equal(s8['continue-on-error'], true);

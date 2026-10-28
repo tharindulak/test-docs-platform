@@ -83,6 +83,8 @@ function Hit({ hit, ctx, manifest, scope, active, onNavigate, linkRef }) {
         <span className="wso2-search-hit__title">
           <Highlight attribute={title} hit={hit} />
           {scope !== 'edition' && <span className="wso2-search-hit__badge">{editionLabel(hit, manifest, { withName: scope !== 'docspace' })}</span>}
+          {/* A Self-hosted addition in Cloud's records. */}
+          {hit.selfHosted && hit.edition === 'cloud' && <span className="wso2-search-hit__badge">Self-hosted</span>}
         </span>
         {hit.content && <span className="wso2-search-hit__snippet"><Snippet attribute="content" hit={hit} /></span>}
       </a>

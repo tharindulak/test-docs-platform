@@ -5,7 +5,8 @@
 // remembered-Edition banner (an offer, never a redirect) and the version
 // notice from the manifest (Version switching with the header selector and
 // menu dropdowns): on an older release the newest release and Cloud, on Cloud
-// that some features may not be in a release yet, end of life as before. The
+// that some features may not be in a release yet (only on a page with Cloud-only
+// content, else which Cloud and the newest release), end of life as before. The
 // version notice is server-rendered from the snapshot, so it shows with no
 // flash; team notices come only from the published manifest, at runtime.
 import React, { useEffect, useState } from 'react';
@@ -35,7 +36,8 @@ function useTeamNotices(view) {
   return f.doc === view.space ? own : [...own, ...teamNotices(live, f.doc, f.edition)];
 }
 
-export default function EditionNotices() {
+// `cloudContent`: the page shows Cloud-only content (its front matter, set by the build).
+export default function EditionNotices({ cloudContent = false }) {
   const manifest = useManifest();
   const view = useNavView();
   const { pathname } = useLocation();
@@ -44,7 +46,7 @@ export default function EditionNotices() {
   const [banner, setBanner] = useState(null);
   const [newestUrl, setNewestUrl] = useState(null);
   const f = view ? focus(manifest, view) : null;
-  const note = view ? versionNotice(manifest, view) : null;
+  const note = view ? versionNotice(manifest, view, { cloudContent }) : null;
 
   useEffect(() => { setSwitched(takeSwitchNotice(pathname)); }, [pathname]);
 

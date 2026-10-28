@@ -86,7 +86,7 @@ test('the small world composes cleanly', () => {
 
 // --- Schemas -----------------------------------------------------------------
 test('every schema compiles, is draft 2020-12 and pins schemaVersion 1', () => {
-  assert.deepEqual(Object.keys(SCHEMA_FILES).sort(), ['catalog', 'docspace', 'navigation', 'release-notes', 'sdks', 'section']);
+  assert.deepEqual(Object.keys(SCHEMA_FILES).sort(), ['catalog', 'docspace', 'intake-record', 'navigation', 'release-notes', 'sdks', 'section']);
   for (const [kind, file] of Object.entries(SCHEMA_FILES)) {
     const schema = JSON.parse(fs.readFileSync(path.join(SCHEMAS_DIR, file), 'utf8'));
     assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema', file);

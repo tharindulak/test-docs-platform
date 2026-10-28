@@ -61,11 +61,11 @@ jobs:
             --platform-root "$RUNNER_TEMP/prev" --out "$RUNNER_TEMP/old.json" || echo '{}' > "$RUNNER_TEMP/old.json"
       - name: The last good composed manifest, for the rebuild diff
         if: github.event_name != 'push'
-        run: node bin/wso2-release.mjs composed --storage s3://docs-staging --out "$RUNNER_TEMP/old.json" || echo '{}' > "$RUNNER_TEMP/old.json"
+        run: node bin/wso2-release.mjs composed --storage s3://wso2-docs-site --out "$RUNNER_TEMP/old.json" || echo '{}' > "$RUNNER_TEMP/old.json"
       - name: Compose (keeps the last good manifest on failure)
-        run: node bin/wso2-release.mjs compose --content "$RUNNER_TEMP/content" --storage s3://docs-staging --out composed.json --report compose-report.json
+        run: node bin/wso2-release.mjs compose --content "$RUNNER_TEMP/content" --storage s3://wso2-docs-site --out composed.json --report compose-report.json
       - name: Republish the runtime files
-        run: node bin/wso2-release.mjs manifest --storage s3://docs-staging --env staging --policy composed.json
+        run: node bin/wso2-release.mjs manifest --storage s3://wso2-docs-site --env staging --policy composed.json
       - name: Rebuild Doc spaces whose Editions or latest changed
         env:
           GH_TOKEN: ${{ github.token }}
@@ -107,6 +107,6 @@ jobs:
           cache: npm
       - run: npm ci
       - name: The composed manifest staging stored
-        run: node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json
+        run: node bin/wso2-release.mjs composed --storage s3://wso2-docs-site --out composed.json
       - name: Republish the runtime files
         run: node bin/wso2-release.mjs manifest --storage s3://docs-prod --env production --policy composed.json

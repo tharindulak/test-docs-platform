@@ -29,7 +29,7 @@ If a check fails, no release is published and the previous Docs release stays li
 ## Verify
 
 1. In the Content repository, open **Releases**. The tag's release lists the `.docs.zip` asset. It is never marked latest or a pre-release, and it can't be changed once published.
-2. The Platform picks the Docs bundle up from there. The new release appears on staging first, and on WSO2 Docs once the staging crawl passes.
+2. The Platform picks the Docs bundle up from there within half an hour, and verifies it. The new release appears on staging first, and on WSO2 Docs once the staging crawl passes. If the Platform can't accept the bundle, the Doc space's owners are mentioned in an issue on the Platform repository, labelled `bundle-intake`, that says why.
 
 ## Next steps
 

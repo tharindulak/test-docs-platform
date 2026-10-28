@@ -67,7 +67,8 @@ test('Markdown twins, llms.txt and the MCP endpoint for the stub Content repo', 
     for (const m of ['MARKER-SELF-HOSTED-ONLY', 'MARKER-FROM-730', 'port 9443', 'open https://localhost:9443/console']) assert.match(sq, new RegExp(m));
     for (const m of ['MARKER-CLOUD-ONLY', 'MARKER-FROM-740', 'MARKER-FROM-NEXT']) assert.doesNotMatch(sq, new RegExp(m));
     assert.doesNotMatch(sq, /## Agent identities|Edition|edition\./);
-    assert.doesNotMatch(c.md('guides/mfa.md'), /MARKER-PARTIAL-SELF-HOSTED/);
+    assert.match(c.md('guides/mfa.md'), /\*\*Self-hosted only\.\*\*\n\nEnable the authenticator in `deployment\.toml` first\. MARKER-PARTIAL-SELF-HOSTED/, 'a Self-hosted addition, labelled');
+    assert.doesNotMatch(c.md('get-started/quick-start.md'), /MARKER-SELF-HOSTED-NEXT/);
     assert.match(s.md('guides/mfa.md'), /Enable the authenticator in `deployment\.toml` first\. MARKER-PARTIAL-SELF-HOSTED/, 'partials are inlined');
     assert.match(s.md('index.md'), /^# WSO2 Identity Server documentation$/m);
   });

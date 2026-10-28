@@ -1,8 +1,16 @@
-# One Docs deployment: build, blocking checks and upload to its immutable
-# release folder on staging (release sequence steps 1-3). Called by
-# release.yml once per matrix entry; not triggered on its own. The Landing
-# deployment (space _landing) is built from this Platform checkout alone:
-# no Content repo, no latest page list, no content checks.
+# One Docs deployment: build and blocking checks (release sequence steps 1-2).
+# Called by release.yml once per matrix entry; not triggered on its own.
+# A Content repo's deployment builds from its recorded Docs bundle: the
+# asset is fetched, its sha256 checked against the intake record, and it is
+# unpacked into an empty folder; the Edition and the files on main come from
+# its bundle.json, and nothing is read from git. The Platform's own Doc space
+# (Contribute) builds from this repo at its tag; the Landing deployment
+# (space _landing) from this Platform checkout alone: no Content repo, no
+# latest page list, no content checks.
+# This job runs bundle content (MDX is code), so it holds no storage or
+# search credential and no environment: what it reads from staging the plan
+# job hands it (release-inputs), and what it builds goes, as the artifact
+# release-<space>-<segment>, to release.yml's publish job, which uploads it.
 name: Build one Docs deployment
 
 on:
@@ -33,6 +41,21 @@ on:
       as-latest:
         type: boolean
         required: true
+      # The recorded bundle (releases/<slug>.yaml); empty for the Platform's
+      # own Doc space and the Landing deployment.
+      asset:
+        type: string
+        required: false
+        default: ''
+      sha256:
+        type: string
+        required: false
+        default: ''
+    secrets:
+      # Read-only, only while the Pilot Content repos are private; given to
+      # the bundle download step alone.
+      CONTENT_READ_TOKEN:
+        required: false
 
 permissions:
   contents: read
@@ -43,46 +66,63 @@ jobs:
     # Stage 1 runners; stages 2 and 3 (larger runners, self-hosted build
     # servers) are a change of DOCS_BUILD_RUNNER, not of this workflow.
     runs-on: ${{ vars.DOCS_BUILD_RUNNER || 'ubuntu-latest' }}
-    environment: staging
     timeout-minutes: 60
     env:
-      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
-      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       SPACE: ${{ inputs.space }}
       DIR: ${{ inputs.dir }}
       SEGMENT: ${{ inputs.segment }}
       EDITION: ${{ inputs.edition }}
       TAG: ${{ inputs.tag }}
-      RELEASE: ${{ inputs.release }}
       NODE_OPTIONS: --max-old-space-size=6144
       LANDING: ${{ inputs.space == '_landing' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check out the Content repo at the tag
-        if: inputs.space != '_landing'
+        with:
+          persist-credentials: false
+      - name: Check out the Platform's own Doc space at the tag
+        if: inputs.space != '_landing' && inputs.asset == ''
         uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.repo }}
           ref: ${{ inputs.tag }}
           path: content
-          # Needed only while the Pilot Content repos are private.
-          token: ${{ secrets.CONTENT_READ_TOKEN || github.token }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      # The build reads the Deployment manifest the plan used: the last good
-      # copy compose stored in staging (docs: links, latest, Cloud parts).
-      - name: The stored composed manifest
-        run: node bin/wso2-release.mjs composed --storage s3://docs-staging --out "$RUNNER_TEMP/composed.json"
-      # The menus built into each page list only deployed Doc spaces (and this
-      # one), as the live manifest's do, so the crawl gate passes while a merged
-      # Doc space waits for its first Docs release.
-      - name: The staging deployment state
-        run: node bin/wso2-release.mjs status --storage s3://docs-staging > "$RUNNER_TEMP/state.json"
+      - name: Fetch the recorded bundle, check its sha256 against the intake record, unpack it
+        id: bundle
+        if: inputs.asset != ''
+        env:
+          REPO: ${{ inputs.repo }}
+          ASSET: ${{ inputs.asset }}
+          SHA256: ${{ inputs.sha256 }}
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}
+        # Into the Platform checkout, as content/ is: Docusaurus resolves the
+        # pages' imports from there (a folder outside it fails to render).
+        # bundle.json, not this checkout's git, gives the repo path and main.
+        run: |
+          node bin/wso2-release.mjs fetch-bundle --repo "$REPO" --tag "$TAG" --asset "$ASSET" --sha256 "$SHA256" \
+            --out "$GITHUB_WORKSPACE/bundle" --github-output "$GITHUB_OUTPUT"
+      - name: Where the source is
+        id: source
+        env:
+          BUNDLE_DIR: ${{ steps.bundle.outputs.dir }}
+          BUNDLE_COMMIT: ${{ steps.bundle.outputs.source-commit }}
+        run: |
+          if [ "$LANDING" = "true" ]; then dir=""; sha="$GITHUB_SHA"
+          elif [ -n "$BUNDLE_DIR" ]; then dir="$BUNDLE_DIR"; sha="$BUNDLE_COMMIT"
+          else dir="content/$DIR"; sha="$(git -C content rev-parse HEAD)"; fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      # What the plan read from staging: the stored composed manifest, the
+      # deployment state, the deployed route lists and latest page lists.
+      - name: The release's inputs from staging
+        uses: actions/download-artifact@v4
+        with:
+          name: release-inputs
+          path: ${{ runner.temp }}/inputs
       # Per Platform commit: Docusaurus's persistent webpack cache does not see
       # changes to the Platform's own plugins and theme, so a Platform release
       # (or any Platform change) starts every deployment's cache afresh.
@@ -107,11 +147,15 @@ jobs:
       - name: Latest page list from staging
         if: ${{ !inputs.as-latest && inputs.space != '_landing' }}
         run: |
-          [ -f latest/pages.json ] || node bin/wso2-release.mjs latest-pages --storage s3://docs-staging --space "$SPACE" --out latest/pages.json
+          if [ ! -f latest/pages.json ] && [ -f "$RUNNER_TEMP/inputs/latest/$SPACE.json" ]; then
+            mkdir -p latest && cp "$RUNNER_TEMP/inputs/latest/$SPACE.json" latest/pages.json
+          fi
 
       - name: Build (step 1)
         env:
           AS_LATEST: ${{ inputs.as-latest }}
+          SRC: ${{ steps.source.outputs.dir }}
+          MAIN_FILES: ${{ steps.bundle.outputs.main-files }}
           # Scoped search-only keys (public); the browser picks one by host.
           WSO2_DOCS_SEARCH_KEY_STAGING: ${{ vars.SEARCH_KEY_STAGING }}
           WSO2_DOCS_SEARCH_KEY_PRODUCTION: ${{ vars.SEARCH_KEY_PRODUCTION }}
@@ -119,26 +163,28 @@ jobs:
           # Release builds carry the production analytics head script; it runs only
           # on the production host, so the same bytes stay quiet on staging.
           # Only the Doc space's own directory builds; a family Cloud also reads
-          # its Cloud parts' directories beside it, from this same checkout.
-          args=(build "content/$DIR" --edition "$EDITION" --env production --manifest "$RUNNER_TEMP/composed.json" --deployed "$RUNNER_TEMP/state.json" --out build)
-          [ "$LANDING" = "true" ] && args=(build --landing --env production --manifest "$RUNNER_TEMP/composed.json" --deployed "$RUNNER_TEMP/state.json" --out build)
+          # its Cloud parts' directories beside it, from the same bundle.
+          args=(build "$SRC" --edition "$EDITION" --env production --manifest "$RUNNER_TEMP/inputs/composed.json" --deployed "$RUNNER_TEMP/inputs/state.json" --out build)
+          [ "$LANDING" = "true" ] && args=(build --landing --env production --manifest "$RUNNER_TEMP/inputs/composed.json" --deployed "$RUNNER_TEMP/inputs/state.json" --out build)
           [ "$AS_LATEST" = "true" ] && args+=(--as-latest)
           [ -f latest/pages.json ] && args+=(--latest-pages latest/pages.json)
+          # "Edit this page": the files on main, from bundle.json.
+          [ -n "$MAIN_FILES" ] && args+=(--main-files "$MAIN_FILES")
           start=$(date +%s)
           node bin/wso2-docs.mjs "${args[@]}"
           echo "Built $SPACE/$SEGMENT in $(( $(date +%s) - start ))s" >> "$GITHUB_STEP_SUMMARY"
-      - name: Route lists of the deployed Editions, for docs links
-        run: node bin/wso2-release.mjs route-lists --storage s3://docs-staging --policy "$RUNNER_TEMP/composed.json" --out routes
       # The PR's blocking checks again, on this build (Quality gates): compile,
       # docs: links against what staging serves (a target not deployed yet only
       # warns; the staging crawl gate catches it), front matter, markers,
       # skeleton, OpenAPI specs and Markdown twins. Policy checks (redirect
       # coverage, image size, marker versions) and lint ran on the PR.
       - name: Blocking checks (step 2)
+        env:
+          SRC: ${{ steps.source.outputs.dir }}
         run: |
           node bin/wso2-release.mjs check --dir build --space "$SPACE" --segment "$SEGMENT" --edition "$EDITION"
           [ "$LANDING" = "true" ] && exit 0
-          node bin/wso2-docs.mjs check "content/$DIR" --release --edition "$EDITION" --manifest "$RUNNER_TEMP/composed.json" --build-dir build --routes routes --out check.json
+          node bin/wso2-docs.mjs check "$SRC" --release --edition "$EDITION" --manifest "$RUNNER_TEMP/inputs/composed.json" --build-dir build --routes "$RUNNER_TEMP/inputs/routes" --out check.json
       - name: Share the latest page list with the other builds
         if: ${{ inputs.as-latest }}
         uses: actions/upload-artifact@v4
@@ -146,10 +192,15 @@ jobs:
           name: latest-pages-${{ inputs.space }}
           path: build/_platform/pages.json
           retention-days: 1
-      - name: Upload the release folder to staging (step 3)
+      - name: Hand the build to the publish job
         env:
-          SOURCE_REPO: ${{ inputs.repo }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
-          node bin/wso2-release.mjs publish --storage s3://docs-staging --dir build \
-            --space "$SPACE" --segment "$SEGMENT" --edition "$EDITION" --tag "$TAG" --release "$RELEASE" \
-            --source-repo "$SOURCE_REPO" --source-sha "$([ "$LANDING" = "true" ] && echo "$GITHUB_SHA" || git -C content rev-parse HEAD)"
+          mkdir -p "$RUNNER_TEMP/release"
+          mv build "$RUNNER_TEMP/release/build"
+          printf '%s' "$SOURCE_SHA" > "$RUNNER_TEMP/release/source-sha"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ inputs.space }}-${{ inputs.segment }}
+          path: ${{ runner.temp }}/release
+          retention-days: 1

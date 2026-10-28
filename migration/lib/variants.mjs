@@ -347,7 +347,129 @@ export function markersToJsx(mdx, regions) {
     }
   }
   if (stack.length) return null;
-  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+  return wrapVariants(out.join('\n').replace(/\n{3,}/g, '\n\n')).mdx;
+}
+
+// ---- Edition variants --------------------------------------------------------------
+
+const OPEN_LINE = /^([ \t>]*)<(Edition|Variants)(?:\s([^>]*))?>[ \t]*$/;
+const CLOSE_LINE = /^([ \t>]*)<\/(Edition|Variants)>[ \t]*$/;
+
+// The block-level <Edition> and <Variants> elements of converted MDX (each tag
+// alone on its line, as markersToJsx writes them): { start, end, prefix, name,
+// only, plain, parent } in document order, `parent` the index of the
+// enclosing element or -1.
+function markerBlocks(lines) {
+  const blocks = [];
+  const stack = [];
+  lines.forEach((line, i) => {
+    const o = OPEN_LINE.exec(line);
+    if (o) {
+      const attrs = o[3] ?? '';
+      const only = /only="([^"]+)"/.exec(attrs)?.[1] ?? null;
+      blocks.push({ start: i, end: -1, prefix: o[1], name: o[2], only, plain: !/selfHostedFrom=/.test(attrs), parent: stack.at(-1) ?? -1 });
+      stack.push(blocks.length - 1);
+      return;
+    }
+    const c = CLOSE_LINE.exec(line);
+    if (c && stack.length && blocks[stack.at(-1)].name === c[2]) blocks[stack.pop()].end = i;
+  });
+  return blocks.filter((b) => b.end >= 0);
+}
+
+// Adjacent sibling forms, one Cloud only and one Self-hosted only, outside any
+// <Variants>: [index of the first, index of the second] into `blocks`.
+function adjacentPairs(blocks, lines) {
+  const inVariants = (b) => {
+    for (let p = b.parent; p >= 0; p = blocks[p].parent) if (blocks[p].name === 'Variants') return true;
+    return false;
+  };
+  const blank = (prefix) => (l) => l.trim() === '' || l.trim() === prefix.trim();
+  const pairs = [];
+  for (let k = 0; k < blocks.length; k++) {
+    const a = blocks[k];
+    if (a.name !== 'Edition' || inVariants(a)) continue;
+    const next = blocks.findIndex((b, j) => j > k && b.parent === a.parent && b.start > a.end);
+    const b = blocks[next];
+    if (!b || b.name !== 'Edition' || b.prefix !== a.prefix || !lines.slice(a.end + 1, b.start).every(blank(a.prefix))) continue;
+    if (new Set([a.only, b.only]).size === 2 && [a.only, b.only].every((x) => x === 'cloud' || x === 'self-hosted')) pairs.push([k, next]);
+  }
+  return pairs;
+}
+
+// Adjacent Cloud and Self-hosted alternatives not yet in <Variants>, which
+// Cloud would show twice (the second as a Self-hosted addition).
+export const adjacentAlternatives = (mdx) => {
+  const lines = mdx.split('\n');
+  return adjacentPairs(markerBlocks(lines), lines).length;
+};
+
+// Wraps each adjacent Cloud/Self-hosted pair in <Variants> (an Edition
+// variant: each Edition shows only its own form), so Cloud shows its own form
+// instead of both. A Cloud form pairs with the plain Self-hosted form next to
+// it first (after it, then before it), else with one from a version; every
+// form is in one pair at most. A lone Self-hosted form stays a Self-hosted
+// addition. → { mdx, count }
+export function wrapVariants(mdx) {
+  const lines = mdx.split('\n');
+  const blocks = markerBlocks(lines);
+  const pairs = adjacentPairs(blocks, lines);
+  const used = new Set();
+  const chosen = [];
+  const partner = (k, plain) => pairs.find(([x, y]) => (x === k || y === k) && !used.has(x === k ? y : x) && blocks[x === k ? y : x].plain === plain);
+  for (let k = 0; k < blocks.length; k++) {
+    if (blocks[k].only !== 'cloud' || used.has(k)) continue;
+    const after = (p) => p && p[0] === k;
+    const options = [pairs.find((p) => after(p) && !used.has(p[1]) && blocks[p[1]].plain), partner(k, true), partner(k, false)].filter(Boolean);
+    const pick = options[0];
+    if (!pick) continue;
+    used.add(pick[0]);
+    used.add(pick[1]);
+    chosen.push(pick);
+  }
+  // From the end, so earlier line numbers stay valid.
+  for (const [x, y] of chosen.sort((p, q) => q[0] - p[0])) {
+    const first = blocks[Math.min(x, y)];
+    const last = blocks[Math.max(x, y)];
+    const gap = first.prefix.replace(/\s+$/, '');
+    lines.splice(last.end + 1, 0, gap, `${first.prefix}</Variants>`);
+    lines.splice(first.start, 0, `${first.prefix}<Variants>`, gap);
+  }
+  return { mdx: lines.join('\n').replace(/\n{3,}/g, '\n\n'), count: chosen.length };
+}
+
+// A Self-hosted-only page whose Cloud counterpart is the Cloud-only page in
+// the same navigation slot (the same nav labels down to the page, in the two
+// legacy trees). `pages`: { target, marker: 'cloud' | 'self-hosted' | null,
+// navPath, inNav }. A slot with more than one page of either kind is
+// reported, never guessed. → { counterparts: Map(self-hosted target → Cloud
+// target), ambiguous: [{ slot, selfHosted, cloud }] }
+export function cloudCounterpartsOf(pages) {
+  const slots = new Map();
+  for (const p of pages) {
+    if (!p.inNav || (p.marker !== 'cloud' && p.marker !== 'self-hosted') || !p.navPath?.length) continue;
+    const slot = p.navPath.join(' > ');
+    if (!slots.has(slot)) slots.set(slot, { cloud: [], 'self-hosted': [] });
+    slots.get(slot)[p.marker].push(p.target);
+  }
+  const counterparts = new Map();
+  const ambiguous = [];
+  for (const [slot, s] of slots) {
+    if (!s.cloud.length || !s['self-hosted'].length) continue;
+    if (s.cloud.length === 1 && s['self-hosted'].length === 1) counterparts.set(s['self-hosted'][0], s.cloud[0]);
+    else ambiguous.push({ slot, selfHosted: s['self-hosted'], cloud: s.cloud });
+  }
+  // The same nav label in different slots: a possible counterpart, for a person to decide.
+  const byLabel = new Map();
+  for (const [slot, s] of slots) {
+    const label = slot.split(' > ').at(-1).toLowerCase();
+    if (!byLabel.has(label)) byLabel.set(label, { cloud: [], 'self-hosted': [], slots: new Set() });
+    const l = byLabel.get(label);
+    l.slots.add(slot);
+    for (const k of ['cloud', 'self-hosted']) l[k].push(...s[k].filter((t) => !counterparts.has(t) && ![...counterparts.values()].includes(t)));
+  }
+  const possible = [...byLabel.values()].filter((l) => l.slots.size > 1 && l.cloud.length && l['self-hosted'].length).map((l) => ({ selfHosted: l['self-hosted'], cloud: l.cloud }));
+  return { counterparts, ambiguous, possible };
 }
 
 // The lines one context sees: sentinel regions that don't include it removed.

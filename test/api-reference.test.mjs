@@ -269,6 +269,15 @@ test('the remark step blocks invalid specs and incomplete splits, and anchors ev
   walk(run(page));
   assert.deepEqual(headings, ['api-title', 'tag-a', 'op-one', 'tag-b', 'op-two']);
   assert.throws(() => run({ ...page, server: '{edition.nope}' }), /unknown variable \{edition\.nope\}/);
+  // A Self-hosted-only API page shown in Cloud: its server from the newest release's variables.
+  const additions = { newestRelease: '7.3.0', vars: { host: 'https://localhost:9443' } };
+  const served = (fm) => {
+    const tree = { type: 'root', children: [] };
+    remarkApiReference({ docsDir: docs, edition: { id: 'cloud', kind: 'cloud' }, vars: { host: 'https://h' }, additions })(tree, { path: path.join(dir, 'index.mdx'), data: { frontMatter: fm } });
+    return JSON.stringify(tree);
+  };
+  assert.match(served({ ...page, editions: 'self-hosted' }), /https:\/\/localhost:9443\/v1/);
+  assert.match(served(page), /https:\/\/h\/v1/);
 
   fs.writeFileSync(path.join(dir, 'index.mdx'), `---\n${yaml.dump(page)}---\n`);
   fs.writeFileSync(path.join(dir, 'a.mdx'), '---\nlayout: api-reference\ntag: A\n---\n');

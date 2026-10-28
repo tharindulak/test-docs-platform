@@ -58,9 +58,38 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
     const cq = c.html('get-started/quick-start');
     const sq = s.html('get-started/quick-start');
     for (const m of ['MARKER-CLOUD-ONLY', 'MARKER-FROM-730', 'MARKER-FROM-740', 'MARKER-FROM-NEXT', 'your organization URL']) assert.match(cq, new RegExp(m));
-    for (const m of ['MARKER-SELF-HOSTED-ONLY', 'port 9443']) assert.doesNotMatch(cq, new RegExp(m));
-    for (const m of ['MARKER-SELF-HOSTED-ONLY', 'MARKER-FROM-730', 'port 9443']) assert.match(sq, new RegExp(m));
-    for (const m of ['MARKER-CLOUD-ONLY', 'MARKER-FROM-740', 'MARKER-FROM-NEXT', 'your organization URL']) assert.doesNotMatch(sq, new RegExp(m));
+    // Edition variants: each Edition, Cloud included, shows only its own form.
+    for (const m of ['MARKER-SELF-HOSTED-ONLY', 'port 9443', 'MARKER-SELF-HOSTED-NEXT']) assert.doesNotMatch(cq, new RegExp(m));
+    for (const m of ['MARKER-SELF-HOSTED-ONLY', 'MARKER-FROM-730', 'port 9443', 'MARKER-SELF-HOSTED-ADDITION']) assert.match(sq, new RegExp(m));
+    for (const m of ['MARKER-CLOUD-ONLY', 'MARKER-FROM-740', 'MARKER-FROM-NEXT', 'MARKER-SELF-HOSTED-NEXT', 'your organization URL', 'data-self-hosted']) assert.doesNotMatch(sq, new RegExp(m));
+  });
+
+  await t.test('Cloud shows Self-hosted additions, labelled, with the newest release\'s variables', () => {
+    const cq = c.html('get-started/quick-start');
+    const box = between(cq, 'data-self-hosted="block"', '</section>');
+    assert.match(box, /MARKER-SELF-HOSTED-ADDITION/);
+    assert.match(box, /Self-hosted<\/span>/, 'labelled in text');
+    assert.match(box, /<a [^>]*href="\/identity-server\/latest\/get-started\/quick-start\/"[^>]*>See it in <!-- -->Identity Server 7\.3\.0<\/a>/);
+    assert.match(plain(box), /Raise the heap of WSO2 Identity Server 7\.3\.0 at https:\/\/localhost:9443\/console/, 'self-hosted: variables, {edition.version} the newest release');
+    assert.match(cq, /id="tune-the-server"/, 'its heading is in the TOC');
+    // A Self-hosted-only page without a Cloud counterpart: in Cloud, badged, its canonical under /latest/.
+    const install = c.html('deploy-and-operate/install');
+    assert.match(install, /data-self-hosted="page"/);
+    assert.match(plain(install), /Then open https:\/\/localhost:9443\/console for WSO2 Identity Server 7\.3\.0\./);
+    assert.equal(canonical(install), 'https://docs.wso2.com/identity-server/latest/deploy-and-operate/install/');
+    assert.ok(!c.sitemap().includes('https://docs.wso2.com/identity-platform/cloud/identity-server/deploy-and-operate/install/'));
+    const records = c.json('search-records.json');
+    assert.ok(records.filter((r) => r.url.includes('/deploy-and-operate/install/')).every((r) => r.selfHosted === true && r.edition === 'cloud'), 'in Cloud\'s records, tagged');
+    assert.ok(records.some((r) => r.url.endsWith('quick-start/#tune-the-server') && r.selfHosted === true));
+    assert.ok(!records.some((r) => r.url.endsWith('quick-start/#register-an-application') && r.selfHosted));
+    // A Self-hosted-only page with a Cloud counterpart stays out of Cloud; 7.3.0 names it in pages.json.
+    assert.ok(!c.has('guides/server-licensing') && s.has('guides/server-licensing'));
+    assert.equal(s.json('pages.json').find((p) => p.path === 'guides/server-licensing/').cloudCounterpart, 'guides/cloud-billing/');
+    // Twins and llms.txt: the `**Self-hosted only.**` line.
+    assert.match(c.text('identity-server/get-started/quick-start.md'), /\*\*Self-hosted only\.\*\*\n\n## Tune the server/);
+    assert.match(c.text('identity-server/deploy-and-operate/install.md'), /canonical: https:\/\/docs\.wso2\.com\/identity-server\/latest\/deploy-and-operate\/install\/\n[^]*# Install\n\n\*\*Self-hosted only\.\*\*\n/);
+    assert.match(c.text('identity-server/llms.txt'), /\[Install\]\([^)]*install\.md\): \*\*Self-hosted only\.\*\* Install the server on a Linux host\./);
+    assert.doesNotMatch(s.text('get-started/quick-start.md'), /Self-hosted only/);
   });
 
   await t.test('hidden headings never reach the table of contents', () => {
@@ -71,7 +100,7 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
   });
 
   await t.test('markers inside partials', () => {
-    assert.doesNotMatch(c.html('guides/mfa'), /MARKER-PARTIAL-SELF-HOSTED/);
+    assert.match(between(c.html('guides/mfa'), 'data-self-hosted="block"', '</section>'), /MARKER-PARTIAL-SELF-HOSTED/, 'a Self-hosted addition in a partial');
     assert.match(s.html('guides/mfa'), /MARKER-PARTIAL-SELF-HOSTED/);
   });
 
@@ -87,7 +116,7 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
   await t.test('page-level markers drop pages', () => {
     assert.ok(c.has('guides/cloud-billing') && !s.has('guides/cloud-billing'));
     assert.ok(c.has('guides/agent-identities') && !s.has('guides/agent-identities'));
-    assert.ok(!c.has('deploy-and-operate/install') && s.has('deploy-and-operate/install'));
+    assert.ok(c.has('deploy-and-operate/install') && s.has('deploy-and-operate/install'), 'a Self-hosted-only page shows in Cloud');
   });
 
   await t.test('edition variables, in prose and code', () => {
@@ -155,7 +184,7 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
 
   await t.test('_platform outputs', () => {
     assert.deepEqual(s.json('pages.json').map((p) => p.path), [
-      '', 'deploy-and-operate/install/', 'get-started/quick-start/', 'guides/mfa/', 'reference/', 'reference/apis/applications/',
+      '', 'deploy-and-operate/install/', 'get-started/quick-start/', 'guides/mfa/', 'guides/server-licensing/', 'reference/', 'reference/apis/applications/',
       'reference/apis/notifications/', 'reference/apis/notifications/notifications-operations/', 'reference/apis/notifications/templates/', 'reference/connectors/',
     ]);
     assert.deepEqual(s.json('redirects.json')[0], { from: '/identity-server/7.3.0/guides/multi-factor-auth/', to: '/identity-server/7.3.0/guides/mfa/', status: 301 });
@@ -226,7 +255,7 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
   await t.test('latest twin and an older version', () => {
     const l = build('latest', '--edition', '7.3.0', '--as-latest');
     assert.equal(canonical(l.html('guides/mfa')), 'https://docs.wso2.com/identity-server/latest/guides/mfa/');
-    assert.equal(l.sitemap().length, 10);
+    assert.equal(l.sitemap().length, 11);
     // The legacy site's /en/latest/ URLs follow the latest twin; the pinned build keeps only /en/7.3.0/.
     const legacyLatest = 'https://is.docs.wso2.com/en/latest/guides/authentication/mfa/';
     assert.deepEqual(l.json('redirects.json').find((r) => r.from === legacyLatest), { from: legacyLatest, to: '/identity-server/latest/guides/mfa/', status: 301 });
@@ -293,7 +322,14 @@ test('Cloud (the part in its family Cloud tree) and 7.3.0 build from the same tr
   });
 
   await t.test('version notices are server-rendered from the manifest snapshot: Cloud names the newest release, the newest release none', () => {
+    // "Newest features" only on a page with Cloud-only content: guides/mfa's partial holds a variant's Cloud form.
     assert.match(between(c.html('guides/mfa'), 'wso2-notices', '</article>'), /wso2-notice--info.*Cloud has the newest features\. Some may not be in a release yet; the newest release is Identity Server 7\.3\.0\./);
+    assert.match(between(c.html('guides/cloud-billing'), 'wso2-notices', '</article>'), /Cloud has the newest features/, 'a Cloud-only page');
+    for (const page of ['deploy-and-operate/install', 'reference']) {
+      const notice = between(c.html(page), 'wso2-notices', '</article>');
+      assert.match(notice, /wso2-notice--info.*You&#x27;re reading Identity Server Cloud\. The newest release is Identity Server 7\.3\.0\./, page);
+      assert.doesNotMatch(notice, /newest features/, page);
+    }
     assert.doesNotMatch(c.root(''), /wso2-notices/, 'a Cloud-only Doc space has no release to name');
     assert.doesNotMatch(s.html('guides/mfa'), /wso2-notices/, 'the pinned twin of latest is the newest release');
   });

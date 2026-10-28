@@ -2,8 +2,8 @@
 # keeps the Platform navigation file, the schemas and everything else.
 # Team names are placeholders until the owning teams are named; each
 # section's `owners.team` matches its entry here (test/compose.test.mjs).
-*                                           @wso2/docs-platform
-/navigation/navigation.yaml                 @wso2/docs-platform
-/schemas/                                   @wso2/docs-platform
+*                                           @tharindulak/test-docs-platform
+/navigation/navigation.yaml                 @tharindulak/test-docs-platform
+/schemas/                                   @tharindulak/test-docs-platform
 /navigation/sections/api-platform.yaml      @wso2/api-platform-docs
 /navigation/sections/identity-platform.yaml @wso2/identity-platform-docs

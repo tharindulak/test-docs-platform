@@ -3,6 +3,7 @@
 // hand against a local folder). Storage is file:<dir> or s3://<bucket> (R2's
 // S3 API, with R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { DEFAULT_POLICY, loadPolicy } from '../lib/manifest.mjs';
@@ -11,6 +12,10 @@ import { COMPOSED_KEY, defaultContentDir } from '../lib/compose.mjs';
 import { readPlatformPins } from '../lib/platform-pins.mjs';
 import { platformDeploymentsFor, platformReleaseFor } from '../lib/platform-release.mjs';
 import { LOCK_KEY, STATE_WRITERS, readLock, withStateLock } from '../lib/state-lock.mjs';
+import {
+  RECORD_DIR, bundlesFor, checkRecordChange, fetchBundle, planFromRecords, readRecord, recordChanges, runIntake,
+} from '../lib/intake.mjs';
+import { platformRepoOf } from '../lib/platform-pins.mjs';
 import { execFileSync } from 'node:child_process';
 
 // The version of this Platform checkout (package.json): its major is the one a
@@ -44,11 +49,26 @@ const USAGE = `Usage: wso2-release <command> [options]
             tags are [<doc space>/]<version>-docs.<n> or [<doc space>/]cloud-<YYYY.MM.DD>.<n>; each deployment
             names its Doc space directory (dir) in the repo. Scope all (a Platform release) plans the deployments
             whose Content repo pins --major (default this Platform's major), read from each repo's docs.yml in
-            the checkouts under --content (default WSO2_DOCS_CONTENT_REPOS)
+            the checkouts under --content (default WSO2_DOCS_CONTENT_REPOS). With --records <dir> (releases/),
+            each deployment names its recorded bundle (asset, sha256); a deployed tag not in the record is skipped
+  plan      --scope records --base <sha> [--records <dir>] --storage <s> [--rebuild-id <id>]
+            what a push changing the intake records releases: each Edition's new newest entry (tag scope, from
+            its bundle), and each withdrawn newest entry's way back (flipBack: its previous release folder, or a
+            rebuild of the previous bundle when that folder was collected)
+  intake    [--policy <f>] [--records <dir>] [--pending <dir>] [--out <dir>] [--issues <json>] [--retry]
+            [--repo <owner/name> | --space <slug>] [--work <dir>] [--signer-repo <owner/name>] [--report <f>]
+            poll the Content repos' releases, verify the ones that count, write the changed intake records to
+            --out (default --records); --issues lists the open and closed bundle-intake issues ([{ title }]).
+            GITHUB_TOKEN reads the releases; gh verifies attestations
+  record-check --base <ref> --branch <name> [--head <ref>]
+            the intake PR check: an intake/<slug> branch changes only releases/<slug>.yaml's release entries
+  fetch-bundle --repo <owner/name> --tag <tag> --asset <name> --sha256 <hex> --out <empty dir> [--github-output <f>]
+            a build's bundle: the recorded asset, its sha256 checked against the record, unpacked safely
   check     --dir <build> --space <slug> --segment <seg> --edition <id>
   publish   --storage <s> --dir <build> --space <slug> --segment <seg> --edition <id> --tag <tag> [--release <id>]
             [--source-repo <owner/name>] [--source-sha <sha>]
-  flip      --storage <s> --env <name> --deploy <space>/<segment>=<release> [--deploy ...] [--chrome <file>]
+  flip      --storage <s> --env <name> --deploy <space>/<segment>=<release> [--deploy ...] [--chrome <file>] [--backwards]
+            --backwards goes back to an earlier release (a withdrawal), as a rollback does
   rollback  --storage <s> --env <name> --deployment <space>/<segment> [--to <release>]
   retire    --storage <s> --env <name> --deployment <space>/<segment>
             take down a deployment whose Edition the manifest no longer lists (removed, or a Legacy version now)
@@ -93,6 +113,35 @@ const need = (o, ...keys) => {
   for (const k of keys) if (o[k] === undefined) throw new Error(`--${k} is required`);
 };
 const print = (data) => console.log(JSON.stringify(data, null, 2));
+
+// The intake records in a folder, { <slug>: record }; and as a commit holds
+// them (none when the commit or the folder is missing: a first record).
+const readRecords = (dir) => Object.fromEntries((fs.existsSync(dir) ? fs.readdirSync(dir) : [])
+  .filter((f) => f.endsWith('.yaml')).map((f) => [f.slice(0, -'.yaml'.length), readRecord(path.join(dir, f))]));
+const gitShow = (ref, file) => {
+  try {
+    return execFileSync('git', ['show', `${ref}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024 });
+  } catch {
+    return null;
+  }
+};
+function recordsAt(ref, dir) {
+  if (!ref || /^0+$/.test(ref)) return {};
+  let names = [];
+  try {
+    names = execFileSync('git', ['ls-tree', '--name-only', `${ref}:${dir}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .split('\n').filter((f) => f.endsWith('.yaml'));
+  } catch {
+    return {};
+  }
+  const scratch = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'records-'));
+  try {
+    for (const f of names) fs.writeFileSync(path.join(scratch, f), gitShow(ref, `${dir}/${f}`) ?? '');
+    return readRecords(scratch);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
 const warn = (warnings) => warnings?.forEach((w) => console.warn(`warning: ${w}`));
 
 async function main(argv) {
@@ -126,6 +175,9 @@ async function main(argv) {
       base: { type: 'string' }, head: { type: 'string' }, 'github-output': { type: 'string' }, break: { type: 'boolean' },
       collection: { type: 'string' }, fix: { type: 'boolean' }, parent: { type: 'string' }, expires: { type: 'string' },
       'new-key': { type: 'boolean' }, id: { type: 'string' },
+      records: { type: 'string' }, pending: { type: 'string' }, issues: { type: 'string' }, retry: { type: 'boolean' },
+      work: { type: 'string' }, 'signer-repo': { type: 'string' }, report: { type: 'string' }, branch: { type: 'string' },
+      asset: { type: 'string' }, sha256: { type: 'string' }, backwards: { type: 'boolean' },
     },
   });
   const storage = () => {
@@ -144,7 +196,7 @@ async function main(argv) {
     }
     return { policy: loadPolicy(DEFAULT_POLICY), from: 'local compose' };
   };
-  const needsPolicy = ['plan', 'flip', 'rollback', 'retire', 'manifest', 'policy-diff', 'search-index', 'search-check'].includes(command);
+  const needsPolicy = ['plan', 'flip', 'rollback', 'retire', 'manifest', 'policy-diff', 'search-index', 'search-check', 'intake'].includes(command);
   const { policy } = needsPolicy ? await policyFrom() : { policy: null };
   const chrome = o.chrome ? fs.readFileSync(o.chrome, 'utf8') : undefined;
   const search = () => {
@@ -169,27 +221,89 @@ async function main(argv) {
   switch (command) {
     case 'plan': {
       const scope = o.scope ?? 'tag';
-      if (scope === 'tag') need(o, 'repo', 'tag');
-      const state = scope === 'tag' ? undefined : await readState(storage());
-      // A Platform release (scope all) rebuilds the deployments whose Content
-      // repo pins its major: this Platform's own, unless --major names another.
-      const major = scope === 'all' ? Number(o.major ?? PLATFORM_VERSION.split('.')[0]) : undefined;
-      const pins = scope === 'all' ? readPlatformPins(policy, o.content ? path.resolve(o.content) : defaultContentDir()) : undefined;
-      const skipped = [];
-      const list = planRelease(policy, { repo: o.repo, tag: o.tag, scope, space: o.space, state, rebuildId: o['rebuild-id'], major, pins, onSkip: (s) => skipped.push(s) });
-      for (const s of skipped) {
-        const why = s.pin === null ? `${s.repo}'s docs.yml pins no Platform major (PLATFORM_REF: v<n>)` : `${s.repo} pins v${s.pin}`;
-        console.error(`${process.env.GITHUB_ACTIONS ? '::notice title=Not rebuilt::' : 'plan: '}${s.deployment} is not rebuilt by a v${major} Platform release: ${why}`);
+      const notice = (title, m) => console.error(`${process.env.GITHUB_ACTIONS ? `::notice title=${title}::` : 'plan: '}${m}`);
+      let list;
+      let flipBack = [];
+      let extra = {};
+      if (scope === 'records') {
+        // A push to main that changed releases/*.yaml (intake's merged PR).
+        need(o, 'base');
+        const dir = path.resolve(o.records ?? RECORD_DIR);
+        const s = storage();
+        const exists = async (space, segment, release) => Boolean(await s.get(`${releasePrefix(space, segment, release)}_platform/release.json`));
+        const changes = recordChanges(recordsAt(o.base, path.relative(process.cwd(), dir) || RECORD_DIR), readRecords(dir));
+        for (const w of changes.withdrawals) {
+          notice('Withdrawn', `${w.slug} ${w.tag} was withdrawn: ${w.back ? `Edition ${w.edition} goes back to ${w.back.tag}` : `no earlier recorded release of Edition ${w.edition}; the deployment stays as it is`}`);
+        }
+        ({ deployments: list, flipBack } = await planFromRecords(policy, changes, { rebuildId: o['rebuild-id'], exists }));
+      } else {
+        if (scope === 'tag') need(o, 'repo', 'tag');
+        const state = scope === 'tag' ? undefined : await readState(storage());
+        // A Platform release (scope all) rebuilds the deployments whose Content
+        // repo pins its major: this Platform's own, unless --major names another.
+        const major = scope === 'all' ? Number(o.major ?? PLATFORM_VERSION.split('.')[0]) : undefined;
+        const pins = scope === 'all' ? readPlatformPins(policy, o.content ? path.resolve(o.content) : defaultContentDir()) : undefined;
+        const skipped = [];
+        list = planRelease(policy, { repo: o.repo, tag: o.tag, scope, space: o.space, state, rebuildId: o['rebuild-id'], major, pins, onSkip: (x) => skipped.push(x) });
+        for (const x of skipped) {
+          const why = x.pin === null ? `${x.repo}'s docs.yml pins no Platform major (PLATFORM_REF: v<n>)` : `${x.repo} pins v${x.pin}`;
+          notice('Not rebuilt', `${x.deployment} is not rebuilt by a v${major} Platform release: ${why}`);
+        }
+        // Builds use a recorded bundle; the Platform's own Doc space and the
+        // Landing deployment build from the Platform checkout.
+        if (o.records) {
+          list = bundlesFor(list, readRecords(path.resolve(o.records)), {
+            platformRepo: platformRepoOf(policy), onSkip: (x) => notice('Not rebuilt', `${x.deployment} is not rebuilt: ${x.reason}`),
+          });
+        }
+        if (scope === 'all') extra = { major, skipped };
       }
       const latest = list.filter((d) => d.asLatest);
       const others = list.filter((d) => !d.asLatest);
+      const spec = (d) => `${d.space}/${d.segment}=${d.release}`;
       print({
-        ...(scope === 'all' ? { major, skipped } : {}),
+        ...extra,
         deployments: list,
         latest: { include: latest }, others: { include: others },
         hasLatest: latest.length > 0, hasOthers: others.length > 0,
-        flip: list.map((d) => `${d.space}/${d.segment}=${d.release}`).join(' '),
+        flip: list.filter((d) => !d.backwards).map(spec).join(' '),
+        flipBack: flipBack.map(spec).join(' '),
       });
+      return 0;
+    }
+    case 'intake': {
+      const records = path.resolve(o.records ?? RECORD_DIR);
+      const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+      const r = await runIntake({
+        policy, recordsDir: records, pendingDir: o.pending ? path.resolve(o.pending) : undefined, outDir: path.resolve(o.out ?? records),
+        repo: o.repo, space: o.space, issues: o.issues ? JSON.parse(fs.readFileSync(o.issues, 'utf8')) : [], retry: Boolean(o.retry),
+        workDir: path.resolve(o.work ?? path.join(process.env.RUNNER_TEMP ?? '.', 'intake-work')), token,
+        signerRepo: o['signer-repo'] ?? process.env.GITHUB_REPOSITORY ?? platformRepoOf(policy), platformRepo: platformRepoOf(policy),
+        log: (m) => console.log(m),
+      });
+      const report = { changes: r.changes.map(({ file, ...c }) => ({ ...c, file: path.relative(process.cwd(), file) })), issues: r.issues, errors: r.errors };
+      if (o.report) fs.writeFileSync(o.report, `${JSON.stringify(report, null, 2)}\n`);
+      for (const e of r.errors) console.log(process.env.GITHUB_ACTIONS ? `::warning title=Intake::${e}` : `warning: ${e}`);
+      console.log(`Intake: ${r.changes.length} record${r.changes.length === 1 ? '' : 's'} changed, ${r.issues.length} new issue${r.issues.length === 1 ? '' : 's'}`);
+      return 0;
+    }
+    case 'record-check': {
+      need(o, 'base', 'branch');
+      const head = o.head ?? 'HEAD';
+      const files = execFileSync('git', ['diff', '--name-only', `${o.base}...${head}`], { encoding: 'utf8' }).split('\n').filter(Boolean);
+      const problems = checkRecordChange({ branch: o.branch, files, base: (f) => gitShow(o.base, f), head: (f) => gitShow(head, f) });
+      for (const p of problems) console.error(process.env.GITHUB_ACTIONS ? `::error title=Intake record::${p}` : `record-check: ${p}`);
+      if (!problems.length) console.log(`record-check: ${files.filter((f) => f.startsWith(`${RECORD_DIR}/`)).length} intake record change(s) are fine for ${o.branch}`);
+      return problems.length ? 1 : 0;
+    }
+    case 'fetch-bundle': {
+      need(o, 'repo', 'tag', 'asset', 'sha256', 'out');
+      const token = process.env.CONTENT_READ_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+      const r = await fetchBundle({ repo: o.repo, tag: o.tag, asset: o.asset, sha256: o.sha256, out: o.out, token });
+      console.log(`${o.asset}: sha256 matches the record; unpacked ${r.bundle.docSpace} (Edition ${r.edition}) into ${r.dir}`);
+      if (o['github-output']) {
+        fs.appendFileSync(o['github-output'], `dir=${r.dir}\nedition=${r.edition}\nmain-files=${r.mainFiles ?? ''}\nsource-commit=${r.bundle.sourceCommit}\n`);
+      }
       return 0;
     }
     case 'platform-release': {
@@ -232,7 +346,7 @@ async function main(argv) {
     case 'flip': {
       need(o, 'env', 'deploy');
       const deployments = o.deploy.flatMap((d) => d.split(/\s+/).filter(Boolean)).map(parseDeploy);
-      const { state, warnings } = await flip(storage(), { environment: o.env, policy, deployments, chrome });
+      const { state, warnings } = await flip(storage(), { environment: o.env, policy, deployments, chrome, backwards: Boolean(o.backwards) });
       warn(warnings);
       for (const d of deployments) console.log(`${o.env}: ${d.space}/${d.segment} -> ${state.deployments[`${d.space}/${d.segment}`].release}`);
       return 0;

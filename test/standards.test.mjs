@@ -124,8 +124,10 @@ test('Content repo templates: editor extensions, branch protection and the PR ch
   assert.equal(sync.jobs['by-hand'].uses, 'wso2/docs-platform/.github/workflows/spec-sync.yml@v1');
   assert.match(fs.readFileSync(path.join(root, '.github', 'workflows', 'spec-sync.yml'), 'utf8'), /content-spec-path: api-manager\/docs\/reference\/apis\/publisher\/openapi\.yaml\n#\s+base-branch: api-manager\/release\/4\.7\.0/, "spec-sync's example follows the <slug>/ layout");
   const build = fs.readFileSync(path.join(root, '.github', 'workflows', 'build-deployment.yml'), 'utf8');
-  assert.match(build, /wso2-docs\.mjs check "content\/\$DIR" --release --edition "\$EDITION" --manifest "\$RUNNER_TEMP\/composed\.json" --build-dir build --routes routes/);
-  assert.match(build, /args=\(build "content\/\$DIR" --edition "\$EDITION"/, 'the build reads the Doc space directory');
+  assert.match(build, /wso2-docs\.mjs check "\$SRC" --release --edition "\$EDITION" --manifest "\$RUNNER_TEMP\/inputs\/composed\.json" --build-dir build --routes "\$RUNNER_TEMP\/inputs\/routes"/);
+  assert.match(build, /args=\(build "\$SRC" --edition "\$EDITION"/, 'the build reads the Doc space directory');
+  assert.match(build, /elif \[ -n "\$BUNDLE_DIR" \]; then dir="\$BUNDLE_DIR"/, 'from the unpacked bundle');
+  assert.match(build, /else dir="content\/\$DIR"/, 'or, for the Platform\'s own Doc space, its directory at the tag');
   for (const name of ['nightly-reports.yml', 'weekly-digest.yml']) assert.ok(wf(name).on.schedule, name);
   assert.deepEqual(Object.keys(wf('nightly-reports.yml').jobs), ['plan', 'crawl', 'accessibility', 'search-consistency', 'lint-counts']);
 });

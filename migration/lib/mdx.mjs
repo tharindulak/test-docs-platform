@@ -93,13 +93,17 @@ export function imageMdx({ src, alt = '', title, style, width, height, local }) 
 }
 
 // An image that differs between Editions (each tree has its own screenshot
-// at the same path): one image per Edition, each in an inline <Edition>.
+// at the same path): one image per Edition, each in an inline <Edition>. A
+// Cloud and a Self-hosted image are an Edition variant (<Variants>), so Cloud
+// shows only its own.
 export function imageOrVariants(img, props) {
   if (!img.alternatives) return imageMdx({ ...props, ...(img.alt !== undefined ? { alt: img.alt } : {}), src: img.src, local: img.local });
-  return img.alternatives.map((a) => {
+  const out = img.alternatives.map((a) => {
     const one = a.src ? imageMdx({ ...props, ...(a.alt !== undefined ? { alt: a.alt } : {}), src: a.src, local: a.local }) : '';
     return a.attrs ? `<Edition ${a.attrs}>${one}</Edition>` : one;
   }).join('');
+  const kinds = img.alternatives.map((a) => /only="([^"]+)"/.exec(a.attrs ?? '')?.[1] ?? null).sort().join(',');
+  return img.alternatives.length === 2 && kinds === 'cloud,self-hosted' ? `<Variants>${out}</Variants>` : out;
 }
 
 export function encodeLinkDest(url) {

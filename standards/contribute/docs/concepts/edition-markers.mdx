@@ -14,11 +14,36 @@ The main line of a Content repository holds the Cloud docs. When a self-hosted v
 | Marker | Cloud | Self-hosted 7.3.0 | Self-hosted 7.4.0 |
 |---|---|---|---|
 | `only="cloud"` | Shown | Hidden | Hidden |
-| `only="self-hosted"` | Hidden | Shown | Shown |
+| `only="self-hosted"` | Shown, labelled Self-hosted | Shown | Shown |
+| `only="self-hosted" selfHostedFrom="next"` | Hidden | Hidden | Hidden |
 | `selfHostedFrom="7.4.0"` | Shown | Hidden | Shown |
 | `selfHostedFrom="next"` | Shown | Hidden | Hidden |
 
 `next` means no release is committed yet. Content marked `next` stays out of every version until its release owner gives it one.
+
+## Self-hosted additions and Edition variants
+
+Self-hosted-only content comes in two kinds, and Cloud treats them differently:
+
+- **A Self-hosted addition** has no Cloud counterpart, such as a page on clustering. Cloud shows it too, labelled **Self-hosted** with a link to see it in the newest release: a box around a block, and a badge under a page's title. In Cloud it reads as the newest release reads it, so its `{edition.*}` variables take the `self-hosted:` values, and `{edition.version}` is the newest release. Content in no release yet, such as `selfHostedFrom="next"`, stays out of Cloud. A Self-hosted-only page shown in Cloud has its canonical on the same page under `/latest/`.
+- **An Edition variant** is one block written once for Cloud and once for Self-hosted, such as the same step in the Console and in the Management Console. Wrap the two forms in `<Variants>`, and each Edition, Cloud included, shows only its own form:
+
+  ```mdx
+  <Variants>
+  <Edition only="cloud">
+  Open the Console.
+  </Edition>
+  <Edition only="self-hosted">
+  Open the Management Console.
+  </Edition>
+  </Variants>
+  ```
+
+  `<Variants>` holds exactly one `<Edition only="cloud">` and one `<Edition only="self-hosted">`, and nothing else.
+
+A whole Self-hosted-only page with a Cloud counterpart names it in front matter, `cloudCounterpart: guides/cloud-billing`. It then stays out of Cloud, and the version dropdown maps the two pages to each other. Every other Self-hosted-only page shows in Cloud.
+
+In Markdown twins and `llms.txt`, a Self-hosted addition shown in Cloud has a `**Self-hosted only.**` line before it. These rules apply where the Doc space has self-hosted versions; a family-level Doc space such as Identity Platform Cloud has none.
 
 ## After a Branch cut
 
@@ -31,7 +56,7 @@ Markers for newer versions, `next`, Cloud only and Self-hosted only markers stay
 
 ## Variables
 
-`{edition.*}` variables, such as `{edition.productName}` and `{edition.consoleUrl}`, are filled in from the Content repository's `editions.yaml`: its `cloud:` block for Cloud, and its `self-hosted:` block for every version. `{edition.version}` is always defined.
+`{edition.*}` variables, such as `{edition.productName}` and `{edition.consoleUrl}`, are filled in from the Content repository's `editions.yaml`: its `cloud:` block for Cloud, and its `self-hosted:` block for every version and for Self-hosted additions shown in Cloud. `{edition.version}` is always defined.
 
 ## Limits
 

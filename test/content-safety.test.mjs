@@ -79,6 +79,7 @@ const GOOD = [
   ['literals', '<Tabs values={[{ label: "A", value: "a" }, { label: "B", value: "b" }]} defaultValue="a" />\n\n<div style={{ width: "100%", top: 0, flex: -1 }}>x</div>\n\nText {"{braces}"} and {42} and {true} and {null} and {`plain`}.'],
   ['comments', 'Text {/* a comment */} here.\n\n{/* a flow comment */}'],
   ['edition variables in text', 'Use {edition.productName} here.'],
+  ['an Edition variant (a catalogue component, no import)', '<Variants>\n<Edition only="cloud">\nOpen the Console.\n</Edition>\n<Edition only="self-hosted">\nOpen {edition.consoleUrl}.\n</Edition>\n</Variants>'],
   ['require of its own image', '<img alt="The console" src={require("../../assets/logos/totp.svg").default} />\n\n<img alt="Again" src={require("../../assets/logos/totp.svg")} />'],
   ['an allow-listed iframe', '<iframe src="https://www.youtube-nocookie.com/embed/abc" title="A video" />'],
   ['plain HTML and links', '<a href="https://wso2.com">WSO2</a> and [mail](mailto:docs@wso2.com) and <details><summary>More</summary>Text</details>'],

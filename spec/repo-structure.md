@@ -22,7 +22,8 @@ Which repos exist, what each holds, and how branches and tags name Docs releases
 | `bin/` | The CLIs: `wso2-docs` (authors), `wso2-release` (pipeline), `wso2-reports` |
 | `worker/` | The Edge Worker |
 | `navigation/` | The Platform navigation file and the Docs section manifests |
-| `schemas/` | JSON Schemas for the three manifests and the data files |
+| `schemas/` | JSON Schemas for the three manifests, the data files and the intake record |
+| `releases/` | The intake records, one per Doc space (`<slug>.yaml`): the Docs bundles intake accepted. Written by `intake.yml`; created by the first accepted bundle |
 | `standards/` | The documentation standards source, and the Contribute Doc space (`standards/contribute/`) |
 | `templates/` | The Content repo boilerplate (`content-repo/`) and a sample section manifest |
 | `skills/` | The author skills, packaged as a Claude Code plugin (`.claude-plugin/`) |

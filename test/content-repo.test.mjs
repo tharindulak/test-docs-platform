@@ -16,7 +16,7 @@ import {
   GUIDE_URL,
 } from '../lib/content-repo.mjs';
 import { compose, mainRef, readInputs, readRepoDocSpaces } from '../lib/compose.mjs';
-import { loadContentRepo } from '../lib/content.mjs';
+import { loadContentRepo, showsCloudOnlyContent } from '../lib/content.mjs';
 import { inferEditionId } from '../lib/edition.mjs';
 import { checkReleaseScope } from '../lib/check/index.mjs';
 import { resolveBase } from '../lib/check/git.mjs';
@@ -330,4 +330,23 @@ test('sync: the converter regenerates <repo>/<slug>/ on main and prefixed releas
   r = sync('identity-server', '--branch', 'identity-server/release/7.3.0');
   assert.match(r.stdout, /no changes/);
   fs.rmSync(work, { recursive: true, force: true });
+});
+
+test('the Cloud notice\'s claim: a page shows Cloud-only content when it is Cloud-only or holds a Cloud-only block, partials included', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-cloud-content-'));
+  const write = (rel, text) => {
+    fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    fs.writeFileSync(path.join(dir, rel), text);
+    return path.join(dir, rel);
+  };
+  const shows = (text) => showsCloudOnlyContent(write('page.mdx', text));
+  assert.equal(shows('---\ntitle: A\neditions: cloud\n---\n\nText.\n'), true, 'a Cloud-only page');
+  assert.equal(shows('---\ntitle: A\n---\n\nShared.\n'), false);
+  assert.equal(shows('Shared.\n\n<Edition only="cloud">\nCloud.\n</Edition>\n'), true);
+  assert.equal(shows('A <Variants><Edition only="cloud">Console</Edition><Edition only="self-hosted">Management Console</Edition></Variants>.\n'), true, 'the Cloud form of a variant');
+  assert.equal(shows('<Edition only="self-hosted">\nServer.\n\n<Edition only="cloud">\nNever shown.\n</Edition>\n</Edition>\n'), false, 'nothing inside Self-hosted-only content counts');
+  assert.equal(shows('---\ntitle: A\neditions: self-hosted\n---\n\n<Edition only="cloud">\nNever shown.\n</Edition>\n'), false, 'nor on a Self-hosted-only page');
+  assert.equal(shows('<Edition selfHostedFrom="next">\nComing.\n</Edition>\n'), false, 'shared content from a version is not Cloud-only');
+  write('_partials/_note.mdx', '<Edition only="cloud">\nCloud.\n</Edition>\n');
+  assert.equal(shows("import Note from './_partials/_note.mdx';\n\n<Note />\n"), true, 'a partial it imports');
 });

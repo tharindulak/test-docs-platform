@@ -38,15 +38,26 @@ node bin/wso2-release.mjs <command> [options]
 
 | Command | What it does |
 |---|---|
-| `plan --repo <owner/name> --tag <tag> [--storage <s>]` | The Docs deployments a tag makes, latest twin first, as JSON with a `flip` line |
-| `plan --scope docspace --space <slug> --rebuild-id <id> --storage <s>` | A rebuild of every deployed Edition of one Doc space |
-| `plan --scope all --rebuild-id <id> --storage <s> [--major <n>] [--content <dir>]` | A Platform release's rebuild: every deployed Edition whose Content repository pins major `<n>` (default this Platform's major), read from `PLATFORM_REF: v<n>` in each repository's `docs.yml` under `--content`. Contribute always counts. The JSON lists what it leaves out in `skipped`. |
+| `plan --repo <owner/name> --tag <tag> [--storage <s>] [--records <dir>]` | The Docs deployments a tag makes, latest twin first, as JSON with a `flip` line |
+| `plan --scope records --base <sha> [--records <dir>] --storage <s> [--rebuild-id <id>]` | What a push that changed the intake records releases: each Edition's new newest entry, with its bundle (`asset`, `sha256`), and in `flipBack` each withdrawn newest entry's way back: the previous entry's release folder, or a rebuild of its bundle under `<release>.r<id>` when that folder was collected |
+| `plan --scope docspace --space <slug> --rebuild-id <id> --storage <s> [--records <dir>]` | A rebuild of every deployed Edition of one Doc space |
+| `plan --scope all --rebuild-id <id> --storage <s> [--major <n>] [--content <dir>] [--records <dir>]` | A Platform release's rebuild: every deployed Edition whose Content repository pins major `<n>` (default this Platform's major), read from `PLATFORM_REF: v<n>` in each repository's `docs.yml` under `--content`. Contribute always counts. The JSON lists what it leaves out in `skipped`. |
+
+With `--records releases`, each planned Docs deployment names the bundle it builds from, from the intake record; a deployed tag the record doesn't hold isn't rebuilt, with a notice. The Platform's own Doc space and the Landing deployment build from the Platform checkout.
+
+## Intake
+
+| Command | What it does |
+|---|---|
+| `intake [--policy <file>] [--records <dir>] [--pending <dir>] [--out <dir>] [--issues <file>] [--retry] [--repo <owner/name> \| --space <slug>] [--work <dir>] [--signer-repo <owner/name>] [--report <file>]` | Reads each Content repository's releases, verifies the ones that count and writes the changed intake records to `--out` (default `--records`, `releases`). `--pending` holds the records of open intake pull requests, which win over `--records`. `--issues` is the JSON list (`[{ "title": … }]`) of `bundle-intake` issues: a tag one names isn't tried again unless `--retry`, and no issue is listed twice. `--report` gets `{ changes, issues, errors }`. `GITHUB_TOKEN` reads the releases; `gh attestation verify` checks the attestations, signed by `--signer-repo` (default `GITHUB_REPOSITORY`). |
+| `record-check --base <ref> --branch <name> [--head <ref>]` | The intake pull request's check: on `intake/<slug>`, only `releases/<slug>.yaml` changes, and only its release entries. On other branches, every changed record is valid. Exits 1 with each problem. |
+| `fetch-bundle --repo <owner/name> --tag <tag> --asset <name> --sha256 <hex> --out <empty dir> [--github-output <file>]` | A build's bundle: downloads the recorded asset, checks its sha256 against the record, and unpacks it safely into `--out`. Writes `dir`, `edition`, `main-files` and `source-commit` to `--github-output`. `CONTENT_READ_TOKEN` reads a private repository. |
 | `plan --scope landing --rebuild-id <id> --storage <s>` | The Landing deployment, built from the Platform alone, under release id `landing-<YYYY.MM.DD>.<id>` |
 | `platform-changes --base <sha> [--head <sha>] [--github-output <file>]` | Whether a change on the Platform's `main` releases Contribute, the Landing deployment, or both. No base: both. |
 | `platform-release --tag v<major>.<minor>.<patch>` | Checks a Platform release tag against `package.json`, and says whether it moves the `v<major>` tag (only to the newest release of the major) |
 | `check --dir <build> --space <slug> --segment <seg> --edition <id>` | The structural check of a build before upload |
 | `publish --storage <s> --dir <build> --space <slug> --segment <seg> --edition <id> --tag <tag> [--release <id>] [--source-repo <owner/name>] [--source-sha <sha>]` | Uploads a build to its release folder. A complete folder is never uploaded twice. |
-| `flip --storage <s> --env <name> --deploy <space>/<segment>=<release> [--deploy …] [--chrome <file>]` | Points Docs deployments at releases in one state write, and republishes the runtime files |
+| `flip --storage <s> --env <name> --deploy <space>/<segment>=<release> [--deploy …] [--chrome <file>] [--backwards]` | Points Docs deployments at releases in one state write, and republishes the runtime files. `--backwards` goes back to an earlier release, as a rollback does: a withdrawn release's way back. |
 | `rollback --storage <s> --env <name> --deployment <space>/<segment> [--to <release>]` | Flips one Docs deployment back to its previous release, or the one named |
 | `retire --storage <s> --env <name> --deployment <space>/<segment>` | Takes down a Docs deployment whose Edition the manifest no longer lists |
 | `manifest --storage <s> --env <name> [--chrome <file>]` | Republishes `manifest.json`, `sitemap.xml` and `llms.txt` (and `chrome.json`) |
@@ -60,7 +71,7 @@ node bin/wso2-release.mjs <command> [options]
 | `status --storage <s>` | Prints the deployment state |
 | `state-lock --storage <s> [--break]` | Who holds the state lock, or `{ "free": true }`. `--break` removes a stuck lock; one left by a run that died also expires after 30 minutes. |
 
-`flip`, `rollback`, `retire`, `manifest`, `redirects` and `gc` take the bucket's state lock while they run, and wait their turn when another command holds it, for up to 45 minutes. A dry run takes no lock. `flip` never moves a Docs deployment to a release published before its live one, unless the Edition is pinned to that release's tag; `rollback` does.
+`flip`, `rollback`, `retire`, `manifest`, `redirects` and `gc` take the bucket's state lock while they run, and wait their turn when another command holds it, for up to 45 minutes. A dry run takes no lock. `flip` never moves a Docs deployment to a release published before its live one, unless the Edition is pinned to that release's tag; `rollback` and `flip --backwards` do.
 
 `<segment>` is an Edition id, `latest`, or `_` for an unversioned Doc space and the Landing deployment (`_landing/_`).
 

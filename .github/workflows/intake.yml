@@ -1,0 +1,207 @@
+# Intake (Releases and deployments, Intake): the Platform polls the releases
+# of the Content repos the composed manifest lists; nothing is dispatched to
+# it. Each release that counts is verified once, before any content code
+# runs (digest, attestation, safe unpacking, bundle.json, content safety on
+# the unpacked files, read only), and recorded in releases/<slug>.yaml, the
+# intake record; a recorded release deleted on GitHub leaves the record.
+#   poll     reads releases, verifies, writes the changed records    (read only)
+#   propose  one pull request per Doc space on intake/<slug>, updated in
+#            place, with auto-merge on: the record's required check
+#            (ci.yml, intake-record) passes only a change to its release
+#            entries. A GitHub App token, minted in a job that runs no
+#            Platform or content code, opens it, since a GITHUB_TOKEN pull
+#            request starts no checks.
+#   report   one bundle-intake issue per Doc space and tag (failures and
+#            withdrawals), mentioning the Doc space's owners; never repeated,
+#            and a failed tag is not tried again until a newer tag or a run
+#            by hand.
+# The merge starts release.yml (a push to main changing releases/*.yaml).
+# Setup: the App's id in the DOCS_INTAKE_APP_ID variable and its private key
+# in the DOCS_INTAKE_APP_KEY secret (contents and pull requests: write on
+# this repo); "Allow auto-merge" in the repo settings. A fork whose bundles
+# are signed by another copy of the Platform names it in
+# DOCS_BUNDLE_SIGNER_REPO (default: this repo).
+name: Intake
+run-name: "Intake${{ inputs.repo && format(': {0}', inputs.repo) || '' }}${{ inputs.space && format(' {0}', inputs.space) || '' }}"
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: Only this Content repo (owner/name)
+        type: string
+        required: false
+      space:
+        description: Only this Doc space (slug)
+        type: string
+        required: false
+
+permissions: {}
+
+concurrency:
+  # One run at a time; a poll that finds one running waits.
+  group: intake
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read        # this repo and the public Content repos' releases
+      issues: read          # the bundle-intake issues: a tag one reports is not tried again
+      pull-requests: read   # open intake pull requests: their records are pending
+      attestations: read    # gh attestation verify
+    outputs:
+      changed: ${{ steps.intake.outputs.changed }}
+      issues: ${{ steps.intake.outputs.issues }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out the Content repos' main lines (the Doc space manifests compose reads)
+        env:
+          # PENDING INFRA: a read-only token while the Content repos are private.
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content"
+      - name: Compose the Deployment manifest (which Editions exist, which are pinned)
+        run: node bin/wso2-release.mjs compose --content "$RUNNER_TEMP/content" --out "$RUNNER_TEMP/composed.json"
+      - name: The records of open intake pull requests, and the bundle-intake issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/pending"
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 200 --json headRefName --jq '.[].headRefName' |
+            { grep -E '^intake/[a-z0-9][a-z0-9-]*$' || true; } | while read -r branch; do
+              slug="${branch#intake/}"
+              gh api "repos/$GITHUB_REPOSITORY/contents/releases/$slug.yaml?ref=$branch" -H 'Accept: application/vnd.github.raw' \
+                > "$RUNNER_TEMP/pending/$slug.yaml" || rm -f "$RUNNER_TEMP/pending/$slug.yaml"
+            done
+          gh issue list --repo "$GITHUB_REPOSITORY" --label bundle-intake --state all --limit 1000 --json title > "$RUNNER_TEMP/issues.json"
+      # Reads releases and attestations, downloads and unpacks bundles, and
+      # reads their files: no content code runs, and the job can write nothing.
+      - name: Poll, verify and record
+        id: intake
+        env:
+          GITHUB_TOKEN: ${{ secrets.CONTENT_READ_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.CONTENT_READ_TOKEN || github.token }}
+          INPUT_REPO: ${{ inputs.repo }}
+          INPUT_SPACE: ${{ inputs.space }}
+          # A run by hand tries a failed tag again.
+          RETRY: ${{ github.event_name == 'workflow_dispatch' }}
+          SIGNER_REPO: ${{ vars.DOCS_BUNDLE_SIGNER_REPO || github.repository }}
+        run: |
+          gh --version | head -1
+          args=(intake --policy "$RUNNER_TEMP/composed.json" --records releases --pending "$RUNNER_TEMP/pending"
+            --out "$RUNNER_TEMP/intake/records" --issues "$RUNNER_TEMP/issues.json" --work "$RUNNER_TEMP/intake-work"
+            --signer-repo "$SIGNER_REPO" --report "$RUNNER_TEMP/intake/intake.json")
+          [ -n "$INPUT_REPO" ] && args+=(--repo "$INPUT_REPO")
+          [ -n "$INPUT_SPACE" ] && args+=(--space "$INPUT_SPACE")
+          [ "$RETRY" = "true" ] && args+=(--retry)
+          node bin/wso2-release.mjs "${args[@]}"
+          echo "changed=$(jq -c '[.changes[].slug]' "$RUNNER_TEMP/intake/intake.json")" >> "$GITHUB_OUTPUT"
+          echo "issues=$(jq '.issues | length' "$RUNNER_TEMP/intake/intake.json")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: intake
+          path: ${{ runner.temp }}/intake
+          retention-days: 7
+
+  propose:
+    needs: poll
+    if: needs.poll.outputs.changed != '[]' && needs.poll.outputs.changed != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The App token below does the writing; the workflow token only reads.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        slug: ${{ fromJSON(needs.poll.outputs.changed) }}
+    steps:
+      # Minted before anything else runs; this job runs only git and gh.
+      - id: app
+        name: The intake App's token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DOCS_INTAKE_APP_ID }}
+          private-key: ${{ secrets.DOCS_INTAKE_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ steps.app.outputs.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: intake
+          path: ${{ runner.temp }}/intake
+      - name: Push intake/<slug> and open or update its pull request, with auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ matrix.slug }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          set -eu
+          [[ "$SLUG" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "::error::Not a Doc space slug: $SLUG"; exit 1; }
+          branch="intake/$SLUG"
+          change=$(jq -c --arg s "$SLUG" '.changes[] | select(.slug == $s)' "$RUNNER_TEMP/intake/intake.json")
+          # The branch is main plus the new record, so it never falls behind.
+          git switch -C "$branch"
+          cp "$RUNNER_TEMP/intake/records/$SLUG.yaml" "releases/$SLUG.yaml"
+          git add "releases/$SLUG.yaml"
+          if git diff --cached --quiet; then echo "releases/$SLUG.yaml is already up to date"; exit 0; fi
+          user_id=$(gh api "users/${APP_SLUG}[bot]" --jq .id)
+          added=$(jq -r '[.added[] | .tag] | join(", ")' <<<"$change")
+          removed=$(jq -r '[.removed[] | .tag] | join(", ")' <<<"$change")
+          title="Intake: $SLUG${added:+ $added}${removed:+ (withdrawn: $removed)}"
+          git -c user.name="${APP_SLUG}[bot]" -c user.email="${user_id}+${APP_SLUG}[bot]@users.noreply.github.com" \
+            commit -q -m "$title"
+          git push --force origin "$branch"
+          body=$(jq -r '
+            "Intake verified and recorded the Docs bundles below in `releases/\(.slug).yaml` (from \(.repo)).\n\n"
+            + ([.added[] | "- Accepted `\(.tag)` (Edition \(.edition))"] + [.removed[] | "- Withdrawn `\(.tag)` (Edition \(.edition)): its release was deleted"] | join("\n"))
+            + "\n\nThis pull request changes only release entries, so it merges by itself once its checks pass; the merge starts Release docs."' <<<"$change")
+          pr=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            gh pr create --head "$branch" --base main --title "$title" --body "$body"
+          else
+            gh pr edit "$pr" --title "$title" --body "$body"
+          fi
+          gh pr merge "$branch" --auto --squash
+
+  report:
+    needs: poll
+    if: needs.poll.outputs.issues != '0' && needs.poll.outputs.issues != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: intake
+          path: ${{ runner.temp }}/intake
+      - name: One bundle-intake issue per Doc space and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh label create bundle-intake --repo "$GITHUB_REPOSITORY" --color d93f0b \
+            --description "A Docs bundle intake did not accept, or a withdrawn release" 2>/dev/null || true
+          jq -c '.issues[]' "$RUNNER_TEMP/intake/intake.json" | while read -r issue; do
+            title=$(jq -r .title <<<"$issue")
+            # Polls run one at a time, but a run by hand may race the schedule.
+            if gh issue list --repo "$GITHUB_REPOSITORY" --label bundle-intake --state all --search "\"$title\" in:title" --json title --jq '.[].title' | grep -qxF "$title"; then
+              continue
+            fi
+            jq -r .body <<<"$issue" | gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label bundle-intake --body-file -
+          done

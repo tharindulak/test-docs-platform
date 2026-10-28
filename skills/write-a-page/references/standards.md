@@ -272,8 +272,34 @@ One page often serves Cloud and several self-hosted versions. Use Edition marker
    </Edition>
    ```
 
-2. For a phrase inside a sentence, keep the marker on one line: `The console runs at <Edition only="cloud">your organization URL</Edition><Edition only="self-hosted">port 9443</Edition>.`
+2. For a phrase inside a sentence, keep the marker on one line.
 3. For a feature arriving in a self-hosted version, use `selfHostedFrom="<version>"`, or `selfHostedFrom="next"` while the version isn't decided.
+
+Cloud also shows self-hosted-only content that has no Cloud form, labelled **Self-hosted**. Where Cloud has its own form of the same content, write the two as an Edition variant instead.
+
+### Write an Edition variant
+
+1. Write the Cloud form and the self-hosted form, each in its own `<Edition>`, one after the other.
+2. Wrap the two in `<Variants>`:
+
+   ```mdx
+   <Variants>
+   <Edition only="cloud">
+   ## Create your organization
+
+   Sign up and create an organization.
+   </Edition>
+   <Edition only="self-hosted">
+   ## Start the server
+
+   Run the server from `<IS_HOME>/bin`.
+   </Edition>
+   </Variants>
+   ```
+
+3. For a phrase, keep the variant on one line: `The console runs at <Variants><Edition only="cloud">your organization URL</Edition><Edition only="self-hosted">port 9443</Edition></Variants>.`
+
+`<Variants>` holds exactly one Cloud form and one self-hosted form, and nothing else; the check fails otherwise.
 
 ### Mark a whole page
 
@@ -281,23 +307,33 @@ Add one of these to the front matter:
 
 ```yaml
 editions: cloud            # Cloud only
-editions: self-hosted      # self-hosted versions only
+editions: self-hosted      # self-hosted versions, and Cloud labelled Self-hosted
 selfHostedFrom: 7.4.0      # Cloud, and self-hosted from 7.4.0
 ```
 
+If a self-hosted-only page has a Cloud page that covers the same task, name it, and the page stays out of Cloud:
+
+```yaml
+editions: self-hosted
+cloudCounterpart: guides/cloud-billing   # its path in docs/
+```
+
+The version dropdown then maps the two pages to each other.
+
 ### Use Edition variables
 
-Write `{edition.productName}` instead of a product name on shared pages. The variables come from `editions.yaml`. An unknown variable fails the check.
+Write `{edition.productName}` instead of a product name on shared pages. The variables come from `editions.yaml`. In Cloud, self-hosted-only content takes the `self-hosted:` values of the newest release. An unknown variable fails the check.
 
 ### Rules for marked pages
 
 - A marked page reads correctly in every Edition it appears in: no dangling "as shown above", and no heading left without content.
-- Don't write "In Cloud…" or "Self-hosted only:" where a marker can do the job.
+- Don't write "In Cloud…" or "Self-hosted only:" where a marker can do the job; Cloud labels self-hosted-only content itself.
+- Where Cloud has its own form of a self-hosted-only block, write both as an Edition variant, or Cloud shows both.
 - A `selfHostedFrom` version must be newer than the latest released version. Content already released needs no marker.
 
 ### Verify
 
-Preview the page and use **Preview as** in the toolbar to read it as each Edition. Then run `npx @wso2/docs check`.
+Preview the page and use **Preview as** in the toolbar to read it as each Edition. In Cloud, a self-hosted-only block outside `<Variants>` stays active: Cloud shows it labelled. Then run `npx @wso2/docs check`.
 
 ### Next steps
 
@@ -376,6 +412,7 @@ type: how-to
 | `sidebar_position` | No | number | Order within the folder's sidebar group. |
 | `editions` | No | `cloud` or `self-hosted` | Limits the page to `cloud` or `self-hosted` (an Edition marker for the whole page). |
 | `selfHostedFrom` | No | an exact version such as `7.4.0`, or `next` | The first self-hosted version that has this page, or `next`. |
+| `cloudCounterpart` | No | string | Self-hosted-only pages (`editions: self-hosted`): the Cloud page that covers the same task, as its path in docs/, such as `guides/cloud-billing`. The page then stays out of Cloud, and the version dropdown maps the two pages to each other. Without it, Cloud shows the page labelled Self-hosted. |
 | `layout` | No | `default`, `overview`, `catalog`, `api-reference`, `complete-guide`, `sdk`, `connector` | How the page is drawn, independently of its page type: `default`, `overview` (its sections of links become cards), `catalog` (a searchable grid of the items in its `data` file) or `api-reference` (an OpenAPI spec). `complete-guide`, `sdk` and `connector` come from the migration and are drawn as `default`. See the component catalogue. |
 | `data` | No | string | Catalog pages (`layout: catalog`): the data file the grid shows, next to the page, such as `./connectors.yaml` (schema: catalog). |
 | `spec` | No | string | API pages (`layout: api-reference`): the OpenAPI file, such as `./openapi.yaml`. |

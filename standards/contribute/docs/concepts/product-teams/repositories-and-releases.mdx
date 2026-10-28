@@ -66,10 +66,13 @@ Every Docs release tag gets a Docs bundle. In the same run that makes the tag, t
 
 The Platform then releases the bundle:
 
-1. The Platform composes the Deployment manifest from every Content repository's `main`, and keeps it as the release's copy.
-2. It builds each Docs deployment the tag makes from the bundle, and runs the blocking checks again. A failed check publishes nothing, and the previous release stays live.
-3. It uploads each build to its own release folder, then switches the deployment to it in one step.
-4. The staging crawl must pass before the same files go to production.
+1. Within half an hour, the Platform finds the release, verifies its bundle (its digest, that the Platform's `docs-bundle.yml` made it, that it unpacks safely and carries no code) and records it. If it can't accept it, it opens an issue that mentions the Doc space's owners.
+2. The Platform composes the Deployment manifest from every Content repository's `main`, and keeps it as the release's copy.
+3. It builds each Docs deployment the tag makes from the bundle, and runs the blocking checks again. A failed check publishes nothing, and the previous release stays live.
+4. It uploads each build to its own release folder, then switches the deployment to it in one step.
+5. The staging crawl must pass before the same files go to production.
+
+To withdraw a Docs release, delete its GitHub Release: the Platform moves its Edition back to the release before it.
 
 A family Cloud is one Docs deployment. Its build reads each Cloud part's directory from the same bundle, so the whole tree is one commit.
 

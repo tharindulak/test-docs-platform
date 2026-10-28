@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { editionFromId, inferEditionId, markerFromFrontMatter, matches, showMarkersFlag, validateMarker } from '../lib/edition.mjs';
+import {
+  editionFromId, inferEditionId, isSelfHostedAddition, markerFromFrontMatter, matches, newestReleaseOf, pageShows, shows, showMarkersFlag, validateMarker, validateVariants,
+} from '../lib/edition.mjs';
 import { docsLinkTarget, resolveDocsLink } from '../plugins/remark-docs-links.mjs';
 import { loadPolicy } from '../lib/manifest.mjs';
 
@@ -26,6 +28,52 @@ test('selfHostedFrom= markers', () => {
   assert.equal(matches(v730, { selfHostedFrom: 'next' }), false);
   assert.equal(matches(next, { selfHostedFrom: 'next' }), true, 'the main-branch preview shows what is coming');
   assert.equal(matches(cloud, { selfHostedFrom: 'next' }), true);
+});
+
+test('Cloud shows Self-hosted additions, not content in no release yet; Self-hosted Editions never show Cloud-only content', () => {
+  const newest = '7.3.0';
+  assert.equal(shows(cloud, { only: 'self-hosted' }, newest), true, 'a Self-hosted addition');
+  assert.equal(isSelfHostedAddition(cloud, { only: 'self-hosted' }, newest), true);
+  assert.equal(shows(cloud, { only: 'self-hosted', selfHostedFrom: '7.2.0' }, newest), true);
+  assert.equal(shows(cloud, { only: 'self-hosted', selfHostedFrom: 'next' }, newest), false, 'selfHostedFrom next is in no release yet');
+  assert.equal(shows(cloud, { only: 'self-hosted', selfHostedFrom: '7.4.0' }, newest), false, 'nor is a version after the newest release');
+  assert.equal(shows(cloud, { selfHostedFrom: 'next' }, newest), true, 'shared content from next shows in Cloud as before');
+  assert.equal(isSelfHostedAddition(cloud, { selfHostedFrom: '7.2.0' }, newest), false, 'shared content is no addition');
+  assert.equal(shows(cloud, { only: 'self-hosted' }, null), false, 'a Doc space without Self-hosted Editions (a family Cloud)');
+  assert.equal(shows(editionFromId('_'), { only: 'self-hosted' }, '1.0.0'), false, 'an unversioned Doc space');
+  for (const e of [v730, v720, next]) {
+    assert.equal(shows(e, { only: 'cloud' }, newest), false, `${e.id} never shows Cloud-only content`);
+    assert.equal(shows(e, { only: 'self-hosted' }, newest), true);
+    assert.equal(isSelfHostedAddition(e, { only: 'self-hosted' }, newest), false);
+  }
+  assert.equal(matches(cloud, { only: 'self-hosted' }), false, 'matches stays each Edition\'s own content (Edition variants, the converter)');
+});
+
+test('pages: Self-hosted-only pages show in Cloud unless they name a Cloud counterpart', () => {
+  assert.equal(pageShows(cloud, { editions: 'self-hosted' }, '7.3.0'), true);
+  assert.equal(pageShows(cloud, { editions: 'self-hosted', cloudCounterpart: 'guides/cloud-billing' }, '7.3.0'), false);
+  assert.equal(pageShows(v730, { editions: 'self-hosted', cloudCounterpart: 'guides/cloud-billing' }, '7.3.0'), true);
+  assert.equal(pageShows(cloud, { editions: 'self-hosted', selfHostedFrom: 'next' }, '7.3.0'), false);
+  assert.equal(pageShows(cloud, { editions: 'self-hosted' }, null), false);
+  assert.equal(pageShows(v730, { editions: 'cloud' }, '7.3.0'), false);
+  assert.equal(pageShows(cloud, { title: 'x' }, '7.3.0'), true);
+});
+
+test('the newest release: the first Self-hosted Edition in manifest order, or latest', () => {
+  assert.equal(newestReleaseOf({ editions: [{ id: '7.3.0' }, { id: '7.2.0' }] }), '7.3.0');
+  assert.equal(newestReleaseOf({ editions: [{ id: 'cloud' }, { id: '1.2.0' }, { id: '2026.09.24' }] }), '1.2.0', 'never sorted');
+  assert.equal(newestReleaseOf({ latest: '7.2.0', editions: [{ id: '7.3.0' }, { id: '7.2.0' }] }), '7.2.0');
+  assert.equal(newestReleaseOf({ editions: [{ id: '7.1.0', status: 'legacy' }] }), null);
+  assert.equal(newestReleaseOf({ editions: [{ id: 'cloud', parts: ['identity-server'] }] }), null, 'a family Cloud');
+  assert.equal(newestReleaseOf({ model: 'unversioned' }), null);
+});
+
+test('<Variants> holds one Cloud and one Self-hosted form', () => {
+  validateVariants([{ only: 'cloud' }, { only: 'self-hosted' }], 'x');
+  validateVariants([{ only: 'self-hosted', selfHostedFrom: '7.3.0' }, { only: 'cloud' }], 'x');
+  for (const bad of [[{ only: 'cloud' }], [{ only: 'cloud' }, { only: 'cloud' }], [{ only: 'cloud' }, { only: 'self-hosted' }, null], [{ only: 'cloud' }, { selfHostedFrom: '7.3.0' }], []]) {
+    assert.throws(() => validateVariants(bad, 'x'), /exactly one <Edition only="cloud"> and one <Edition only="self-hosted">/);
+  }
 });
 
 test('invalid markers are rejected', () => {

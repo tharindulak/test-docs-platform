@@ -2,11 +2,16 @@
 // marked block, labels it, and lets the dev toolbar toggle editions.
 import React from 'react';
 
-export default function EditionMarker({ label, active, only, selfHostedFrom, page, inline, children }) {
+// A form of an Edition variant (`variant`) shows in its own Edition only;
+// another Self-hosted-only block also in Cloud, as a Self-hosted addition of
+// `newestRelease`.
+export default function EditionMarker({ label, active, only, selfHostedFrom, page, inline, variant, newestRelease, children }) {
   const data = {
     'data-edition-marker': '',
     'data-only': only || undefined,
     'data-self-hosted-from': selfHostedFrom || undefined,
+    'data-variant': variant || undefined,
+    'data-newest-release': newestRelease || undefined,
     'data-active': active,
   };
   if (page === 'true') {

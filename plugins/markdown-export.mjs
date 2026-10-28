@@ -36,9 +36,9 @@ export default function markdownExport(context, o) {
           siteDir: context.siteDir,
           outDir: partOut,
           version: partVersion,
-          baseUrl: p.baseUrl, docsDir: p.docsDir, vars: p.vars, docSpace: p.docSpace, docSpaceName: p.docSpaceName, editionName: p.editionName,
+          baseUrl: p.baseUrl, docsDir: p.docsDir, vars: p.vars, additions: p.additions ?? null, docSpace: p.docSpace, docSpaceName: p.docSpaceName, editionName: p.editionName,
           asLatest: false,
-          canonical: (rel) => canonicalFor(`${p.path}${rel}`, o),
+          canonical: (rel, c) => canonicalFor(`${p.path}${rel}`, o, c),
         });
         // The part's home twin follows the tree's rule (<page>/ -> <page>.md):
         // <part>.md, not <part>/index.md.
@@ -59,7 +59,7 @@ export default function markdownExport(context, o) {
         siteDir: context.siteDir,
         outDir,
         version,
-        canonical: (rel) => canonicalFor(rel, o),
+        canonical: (rel, c) => canonicalFor(rel, o, c),
         cloudParts: parts.map((p) => ({ title: p.editionName, url: `${o.siteUrl}${p.baseUrl}llms.txt` })),
       });
       if (parts.length) {
