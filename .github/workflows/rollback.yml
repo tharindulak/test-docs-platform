@@ -42,7 +42,7 @@ jobs:
     # bucket's state lock instead (lib/state-lock.mjs).
     env:
       ENV_NAME: ${{ inputs.environment }}
-      STORAGE: ${{ inputs.environment == 'production' && 's3://docs-prod' || 's3://docs-staging' }}
+      STORAGE: ${{ inputs.environment == 'production' && 's3://docs-prod' || 's3://wso2-docs-site' }}
       DEPLOYMENTS: ${{ inputs.deployments }}
       TO: ${{ inputs.to }}
       R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
@@ -59,7 +59,7 @@ jobs:
       - run: npm ci
       # Production flips with the manifest staging composed (release.yml's promote).
       - name: The stored composed manifest
-        run: node bin/wso2-release.mjs composed --storage s3://docs-staging --out composed.json
+        run: node bin/wso2-release.mjs composed --storage s3://wso2-docs-site --out composed.json
       - name: Point each deployment back
         run: |
           for d in $DEPLOYMENTS; do

@@ -32,7 +32,7 @@ jobs:
       matrix:
         include:
           - env: staging
-            storage: s3://docs-staging
+            storage: s3://wso2-docs-site
           - env: production
             storage: s3://docs-prod
     environment: ${{ matrix.env }}

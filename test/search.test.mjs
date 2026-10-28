@@ -787,3 +787,12 @@ test('the local preview\'s fixed search-only key is made once and then reused', 
   assert.deepEqual((await client.listKeys()).map((k) => k.value_prefix), ['loca']);
   assert.equal(await client.deleteKey(99), null, 'an unknown key');
 });
+
+test('a storage with no deployment state is an error for the consistency check, never "nothing is live"', async () => {
+  // A wrong or empty bucket (no _platform/state.json) once read as "no live
+  // deployment", and the repair then deleted every record in the index.
+  const storage = new FsStorage(tmp());
+  await assert.rejects(() => exportSearchInputs(storage, tmp()), /no deployment state/);
+  const client = { exportDocuments: async () => [{ docSpace: 'x', edition: 'cloud', page: 'a', release: 'r' }], deleteDocuments: async () => assert.fail('nothing may be deleted') };
+  await assert.rejects(() => checkConsistency(client, storage, { collection: 'c', policy: { docSpaces: {} }, fix: true }), /no live deployment/);
+});
