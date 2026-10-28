@@ -53,9 +53,7 @@ sections:
 # Where the Doc space manifests are: each repo's main line, at
 # <path>/<slug>/docspace.yaml.
 contentRepos:
-  - repo: wso2/docs-identity-platform
   - repo: tharindulak/docs-api-platform
-  - repo: wso2/docs-sandbox
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards
