@@ -6,6 +6,11 @@ docSpace: api-platform
 repo: tharindulak/docs-api-platform
 editions:
   cloud:
+    - tag: api-platform/cloud-2026.10.29.1
+      asset: api-platform-cloud-2026.10.29.1.docs.zip
+      sha256: 46ac5bc3c8436e26ed92daf2dcf4cdab82d8c672befb4dc3cd79efdae0954780
+      sourceCommit: ab0c72d7d2e767fc4a8f12cece52cef6a6944616
+      acceptedAt: "2026-10-29T01:14:54.679Z"
     - tag: api-platform/cloud-2026.10.28.4
       asset: api-platform-cloud-2026.10.28.4.docs.zip
       sha256: 2a087b203751979a0d075bdb67c4873e582ebc2f5bd77f8b48b1c75468247f47
