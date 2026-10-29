@@ -148,8 +148,3 @@ notYetOnWso2Docs:
     in: solutions
     model: versions-only
     legacyUrl: https://ob.docs.wso2.com/en/latest/
-  updates:
-    displayName: Updates
-    in: other
-    model: unversioned
-    legacyUrl: https://updates.docs.wso2.com/en/latest/
