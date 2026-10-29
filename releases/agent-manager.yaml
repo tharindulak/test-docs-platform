@@ -1,0 +1,13 @@
+# The intake record of agent-manager: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: agent-manager
+repo: tharindulak/docs-agent-platform
+editions:
+  1.0.0:
+    - tag: agent-manager/1.0.0-docs.1
+      asset: agent-manager-1.0.0-docs.1.docs.zip
+      sha256: 0c855d4fe4b63ae98b12d3700f5ed274793f17546b16cf895a48c617769d6fd1
+      sourceCommit: 2bdd480eb638f0f5694e4fdc3e1f08db2b153d05
+      acceptedAt: "2026-10-29T06:05:35.809Z"
