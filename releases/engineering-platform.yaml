@@ -1,0 +1,13 @@
+# The intake record of engineering-platform: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: engineering-platform
+repo: tharindulak/docs-choreo-dev
+editions:
+  cloud:
+    - tag: cloud-2026.10.29.1
+      asset: engineering-platform-cloud-2026.10.29.1.docs.zip
+      sha256: 67f4ceef532214c458e9668b2472934f7b626ded9150097e3775c030f40828d2
+      sourceCommit: ac547449998b90d49d5d3205c234a9e66d500eaa
+      acceptedAt: "2026-10-29T05:28:14.049Z"
