@@ -5,7 +5,9 @@
 // the images its pages reference under assets/ (Q76: only those),
 // redirects.yaml from the legacy URLs, docspace.yaml and editions.yaml, and a
 // run report in .migration/ like the MkDocs path's. Every page is compiled
-// and checked for content safety.
+// and checked for content safety. The product's override list
+// (config.overrides, lib/overrides.mjs) patches the source as the MkDocs
+// path's does, its file paths under the site directory (docs/a/b.md).
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -14,6 +16,7 @@ import { readVersion, planDocusaurus } from './docusaurus.mjs';
 import { rewriteBody } from './docusaurus-pages.mjs';
 import { compileCheck } from './compile.mjs';
 import { generatedDescription, Report } from './run.mjs';
+import { loadOverrides, SourceOverrides } from './overrides.mjs';
 import { loadContentRepo } from '../../lib/content.mjs';
 import { loadContext } from '../../lib/check/content.mjs';
 import { checkContentSafety } from '../../lib/check/safety.mjs';
@@ -36,11 +39,14 @@ export function siteDirOf(source, config) {
   return !fs.existsSync(path.join(source, 'docs')) && fs.existsSync(path.join(nested, 'docs')) ? nested : source;
 }
 
-export async function convertDocusaurus({ config, siteDir, outDir, edition, sourceRef, compile = true, log = () => {} }) {
+export async function convertDocusaurus({ config, siteDir, outDir, edition, sourceRef, compile = true, useOverrides = true, log = () => {} }) {
   const report = new Report();
+  const overrides = new SourceOverrides(useOverrides ? loadOverrides(config.overrides) : { patches: [], accepted: [] }, { sourceRoot: siteDir, edition });
   // The site's name for the version (versioned_docs/version-<name>), when it
   // differs from the Edition id (Agent Manager's v1.0.0 is Edition 1.0.0).
   const v = readVersion(siteDir, config.sourceVersion?.(edition) ?? edition, { sidebar: config.sidebar });
+  // A source file of the version, with the override list's patches applied.
+  const readSource = (rel) => overrides.read(path.join(v.docsDir, rel));
   log(`Sidebar: ${v.sidebarHow}`);
   const plan = planDocusaurus({ tree: v.tree, docs: v.docs, config });
   for (const i of [...v.issues, ...plan.issues]) report.add(i.kind, i.src ?? null, i.message);
@@ -147,7 +153,7 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
   const inlinedPartials = new Set(); // partials with props, inlined into pages
 
   const convert = (fromSrc, outFile, page) => {
-    const text = fs.readFileSync(path.join(v.docsDir, fromSrc), 'utf8');
+    const text = readSource(fromSrc);
     const fm = matter(text);
     const counts = {};
     const partialPath = (from, spec) => posix.normalize(posix.join(posix.dirname(from), spec));
@@ -161,12 +167,12 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
       // each props expression replaced by the call's literal value.
       propsPartial: (spec) => {
         const rel = partialPath(from, spec);
-        return isPartial(rel) && /\{props\.\w+\}/.test(fs.readFileSync(path.join(v.docsDir, rel), 'utf8'));
+        return isPartial(rel) && /\{props\.\w+\}/.test(readSource(rel));
       },
       inline: (spec, props) => {
         const rel = partialPath(from, spec);
         inlinedPartials.add(rel);
-        const text = matter(fs.readFileSync(path.join(v.docsDir, rel), 'utf8')).content
+        const text = matter(readSource(rel)).content
           .replace(/\{props\.(\w+)\}/g, (m, k) => `{${JSON.stringify(props[k] ?? false)}}`);
         return rewriteBody(text, { ...ctxFor(rel), inlined: true });
       },
@@ -289,6 +295,8 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
     failures = await compileCheck(written);
     for (const f of failures) report.add('compile', posix.relative(outDir, f.file), `${f.line ? `line ${f.line}: ` : ''}${f.message}`);
   }
+  stats.acceptedByOverrides = overrides.accept(report.items);
+  for (const st of overrides.stale()) report.add('override', st.file, st.message);
   const safety = checkContentSafety(loadContext({ repo: loadContentRepo(outDir), base: null }));
   for (const f of safety) report.add('content-safety', f.file, `line ${f.line}: ${f.message}`);
 
@@ -297,7 +305,7 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
     navPages: [...plan.pages.values()].filter((p) => p.inSidebar).length,
     sourceFiles: v.docs.size + v.partials.length,
     stats, issues: report.byKind(), compileFailures: failures.length, contentSafetyFindings: safety.length,
-    overrides: { patches: 0, patchesApplied: 0 },
+    overrides: overrides.summary(),
   };
   fs.mkdirSync(path.join(outDir, '.migration'), { recursive: true });
   fs.writeFileSync(path.join(outDir, '.migration', 'report.json'), `${JSON.stringify({ summary, items: report.items }, null, 2)}\n`);
@@ -317,6 +325,7 @@ function reportMarkdown(summary, report) {
     ['Generated descriptions to review', s.generatedDescriptions], ['sidebar_label set', s.sidebarLabels],
     ['Palette cards, chips and grids made plain Markdown', s.paletteFallbacks],
     ['Legacy redirect entries written', s.legacyRedirects],
+    ['Override patches applied (override list)', `${summary.overrides.patchesApplied} of ${summary.overrides.patches}`],
     ['MDX compile failures', summary.compileFailures], ['Content-safety findings', summary.contentSafetyFindings],
   ];
   const lines = [

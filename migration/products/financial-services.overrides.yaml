@@ -1,0 +1,67 @@
+# Override-patch list for financial-services/ (lib/overrides.mjs). Fixes to the
+# legacy wso2/docs-open-banking source, applied by the converter on every run;
+# never edit the Content repo's generated files instead. Paths are under en/.
+patches:
+- file: docs/develop/java/developer-guide.md
+  find: '[Introduction to Toolkit](develop-toolkit.md)'
+  replace: '[Introduction to Toolkit](../develop-toolkit.md)'
+  editions: [next, 4.0.0]
+  why: broken link on the legacy site (the toolkit page is one folder up); found by the converter
+- file: docs/develop/develop-is-toolkit.md
+  find: '[Mobile Application for CIBA](java/mobile-application-for-ciba.md)'
+  replace: '[Mobile Application for CIBA](mobile-application-for-ciba.md)'
+  editions: [next, 4.0.0]
+  why: broken link on the legacy site (the page is in develop/, not develop/java/); found by the converter
+- file: docs/learn/token-authentication.md
+  find: '(../develop/openapi-token-flow.md)'
+  replace: '(../develop/openapi/openapi-token-flow.md)'
+  editions: [next, 4.0.0]
+  why: broken link on the legacy site (the page is in develop/openapi/); found by the converter
+- file: docs/install-and-setup/distributed-gateway-control-plane.md
+  find: '(..%2Fassets%2Fimg%2Finstall-and-setup%2Fdeployment-patterns%2Fdistributed_gateway_control_plane.png)'
+  replace: '(../assets/img/install-and-setup/deployment-patterns/distributed_gateway_control_plane.png)'
+  editions: [next, 4.0.0]
+  why: the image path's slashes are percent-encoded, so no file matches; the image exists
+- file: docs/install-and-setup/distributed-gateway-control-plane-traffic-manager.md
+  find: '(..%2Fassets%2Fimg%2Finstall-and-setup%2Fdeployment-patterns%2Fdistributed_gateway_control_plane.png)'
+  replace: '(../assets/img/install-and-setup/deployment-patterns/distributed_gateway_control_plane.png)'
+  editions: [next, 4.0.0]
+  why: the image path's slashes are percent-encoded, so no file matches; the image exists
+- file: docs/install-and-setup/setting-up-databases.md
+  find: "         ALTER TABLE AM_APPLICATION_REGISTRATION ALTER column VALUE type VARCHAR(7500);\n"
+  replace: "         ALTER TABLE AM_APPLICATION_REGISTRATION ALTER column VALUE type VARCHAR(7500);\n         ```\n"
+  editions: [next, 4.0.0]
+  why: the PostgreSQL code fence never closes, so the note after it showed as code on the legacy site
+accepted:
+- page: get-started/try-out-flow-with-is.md
+  href: '../assets/attachments/transport-certs'
+  editions: [next, 4.0.0]
+  why: a link to the transport-certs folder, which holds files but no page, so the legacy site served nothing there (obtransport.key and obtransport.pem are linked on their own)
+- page: get-started/try-out-flow.md
+  href: '../assets/attachments/transport-certs'
+  editions: [next, 4.0.0]
+  why: a link to the transport-certs folder, which holds files but no page, so the legacy site served nothing there (obtransport.key and obtransport.pem are linked on their own)
+- page: learn/consent-management-endpoint.md
+  href: '../../assets/attachments/transport-certs'
+  editions: [next, 4.0.0]
+  why: a link to the transport-certs folder, which holds files but no page, so the legacy site served nothing there (obtransport.key and obtransport.pem are linked on their own)
+- page: learn/consent-management-try-out.md
+  href: '../../assets/attachments/transport-certs'
+  editions: [next, 4.0.0]
+  why: a link to the transport-certs folder, which holds files but no page, so the legacy site served nothing there (obtransport.key and obtransport.pem are linked on their own)
+- page: tryout-flows/accelerator-with-is-and-apim/try-out-accounts-flow-dcr.md
+  href: '../../assets/attachments/transport-certs/'
+  editions: [next, 4.0.0]
+  why: a link to the transport-certs folder, which holds files but no page, so the legacy site served nothing there (obtransport.key and obtransport.pem are linked on their own)
+- page: tryout-flows/accelerator-with-is-and-apim/try-out-payments-flow-dcr.md
+  href: '../../assets/attachments/transport-certs/'
+  editions: [next, 4.0.0]
+  why: a link to the transport-certs folder, which holds files but no page, so the legacy site served nothing there (obtransport.key and obtransport.pem are linked on their own)
+- page: tryout-flows/accelerator-with-is/try-out-flow-pre_initiated_consent.md
+  href: '../../assets/attachments/transport-certs'
+  editions: [next, 4.0.0]
+  why: a link to the transport-certs folder, which holds files but no page, so the legacy site served nothing there (obtransport.key and obtransport.pem are linked on their own)
+- page: get-started/try-out-flow.md
+  href: '../../assets/attachments/ob-transport-certs.zip'
+  editions: [3.0.0]
+  why: the attachment is not in the 3.0.0 source, so the legacy site has none either

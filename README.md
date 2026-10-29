@@ -202,6 +202,14 @@ node migration/sync.mjs platform-security --source <docs-security checkout> --re
 node migration/sync.mjs updates --source <docs-updates checkout, master> --repo <docs-updates> --branch main
 ```
 
+**A versions-only Doc space alone in its repo** (Accelerator for Financial Services from `wso2/docs-open-banking`, `products/financial-services.mjs`) cuts unprefixed release branches, `release/<version>`; `sync.mjs` refuses them once `main` holds another Doc space. The legacy site serves 4.0.0 (and `latest`) from `master` and 3.0.0 from the `3.0.0` branch, so `main` (`next`) and `release/4.0.0` both convert `master`. Its versions hard-code different home cards, so its `homeCards` is a function of the Edition.
+
+```bash
+node migration/sync.mjs financial-services --source <docs-open-banking checkout, master> --repo <docs-open-banking> --branch main          # next
+node migration/sync.mjs financial-services --source <docs-open-banking checkout, master> --repo <docs-open-banking> --branch release/4.0.0
+node migration/sync.mjs financial-services --source <docs-open-banking checkout, 3.0.0> --repo <docs-open-banking> --branch release/3.0.0
+```
+
 The converter is re-runnable: it regenerates the Doc space directory (and, on `main`, the root files), so fixes go into its rules or the product config, never into its output. Anything it cannot convert is listed in `.migration/report.md`, never dropped silently.
 
 **Override-patch list.** Fixes to the legacy source live in `migration/products/<product>.overrides.yaml` (`lib/overrides.mjs`) and are applied on every run:

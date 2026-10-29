@@ -951,8 +951,10 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     }
     // The product config's cards replace a home page its theme template drew:
     // Markdown there is the template's hard-coded copy (inline SVG cards).
-    if (page.target === 'index' && (config.homeCards || !bodyText.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/<\/?Edition[^>]*>/g, '').trim())) {
-      bodyText = `${config.homeIntro ? `${config.homeIntro}\n\n` : ''}${homePageBody(homeTree.mk, pageOf, homeTreeId, file, config.homeCards)}`;
+    // A function gives each Edition the cards its own nav has (docs-open-banking).
+    const homeCards = typeof config.homeCards === 'function' ? config.homeCards(edition) : config.homeCards;
+    if (page.target === 'index' && (homeCards || !bodyText.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/<\/?Edition[^>]*>/g, '').trim())) {
+      bodyText = `${config.homeIntro ? `${config.homeIntro}\n\n` : ''}${homePageBody(homeTree.mk, pageOf, homeTreeId, file, homeCards)}`;
       // The cards' sections, drawn as cards by the overview layout.
       front.layout = 'overview';
       stats.overviewPages = (stats.overviewPages ?? 0) + 1;

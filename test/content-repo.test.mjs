@@ -30,6 +30,7 @@ import apiPlatformConfig from '../migration/products/api-platform.mjs';
 import agwConfig from '../migration/products/api-gateway.mjs';
 import aiwConfig from '../migration/products/ai-workspace.mjs';
 import apoConfig from '../migration/products/api-portal.mjs';
+import fsConfig from '../migration/products/financial-services.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
@@ -348,6 +349,75 @@ test('sync: the converter regenerates <repo>/<slug>/ on main and prefixed releas
   // A second run with nothing new makes no commit.
   r = sync('identity-server', '--branch', 'identity-server/release/7.3.0');
   assert.match(r.stdout, /no changes/);
+  fs.rmSync(work, { recursive: true, force: true });
+});
+
+test('sync: a one-Doc-space repo cuts unprefixed release branches (Accelerator for Financial Services); its home cards follow each version\'s nav', () => {
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-fs-sync-'));
+  const src = path.join(work, 'docs-open-banking');
+  const write = (root, rel, text) => {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), text);
+  };
+  // A docs-open-banking-shaped master: the home's cards are inline HTML with
+  // onclick handlers, the 404 page is in the nav.
+  write(src, 'en/mkdocs.yml', [
+    'site_name: WSO2 Open Banking Accelerator Documentation',
+    'site_url: https://ob.docs.wso2.com/en/latest/',
+    'nav:',
+    "  - 'Home': index.md",
+    "  - 'Get Started':",
+    "    - 'Quick Start Guide':",
+    "      - 'Accelerator with WSO2 Identity server':",
+    "        - 'Get Started': get-started/quick-start-guide-with-is.md",
+    "  - 'Learn':",
+    "    - 'Consent Management':",
+    "      - 'Introduction': learn/consent-management.md",
+    "  - '': page-not-found.md",
+    'extra:',
+    '  site_version: 4.0.0',
+    '',
+  ].join('\n'));
+  write(src, 'en/docs/index.md', '---\ntemplate: templates/single-column.html\n---\n\n<div>\n<h1>Welcome</h1>\n<div class="card" onclick="location.href=\'learn/consent-management/\';"><p class="title">Consent Management</p></div>\n</div>\n');
+  write(src, 'en/docs/get-started/quick-start-guide-with-is.md', '# Quick start\n\nSet up the accelerator.\n');
+  write(src, 'en/docs/learn/consent-management.md', '# Consent management\n\nConsents.\n');
+  write(src, 'en/docs/page-not-found.md', '# Page not found\n');
+  git(src, 'init', '-q', '-b', 'master');
+  git(src, 'add', '-A');
+  git(src, 'commit', '-q', '-m', 'source');
+  const repo = path.join(work, 'docs-open-banking-target');
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_AUTHOR_EMAIL: 'test@example.invalid', GIT_COMMITTER_NAME: 'Test', GIT_COMMITTER_EMAIL: 'test@example.invalid' };
+  const sync = (...args) => spawnSync(process.execPath, [path.join(root, 'migration', 'sync.mjs'), 'financial-services', ...args, '--source', src, '--repo', repo, '--no-compile', '--trailer', 'Co-Authored-By: Test <test@example.invalid>'], { encoding: 'utf8', env });
+  let r = sync('--branch', 'main');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  r = sync('--branch', 'release/4.0.0');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(sync('--branch', 'other/release/4.0.0').stderr, /converts to main or financial-services\/release\/<version>/);
+
+  const show = (ref, f) => git(repo, 'show', `${ref}:${f}`);
+  assert.deepEqual(yaml.load(show('main', 'financial-services/docspace.yaml')), fsConfig.docspace);
+  assert.deepEqual(validate('docspace', fsConfig.docspace), []);
+  assert.deepEqual(fsConfig.docspace.editions, [{ id: '4.0.0', branch: 'release/4.0.0' }, { id: '3.0.0', branch: 'release/3.0.0' }], 'product placement: 4.0.0 and 3.0.0, unprefixed branches');
+  assert.equal(fsConfig.docspace.home, 'solutions');
+  assert.equal(editionForBranch(fsConfig.docspace, 'main'), 'next', 'versions only: main is the next preview');
+  assert.equal(editionForBranch(fsConfig.docspace, 'release/3.0.0'), '3.0.0');
+  // The release branch: cut from main, its commit changes only financial-services/.
+  const changed = git(repo, 'diff', '--name-only', 'main', 'release/4.0.0').split('\n').filter(Boolean);
+  assert.ok(changed.every((f) => f.startsWith('financial-services/')), changed.join(', '));
+  assert.equal(git(repo, 'merge-base', 'main', 'release/4.0.0'), git(repo, 'rev-parse', 'main'));
+  assert.match(git(repo, 'log', '-1', '--format=%B', 'release/4.0.0'), /^Convert Accelerator for Financial Services 4\.0\.0 from wso2\/docs-open-banking@[0-9a-f]{40}\n/);
+  // The home: the config's cards for 4.0.0's nav replace the inline HTML.
+  const home = show('release/4.0.0', 'financial-services/docs/index.mdx');
+  assert.match(home, /^layout: overview$/m);
+  assert.match(home, /- \[Quick start with Identity Server\]\([^)]*quick-start-guide-with-is\.mdx\)/);
+  assert.match(home, /- \[Consent management\]\([^)]*consent-management[^)]*\.mdx\)/);
+  assert.doesNotMatch(home, /onclick|Welcome/);
+  // A second Doc space in the repo: unprefixed release branches are refused.
+  git(repo, 'checkout', '-q', 'main');
+  write(repo, 'other/docspace.yaml', 'slug: other\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-q', '-m', 'a second Doc space');
+  assert.match(sync('--branch', 'release/3.0.0').stderr, /one Doc space/);
   fs.rmSync(work, { recursive: true, force: true });
 });
 

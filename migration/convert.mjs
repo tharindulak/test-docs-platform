@@ -51,7 +51,7 @@ const t0 = Date.now();
 // A family-level Doc space with an `overview` writes only that overview
 // (lib/family.mjs); one with pages of its own converts like a product.
 const { summary } = config.source === 'docusaurus'
-  ? await convertDocusaurus({ config, siteDir: siteDirOf(sourceDir, config), outDir, edition, sourceRef, compile: !o['no-compile'], log: (m) => console.log(m) })
+  ? await convertDocusaurus({ config, siteDir: siteDirOf(sourceDir, config), outDir, edition, sourceRef, compile: !o['no-compile'], useOverrides: !o['no-overrides'], log: (m) => console.log(m) })
   : config.kind === 'family' && config.overview
   ? await convertFamily({ config, sourceRoot: path.join(sourceDir, config.sourceRoot), repoDir: path.resolve(o.out), sourceRef, compile: !o['no-compile'], log: (m) => console.log(m) })
   : await convertProduct({

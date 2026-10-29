@@ -1,0 +1,62 @@
+# Override list for wso2/open-healthcare-docs, healthcare/ (lib/overrides.mjs): fixes to the
+# legacy source, each with its reason (paths are under en/, the Docusaurus site).
+# The site is Docusaurus 2 (MDX 1): a bare <WSO2_IS_HOME> in prose was text there, since an
+# underscore is not allowed in an HTML tag name. MDX 3 reads it as an unclosed JSX tag.
+patches:
+  - file: docs/install-and-setup/manual.md
+    find: 'Go to <PRODUCT_HOME>/bin and'
+    replace: 'Go to `<PRODUCT_HOME>/bin` and'
+    why: a bare placeholder is an unclosed tag in MDX 3; code, as the page writes the others
+  - file: docs/install-and-setup/manual.md
+    find: 'configurations in <WSO2_OH_APIM_ACC_HOME>/conf/config.toml file'
+    replace: 'configurations in the `<WSO2_OH_APIM_ACC_HOME>/conf/config.toml` file'
+    why: a bare placeholder is an unclosed tag in MDX 3; code, as the page writes the others
+  - file: docs/install-and-setup/manual.md
+    find: 'Run the merge script in <WSO2_OH_APIM_ACC_HOME>/bin:'
+    replace: 'Run the merge script in `<WSO2_OH_APIM_ACC_HOME>/bin`:'
+    why: a bare placeholder is an unclosed tag in MDX 3; code, as the page writes the others
+  - file: docs/install-and-setup/manual.md
+    find: 'configurations in <WSO2_OH_IS_ACC_HOME>/conf/config.toml file'
+    replace: 'configurations in the `<WSO2_OH_IS_ACC_HOME>/conf/config.toml` file'
+    why: a bare placeholder is an unclosed tag in MDX 3; code, as the page writes the others
+  - file: docs/install-and-setup/manual.md
+    find: 'Run the merge script in <WSO2_OH_IS_ACC_HOME>/bin:'
+    replace: 'Run the merge script in `<WSO2_OH_IS_ACC_HOME>/bin`:'
+    why: a bare placeholder is an unclosed tag in MDX 3; code, as the page writes the others
+  - file: docs/install-and-setup/manual.md
+    find: 'Run the following command in <WSO2_IS_HOME>/bin:'
+    replace: 'Run the following command in `<WSO2_IS_HOME>/bin`:'
+    why: a bare placeholder is an unclosed tag in MDX 3; code, as the page writes the others
+  - file: docs/install-and-setup/manual.md
+    find: 'Run the following command in <WSO2_APIM_HOME>/bin:'
+    replace: 'Run the following command in `<WSO2_APIM_HOME>/bin`:'
+    why: a bare placeholder is an unclosed tag in MDX 3; code, as the page writes the others
+  - file: docs/install-and-setup/updates/update-accelerators.md
+    find: '[installation of accelerator](/install-and-setup/manual)'
+    replace: '[installation of accelerator](../manual.md)'
+    why: the path leaves out the docs route base (/docs/), so it was broken on the legacy site too; a file link resolves wherever the page lands
+  - file: docs/install-and-setup/updates/update-accelerators.md
+    find: '[above](/install-and-setup/updates/update-accelerators)'
+    replace: 'above'
+    why: the link points to its own page and leaves out the docs route base (/docs/); the word stays, unlinked
+  - file: docs/fhir/guides/secure-fhir-apis.md
+    find: '[here]([https://apim.docs.wso2.com/en/4.0.0/design/api-security/api-authentication/api-authentication-overview/#](https://apim.docs.wso2.com/en/4.0.0/design/api-security/api-authentication/api-authentication-overview/#)!)'
+    replace: '[here](https://apim.docs.wso2.com/en/4.0.0/design/api-security/api-authentication/api-authentication-overview/)'
+    why: a link nested in another link's destination, broken on the legacy site too
+  - file: docs/get-started/open-healthcare-quickstart.md
+    find: "src={require('../assets/img/get-started/patient-api-facade-architecture.png').default}"
+    replace: 'src="../assets/img/get-started/patient-api-facade-architecture.png"'
+    why: the converter copies and rewrites an <img> src written as a path, not one written as require(); the image keeps its size and centring
+  - file: docs/data-transformation/guides/hl7v2-fhir.md
+    find: '[custom-service-openapi.yaml](../references/custom-service-openapi.yaml)'
+    replace: '[custom-service-openapi.yaml](https://github.com/wso2/open-healthcare-docs/blob/main/en/docs/data-transformation/references/custom-service-openapi.yaml)'
+    why: the converter copies only images, so a link to a YAML file next to the pages would break; the file's source on GitHub is a stable address
+  - file: docs/secure-health-apis/guides/auditing.md
+    find: '(../../compliance/us-core.md#provenance-requirements)'
+    replace: '(../../compliance/us-core.md)'
+    why: the US Core page has no Provenance Requirements heading, so the anchor was broken on the legacy site too
+  - file: docs/install-and-setup/deploy-fhir-apis.md
+    find: '[Ballerina](./manual.md#ballerina-installation-steps)'
+    replace: '[Ballerina](./manual.md#ballerina)'
+    why: the installation guide has no "Ballerina installation steps" heading (broken on the legacy site too); its Ballerina section holds the steps
+accepted: []

@@ -1,0 +1,17 @@
+# Docs section manifest: Solutions (the products menu's Solutions group, as
+# wso2.com/documentation groups it). Schema: schemas/section.schema.json.
+# Like Other, Solutions has no family Cloud: its menu is its products.
+schemaVersion: 1
+id: solutions
+title: Solutions Documentation
+owners:
+  team: docs-platform
+
+products:
+  - label: Accelerator for Financial Services
+    opens: { docSpace: financial-services }
+
+# Accelerator for Healthcare (unversioned) joins when its Doc space is converted.
+menu:
+  - docSpace: financial-services
+    version-in: menu

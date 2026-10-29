@@ -52,6 +52,7 @@ sections:
   - { id: identity-platform, in: identity-platform }
   - { id: integration-platform, in: integration-platform }
   - { id: other, in: other }
+  - { id: solutions, in: solutions }
 
 # Where the Doc space manifests are: each repo's main line, at
 # <path>/<slug>/docspace.yaml.
@@ -62,6 +63,7 @@ contentRepos:
   - repo: tharindulak/docs-security
   - repo: tharindulak/docs-agent-platform
   - repo: tharindulak/docs-updates
+  - repo: tharindulak/docs-open-banking
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards
@@ -133,8 +135,3 @@ notYetOnWso2Docs:
     in: solutions
     model: unversioned
     legacyUrl: https://healthcare.docs.wso2.com/
-  financial-services:
-    displayName: Accelerator for Financial Services
-    in: solutions
-    model: versions-only
-    legacyUrl: https://ob.docs.wso2.com/en/latest/

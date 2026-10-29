@@ -16,6 +16,9 @@ import { validate } from '../lib/schemas.mjs';
 import integrator from '../migration/products/integrator.mjs';
 import agentManager from '../migration/products/agent-manager.mjs';
 import agentPlatform from '../migration/products/agent-platform.mjs';
+import healthcare from '../migration/products/healthcare.mjs';
+import { convertDocusaurus } from '../migration/lib/docusaurus-run.mjs';
+import { editionForBranch } from '../lib/content-repo.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const site = path.join(root, 'fixtures', 'docusaurus-mini');
@@ -29,6 +32,35 @@ test('the Integrator config writes a valid Doc space manifest: versions-only, 5.
   assert.equal(integrator.legacyBase('5.1.0'), 'https://wso2.com/integration-platform/docs/integrator/', 'the legacy site serves its newest release at its root');
   assert.equal(integrator.legacyBase('next'), 'https://wso2.com/integration-platform/docs/integrator/next/');
   assert.equal(integrator.legacyBase('5.0.0'), 'https://wso2.com/integration-platform/docs/integrator/5.0.0/');
+});
+
+test('the Healthcare config: an unversioned Doc space from a Docusaurus site\'s docs/, on main only', () => {
+  assert.deepEqual(validate('docspace', healthcare.docspace), []);
+  assert.equal(healthcare.docspace.model, 'unversioned');
+  assert.equal(healthcare.docspace.home, 'solutions');
+  assert.equal(healthcare.docspace.editions, undefined, 'no release branches');
+  assert.equal(editionForBranch(healthcare.docspace, 'main'), '_');
+  assert.equal(healthcare.sourceVersion('_'), 'next', 'its one Edition is the site\'s docs/');
+  assert.equal(healthcare.legacyBase('_'), 'https://healthcare.docs.wso2.com/docs/');
+});
+
+test('override patches apply to a Docusaurus source too: fixed on every run, stale ones reported', async () => {
+  const work = tmp('docusaurus-overrides');
+  const list = path.join(work, 'overrides.yaml');
+  fs.writeFileSync(list, yaml.dump({
+    patches: [
+      { file: 'docs/get-started/sign-up.md', find: 'Create an account on WSO2 Cloud.', replace: 'Go to `<PRODUCT_HOME>/bin` and sign up.', why: 'a bare <PRODUCT_HOME> is text in MDX 1, a tag in MDX 3' },
+      { file: 'docs/get-started/sign-up.md', find: 'no such text', replace: 'x', why: 'stale' },
+    ],
+  }));
+  const outDir = path.join(work, 'integrator');
+  const { summary, report } = await convertDocusaurus({ config: { ...integrator, overrides: list }, siteDir: site, outDir, edition: 'next', sourceRef: 'test@0', compile: false });
+  assert.match(fs.readFileSync(path.join(outDir, 'docs', 'get-started', 'sign-up.mdx'), 'utf8'), /^Go to `<PRODUCT_HOME>\/bin` and sign up\.$/m);
+  assert.deepEqual(summary.overrides, { file: 'overrides.yaml', patches: 2, patchesApplied: 1, accepted: 0 });
+  assert.ok(report.items.some((i) => i.kind === 'override' && i.file === 'docs/get-started/sign-up.md' && /no longer applies/.test(i.message)));
+  const plain = await convertDocusaurus({ config: { ...integrator, overrides: list }, siteDir: site, outDir, edition: 'next', sourceRef: 'test@0', compile: false, useOverrides: false });
+  assert.match(fs.readFileSync(path.join(outDir, 'docs', 'get-started', 'sign-up.mdx'), 'utf8'), /^Create an account on WSO2 Cloud\.$/m, '--no-overrides leaves them out');
+  assert.equal(plain.summary.overrides.patches, 0);
 });
 
 test('sidebars.ts is read without running it: its object literal, literals only', () => {

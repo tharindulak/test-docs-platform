@@ -444,3 +444,53 @@ test('unversioned: a nav-listed 404 page is left out; the config\'s cards replac
   fs.rmSync(src, { recursive: true, force: true });
   fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('home cards per Edition: a config function gives each version the cards its own nav has', async () => {
+  // docs-open-banking's versions hard-code different cards (3.0.0 has a Data
+  // Publishing card 4.0.0 dropped), under navs that differ.
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-cards-src-'));
+  const w = (p, s) => {
+    fs.mkdirSync(path.dirname(path.join(src, p)), { recursive: true });
+    fs.writeFileSync(path.join(src, p), s);
+  };
+  w('mkdocs.yml', 'site_name: Acc Documentation\nnav:\n  - Home: index.md\n  - Learn:\n    - Consent: learn/consent.md\n    - Data Publishing: learn/data.md\nextra:\n  site_version: 3.0.0\n');
+  w('docs/index.md', '<div class="card" onclick="location.href=\'learn/data/\';">Data</div>\n');
+  w('docs/learn/consent.md', '# Consent\n\nText.\n');
+  w('docs/learn/data.md', '# Data\n\nText.\n');
+  const config = {
+    ...apim,
+    slug: 'acc', sourceRepo: 'wso2/docs-acc', legacyBase: (v) => `https://acc.docs.wso2.com/en/${v}/`, legacyHosts: ['acc.docs.wso2.com'],
+    docspace: { schemaVersion: 1, slug: 'acc', displayName: 'Acc', owners: { team: 't' }, repo: 'wso2/docs-acc', editions: [{ id: '3.0.0', branch: 'release/3.0.0' }] },
+    editions: { 'self-hosted': { displayName: 'Acc {version}' } },
+    topLevel: { Home: { page: 'index' }, Learn: { folder: 'guides' } },
+    sectionFolders: {}, skeleton: [{ folder: 'guides', label: 'Guides' }],
+    pageOverrides: {}, placeholders: {}, typeOverrides: { index: 'concept' }, overrides: null, redirectsPlugin: false, variables: {},
+    excluded: [], redirectToHome: [],
+    homeCards: (edition) => [{
+      section: [{
+        title: 'Learn',
+        list_items: [
+          { title: 'Consent', url: 'Learn|Consent' },
+          ...(edition === '3.0.0' ? [{ title: 'Data publishing', url: 'Learn|Data Publishing' }] : []),
+        ],
+      }],
+    }],
+  };
+  const run = async (edition) => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-cards-'));
+    const { summary } = await convertProduct({ config, sourceRoot: src, outDir: out, edition, legacyVersion: edition === 'next' ? null : edition, sourceRef: 'wso2/docs-acc@test' });
+    assert.equal(summary.compileFailures, 0);
+    const home = fs.readFileSync(path.join(out, 'docs/index.mdx'), 'utf8');
+    fs.rmSync(out, { recursive: true, force: true });
+    return home;
+  };
+  const v3 = await run('3.0.0');
+  assert.match(v3, /^layout: overview$/m);
+  assert.match(v3, /- \[Consent\]\(\.\/guides\/consent\.mdx\)/);
+  assert.match(v3, /- \[Data publishing\]\(\.\/guides\/data\.mdx\)/);
+  assert.doesNotMatch(v3, /onclick/);
+  const next = await run('next');
+  assert.match(next, /- \[Consent\]\(\.\/guides\/consent\.mdx\)/);
+  assert.doesNotMatch(next, /Data publishing/, 'the function is called with the run\'s Edition');
+  fs.rmSync(src, { recursive: true, force: true });
+});

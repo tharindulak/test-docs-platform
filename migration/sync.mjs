@@ -39,7 +39,9 @@ if (!product || !o.source || !o.repo || !o.branch) {
 const { default: config } = await import(`./products/${product}.mjs`);
 const slug = config.slug;
 const b = parseBranch(o.branch);
-if (!b || (!b.main && b.space !== slug)) {
+// An unprefixed release/<version> is allowed in a repo with one Doc space
+// (Repo structure); that is checked against main below.
+if (!b || (!b.main && b.space !== null && b.space !== slug)) {
   throw new Error(`${slug} converts to main or ${slug}/release/<version>, not ${o.branch}`);
 }
 if (config.kind === 'family' && !b.main) throw new Error(`${slug} is a family-level Doc space: Cloud only, on main`);
@@ -56,6 +58,14 @@ if (!fs.existsSync(path.join(repo, '.git'))) {
 }
 if (git('status', '--porcelain')) throw new Error(`${repo} has uncommitted changes; commit or stash them first`);
 const hasCommits = gitOk('rev-parse', '--verify', 'HEAD');
+if (!b.main && !b.space) {
+  // The Doc spaces on main: an unprefixed release branch needs this one alone.
+  const onMain = gitOk('rev-parse', '--verify', 'refs/heads/main')
+    ? git('ls-tree', '-r', '--name-only', 'main').split('\n').map((f) => /^([^/]+)\/docspace\.yaml$/.exec(f)?.[1]).filter(Boolean)
+    : [];
+  const others = onMain.filter((d) => d !== slug);
+  if (others.length) throw new Error(`${slug} converts to main or ${slug}/release/<version>, not ${o.branch}: an unprefixed release branch needs a repo with one Doc space, and main also holds ${others.join(', ')}`);
+}
 if (gitOk('rev-parse', '--verify', `refs/heads/${o.branch}`)) git('checkout', '-q', o.branch);
 else if (b.main) {
   if (hasCommits) {
