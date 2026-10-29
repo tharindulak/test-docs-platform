@@ -1,0 +1,13 @@
+# The intake record of ai-workspace: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: ai-workspace
+repo: tharindulak/docs-api-platform
+editions:
+  1.0.0:
+    - tag: ai-workspace/1.0.0-docs.1
+      asset: ai-workspace-1.0.0-docs.1.docs.zip
+      sha256: 3b3ad579bb1b5646aadef926cdbcc26625fc08812abf232de2905e1a4e601821
+      sourceCommit: 2af94c9e0d84425795a5ef7aba128d566d3eec95
+      acceptedAt: "2026-10-29T02:41:58.986Z"
