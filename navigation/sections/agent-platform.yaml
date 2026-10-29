@@ -1,0 +1,27 @@
+# Docs section manifest: Agent Platform. Kept by the section's team
+# (.github/CODEOWNERS). It sets the products-menu entries and the menu's order
+# and version-in only; names come from the Doc space manifests.
+# Schema: schemas/section.schema.json.
+schemaVersion: 1
+id: agent-platform
+title: Agent Platform Documentation
+owners:
+  team: agent-platform-docs
+
+# The products menu, as spec/product-placement.md places Agent Platform.
+# AI Gateway is borrowed from API Platform. Agent ID joins when its Cloud
+# part of Identity Platform Cloud exists.
+products:
+  - label: Agent Manager
+    opens: { docSpace: agent-manager }
+  - label: AI Gateway
+    opens: { docSpace: ai-gateway }
+
+# The one shape: the family Cloud first, then the products.
+menu:
+  - docSpace: agent-platform   # Cloud only, with Agent Manager as its Cloud part: its version is chosen in the header
+    version-in: header
+  - docSpace: agent-manager
+    version-in: menu
+  - docSpace: ai-gateway
+    version-in: menu

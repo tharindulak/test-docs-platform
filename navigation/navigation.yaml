@@ -47,6 +47,7 @@ environments: [staging, production]
 # Every Docs section, with its manifest at navigation/sections/<id>.yaml
 # (owned through CODEOWNERS), and the family or group it belongs to.
 sections:
+  - { id: agent-platform, in: agent-platform }
   - { id: api-platform, in: api-platform }
   - { id: identity-platform, in: identity-platform }
   - { id: integration-platform, in: integration-platform }
@@ -59,6 +60,7 @@ contentRepos:
   - repo: tharindulak/docs-is
   - repo: tharindulak/docs-integrator
   - repo: tharindulak/docs-security
+  - repo: tharindulak/docs-agent-platform
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards
@@ -72,16 +74,6 @@ contentRepos:
 # part, or unversioned), then the links out (links-out), which never get a
 # Doc space.
 notYetOnWso2Docs:
-  agent-platform:
-    displayName: Agent Platform Cloud
-    in: agent-platform
-    model: cloud-only
-    legacyUrl: https://wso2.com/agent-platform/docs/cloud/
-  agent-manager:
-    displayName: Agent Manager
-    in: agent-platform
-    model: versions-only
-    legacyUrl: https://wso2.com/agent-platform/docs/
   api-portal:
     displayName: API Portal & MCP Hub
     in: api-platform
