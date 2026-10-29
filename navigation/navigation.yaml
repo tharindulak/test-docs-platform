@@ -110,8 +110,3 @@ notYetOnWso2Docs:
     in: engineering-platform
     model: links-out
     legacyUrl: https://openchoreo.dev/docs/
-  healthcare:
-    displayName: Accelerator for Healthcare
-    in: solutions
-    model: unversioned
-    legacyUrl: https://healthcare.docs.wso2.com/
