@@ -21,7 +21,7 @@ export default {
   // Fixes to the legacy source and accepted legacy-broken links (lib/overrides.mjs).
   overrides: fileURLToPath(new URL('./api-gateway.overrides.yaml', import.meta.url)),
   // The other Doc spaces of this Content repo whose pages links may land on.
-  siblings: ['api-platform', 'ai-gateway'],
+  siblings: ['api-platform', 'ai-gateway', 'ai-workspace', 'api-portal'],
 
   // The view of the site a branch reads (folders.mjs).
   view(edition) {

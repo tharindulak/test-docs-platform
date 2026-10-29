@@ -36,7 +36,7 @@ export default {
     },
   },
   // The other Doc spaces of this Content repo whose pages links may land on.
-  siblings: ['api-platform'],
+  siblings: ['api-platform', 'ai-workspace', 'api-portal'],
 
   // The view of the site a branch reads (folders.mjs).
   view(edition) {

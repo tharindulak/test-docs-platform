@@ -28,6 +28,8 @@ import apimConfig from '../migration/products/api-manager.mjs';
 import aigConfig from '../migration/products/ai-gateway.mjs';
 import apiPlatformConfig from '../migration/products/api-platform.mjs';
 import agwConfig from '../migration/products/api-gateway.mjs';
+import aiwConfig from '../migration/products/ai-workspace.mjs';
+import apoConfig from '../migration/products/api-portal.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
@@ -187,7 +189,7 @@ test('wso2-docs spaces: the plan as GitHub outputs for a PR to main, a push and 
 
 test('the converter\'s Doc space manifests are the Pilot\'s, valid against the schema', () => {
   const fixture = (repo, slug) => yaml.load(fs.readFileSync(path.join(root, 'fixtures', 'content-repos', repo, slug, 'docspace.yaml'), 'utf8'));
-  for (const [config, repo] of [[isConfig, 'docs-identity-platform'], [familyConfig, 'docs-identity-platform'], [apimConfig, 'docs-api-platform'], [aigConfig, 'docs-api-platform'], [agwConfig, 'docs-api-platform'], [apiPlatformConfig, 'docs-api-platform']]) {
+  for (const [config, repo] of [[isConfig, 'docs-identity-platform'], [familyConfig, 'docs-identity-platform'], [apimConfig, 'docs-api-platform'], [aigConfig, 'docs-api-platform'], [agwConfig, 'docs-api-platform'], [aiwConfig, 'docs-api-platform'], [apoConfig, 'docs-api-platform'], [apiPlatformConfig, 'docs-api-platform']]) {
     assert.deepEqual(validate('docspace', config.docspace), [], config.slug);
     assert.deepEqual(config.docspace, fixture(repo, config.slug), `${config.slug}: fixtures/content-repos/ is what the converter writes`);
     assert.equal(config.docspace.slug, config.slug);
@@ -198,7 +200,7 @@ test('the converter\'s Doc space manifests are the Pilot\'s, valid against the s
   assert.deepEqual(familyConfig.parts.map((p) => p.docSpace), familyConfig.docspace.editions[0].parts);
 });
 
-test('compose reads the Pilot as it is (fixtures/content-repos/): two Doc spaces in docs-identity-platform, four in docs-api-platform', () => {
+test('compose reads the Pilot as it is (fixtures/content-repos/): two Doc spaces in docs-identity-platform, six in docs-api-platform', () => {
   const inputs = readInputs({ contentDir: path.join(root, 'fixtures', 'content-repos') });
   assert.deepEqual(inputs.missingRepos, []);
   const { manifest, issues } = compose(inputs);
@@ -219,8 +221,8 @@ test('compose reads the Pilot as it is (fixtures/content-repos/): two Doc spaces
   assert.equal(legacy.find((e) => e.id === '2.6.0').legacyUrl, 'https://wso2docs.atlassian.net/wiki/spaces/AM260/overview');
   assert.equal(legacy.find((e) => e.id === '1.10.0').legacyUrl, 'https://wso2docs.atlassian.net/wiki/spaces/AM1100/overview');
   // On WSO2 Docs since Convert API Platform Cloud and AI Gateway: the family Cloud and its part.
-  for (const slug of ['api-platform', 'ai-gateway', 'api-gateway']) assert.equal(s[slug].status, 'live', slug);
-  assert.deepEqual(s['api-platform'].editions.map((e) => [e.id, e.branch, e.parts]), [['cloud', 'main', ['ai-gateway', 'api-gateway']]]);
+  for (const slug of ['api-platform', 'ai-gateway', 'api-gateway', 'ai-workspace', 'api-portal']) assert.equal(s[slug].status, 'live', slug);
+  assert.deepEqual(s['api-platform'].editions.map((e) => [e.id, e.branch, e.parts]), [['cloud', 'main', ['ai-gateway', 'api-gateway', 'ai-workspace', 'api-portal']]]);
   assert.deepEqual(s['ai-gateway'].cloud, { in: 'api-platform' });
   assert.deepEqual(s['ai-gateway'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['ai-gateway/release/1.2.0', 'ai-gateway/release/2026.09.24']);
   assert.equal(s['ai-gateway'].tagPrefix, 'ai-gateway/');
@@ -229,7 +231,14 @@ test('compose reads the Pilot as it is (fixtures/content-repos/): two Doc spaces
   assert.deepEqual(s['api-gateway'].editions.map((e) => e.branch), ['api-gateway/release/1.2.0', 'api-gateway/release/1.1.0', 'api-gateway/release/1.0.0']);
   assert.equal(s['api-gateway'].latest, '1.2.0');
   assert.equal(s['api-gateway'].tagPrefix, 'api-gateway/');
-  assert.deepEqual(manifest.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway']);
+  // AI Workspace and API Portal & MCP Hub, the third and fourth Cloud parts: one Edition each.
+  for (const slug of ['ai-workspace', 'api-portal']) {
+    assert.deepEqual(s[slug].cloud, { in: 'api-platform' }, slug);
+    assert.deepEqual(s[slug].editions.map((e) => e.branch), [`${slug}/release/1.0.0`], slug);
+    assert.equal(s[slug].latest, '1.0.0', slug);
+    assert.equal(s[slug].tagPrefix, `${slug}/`, slug);
+  }
+  assert.deepEqual(manifest.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'ai-workspace', 'api-portal']);
   assert.ok(!s['docs-api-manager']);
 });
 

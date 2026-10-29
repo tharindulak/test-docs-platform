@@ -1,0 +1,20 @@
+# The Pilot in the target layout (Changes to the Pilot): what the converter
+# writes to <repo>/<slug>/docspace.yaml on main for AI Workspace, the third
+# Cloud part of API Platform Cloud.
+# test/compose.test.mjs composes it with navigation/ to prove the model.
+schemaVersion: 1
+slug: ai-workspace
+displayName: AI Workspace
+editionNames:
+  selfHosted: AI Workspace {version}
+home: api-platform
+cloud:
+  in: api-platform
+owners:
+  team: api-platform-docs
+repo: wso2/docs-api-platform
+editLinks: false
+issues:
+  repo: wso2/docs-api-platform
+editions:
+  - id: 1.0.0

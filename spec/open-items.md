@@ -33,6 +33,7 @@ Each is a bug against the rule named, unless the user changes the rule.
 | Rule | Code today | Source |
 |---|---|---|
 | [Staging on Cloudflare and VM search](edge-and-hosting.md#vm-search): the Pilot's staging is `wso2-docs-site.tharinduj.workers.dev` with search on the 141 VM | Built, applied and proven on the forks (2026-10-28). `release.yml` and `manifests.yml` on `map/docs-bundles` still name the interim `s3://docs-staging` and `docs-staging.wso2.com`; the proof repo sets the Pilot's values. Moving them to `wso2/docs-platform` is the cutover. | [B06] |
+| "Release docs" releases the version an owner names, one run per version | The Content repo template's `docs.yml` tag job shares one concurrency group per repo (`cancel-in-progress: false`); GitHub keeps one pending run per group, so of several dispatches started together all but the latest pending one are cancelled (API Gateway 1.2.0, 2026-10-29). Re-running alone works. | [B20] |
 
 [Close the spec's code gaps][N25] fixed every earlier row and built the six items the user decided on 2026-10-27. The 301 from an unmapped old page moved to the porting and cutover effort.
 
@@ -63,3 +64,4 @@ Each is a bug against the rule named, unless the user changes the rule.
 [B03]: ../.scratch/wso2-docs-bundles/issues/03-reusable-bundle-workflow-spec.md
 [B06]: ../.scratch/wso2-docs-bundles/issues/06-vm-hosting-spec.md
 [B17]: ../.scratch/wso2-docs-bundles/issues/17-identity-server-on-the-proof.md
+[B20]: ../.scratch/wso2-docs-bundles/issues/20-api-gateway-on-the-proof.md

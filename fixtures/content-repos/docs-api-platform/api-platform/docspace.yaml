@@ -22,3 +22,5 @@ editions:
     parts:
       - ai-gateway
       - api-gateway
+      - ai-workspace
+      - api-portal

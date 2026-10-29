@@ -13,12 +13,12 @@ Where every product on wso2.com, and on wso2.com/documentation's Solutions and O
 | Agent Platform | Agent Platform Cloud (`agent-platform`); Cloud part: Agent Manager | Family Cloud | Cloud | | header | `docs-agent-platform` | No |
 | Agent Platform | Agent Manager (`agent-manager`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-agent-platform` | No |
 | Agent Platform | AI Gateway, borrowed from API Platform | | | | menu | | No (borrowing is tested in code) |
-| API Platform | API Platform Cloud (`api-platform`, formerly Bijira); Cloud parts: API Gateway, AI Gateway, AI Workspace, API Portal & MCP Hub | Family Cloud | Cloud | | header | `docs-api-platform` | Yes, with AI Gateway and API Gateway as its parts so far |
+| API Platform | API Platform Cloud (`api-platform`, formerly Bijira); Cloud parts: API Gateway, AI Gateway, AI Workspace, API Portal & MCP Hub | Family Cloud | Cloud | | header | `docs-api-platform` | Yes, with all four parts |
 | API Platform | API Manager (`api-manager`) | Product | 4.7.0, 4.6.0 | 4.5.0 to 3.0.0 on `apim.docs.wso2.com`; 2.6.0 to 1.9.0 on Confluence (`wso2docs.atlassian.net`) | menu | `docs-api-platform` | Yes |
 | API Platform | API Gateway (`api-gateway`) | Product | 1.2.0, 1.1.0, 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | Yes (its Cloud part is the Cloud sub-section's Self-Hosted Gateway; Third-Party Gateways stays in API Platform Cloud's `guides/third-party-gateways/`) |
 | API Platform | AI Gateway (`ai-gateway`) | Product | 1.2.0, 2026.09.24 (Cloud is its part) | 1.1.0, 1.0.0 on the old site | menu | `docs-api-platform` | Yes |
-| API Platform | API Portal & MCP Hub (`api-portal`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | No |
-| API Platform | AI Workspace (`ai-workspace`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | No |
+| API Platform | API Portal & MCP Hub (`api-portal`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | Yes (its Cloud part is the Cloud entry's Developer Portal, `cloud/devportal/`) |
+| API Platform | AI Workspace (`ai-workspace`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | Yes (its Cloud part is the Cloud sub-section `cloud/ai-workspace/`; the section's MCP Registry, from `cloud/mcp-servers/`, stays in API Platform Cloud's `guides/mcp-registry/`) |
 | Integration Platform | Integration Platform Cloud (`integration-platform`, second name WSO2 Cloud, formerly Devant); Cloud parts: Integrator, Connectors | Family Cloud | Cloud | | header | `docs-integrator` | No |
 | Integration Platform | Integrator (`integrator`) | Product | 5.1.0, 5.0.0 (Cloud is its part) | | menu | `docs-integrator` | No |
 | Integration Platform | Integration Control Plane (`integration-control-plane`) | Product | 2.1.0 | | header | `docs-integrator` | No |

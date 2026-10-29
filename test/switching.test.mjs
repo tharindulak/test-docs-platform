@@ -379,9 +379,9 @@ test('products menu: the families, then Solutions and Other; each family\'s Clou
     ['product', 'API Manager', '/api-manager/latest/'],
     ['product', 'API Gateway', '/api-platform/cloud/api-gateway/'],
     ['product', 'AI Gateway', '/api-platform/cloud/ai-gateway/'],
+    ['product', 'AI Workspace', '/api-platform/cloud/ai-workspace/'],
+    ['product', 'API Portal & MCP Hub', '/api-platform/cloud/api-portal/'],
     ['page', 'Monetization', '/api-platform/cloud/guides/monetization/'],
-    ['legacy', 'API Portal & MCP Hub', 'https://wso2.com/api-platform/docs/api-portal/1.0.0/'],
-    ['legacy', 'AI Workspace', 'https://wso2.com/api-platform/docs/ai-workspace/1.0.0/'],
   ]);
   const ip = g.find((x) => x.id === 'identity-platform');
   assert.deepEqual(ip.entries.map((e) => [e.label, e.href, e.section]), [
@@ -461,6 +461,8 @@ test('section menu on the Pilot: the family Cloud first, products with 2+ Editio
     ['API Manager', false, false, ['4.7.0', '4.6.0', ...['4.5.0', '4.4.0', '4.3.0', '4.2.0', '4.1.0', '4.0.0', '3.2.0', '3.1.0', '3.0.0', '2.6.0', '2.5.0', '2.2.0', '2.1.0', '2.0.0', '1.10.0', '1.9.1', '1.9.0'].map((v) => `${v} ↗`)]],
     ['API Gateway', false, false, ['Cloud', '1.2.0', '1.1.0', '1.0.0']],
     ['AI Gateway', false, true, ['Cloud', '1.2.0', '2026.09.24', '1.1.0 ↗', '1.0.0 ↗']],
+    ['AI Workspace', false, false, ['Cloud', '1.0.0']],
+    ['API Portal & MCP Hub', false, false, ['Cloud', '1.0.0']],
   ]);
   assert.equal(sm.entries[3].dropdown.value, 'cloud');
   assert.equal(sm.entries[1].href, '/api-manager/latest/');

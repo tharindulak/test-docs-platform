@@ -183,15 +183,16 @@ test('a stub Edition goes from tag to the staging edge and rolls back by pointer
     const crawl = () => execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-release.mjs'), 'crawl', '--storage', 's3://docs-staging', '--host', origin, ...deploy.flatMap((d) => ['--deploy', d])], { env: s3env, encoding: 'utf8', stdio: 'pipe' });
     // Every Edition's home page has a docs: link to API Manager, and the chrome
     // links to the Landing page, Contribute and, from the products menu, where
-    // API Manager, API Platform Cloud, API Gateway, AI Gateway and Monetization open: none
+    // API Manager, API Platform Cloud, its four Cloud parts and Monetization open: none
     // is on staging yet.
     assert.throws(crawl, (e) => {
       assert.deepEqual(e.stderr.trim().split('\n').map((l) => l.replace(/ \(linked from .*\)$/, '')).sort(), [
         `crawl: 404 ${origin}/`, `crawl: 404 ${origin}/api-manager/latest/`, `crawl: 404 ${origin}/api-manager/latest/guides/`,
-        `crawl: 404 ${origin}/api-platform/cloud/`, `crawl: 404 ${origin}/api-platform/cloud/ai-gateway/`, `crawl: 404 ${origin}/api-platform/cloud/api-gateway/`, `crawl: 404 ${origin}/api-platform/cloud/guides/monetization/`,
+        `crawl: 404 ${origin}/api-platform/cloud/`, `crawl: 404 ${origin}/api-platform/cloud/ai-gateway/`, `crawl: 404 ${origin}/api-platform/cloud/ai-workspace/`,
+        `crawl: 404 ${origin}/api-platform/cloud/api-gateway/`, `crawl: 404 ${origin}/api-platform/cloud/api-portal/`, `crawl: 404 ${origin}/api-platform/cloud/guides/monetization/`,
         `crawl: 404 ${origin}/contribute/`,
       ]);
-      assert.match(e.stdout, /Crawled \d+ pages and \d+ links .*: 8 failed/);
+      assert.match(e.stdout, /Crawled \d+ pages and \d+ links .*: 10 failed/);
       return true;
     });
     // Deploy stand-ins for API Manager's latest twin, the Landing page and
@@ -212,8 +213,8 @@ test('a stub Edition goes from tag to the staging edge and rolls back by pointer
     release('publish', '--storage', 's3://docs-staging', '--dir', standIn('apim-latest', 'api-manager', '4.7.0', '/api-manager/latest/', ['', 'guides/']), '--space', 'api-manager', '--segment', 'latest', '--edition', '4.7.0', '--tag', 'api-manager/4.7.0-docs.1');
     release('publish', '--storage', 's3://docs-staging', '--dir', standIn('landing', null, null, '/', ['']), '--space', '_landing', '--segment', '_', '--edition', '_', '--tag', 'landing-1');
     release('publish', '--storage', 's3://docs-staging', '--dir', standIn('contribute', 'contribute', '_', '/contribute/', ['']), '--space', 'contribute', '--segment', '_', '--edition', '_', '--tag', 'contribute-1');
-    // API Platform Cloud with its AI Gateway and API Gateway parts: the products menu's API Platform Cloud, API Gateway, AI Gateway and Monetization open there.
-    release('publish', '--storage', 's3://docs-staging', '--dir', standIn('apip-cloud', 'api-platform', 'cloud', '/api-platform/cloud/', ['', 'ai-gateway/', 'api-gateway/', 'guides/monetization/']), '--space', 'api-platform', '--segment', 'cloud', '--edition', 'cloud', '--tag', 'api-platform/cloud-2026.10.21.1');
+    // API Platform Cloud with its four Cloud parts: the products menu's API Platform Cloud, its parts and Monetization open there.
+    release('publish', '--storage', 's3://docs-staging', '--dir', standIn('apip-cloud', 'api-platform', 'cloud', '/api-platform/cloud/', ['', 'ai-gateway/', 'api-gateway/', 'ai-workspace/', 'api-portal/', 'guides/monetization/']), '--space', 'api-platform', '--segment', 'cloud', '--edition', 'cloud', '--tag', 'api-platform/cloud-2026.10.21.1');
     release('flip', '--storage', 's3://docs-staging', '--env', 'staging', '--deploy', 'api-manager/latest=4.7.0-docs.1', '--deploy', '_landing/_=landing-1', '--deploy', 'contribute/_=contribute-1', '--deploy', 'api-platform/cloud=cloud-2026.10.21.1');
     assert.equal((await get('/ai-gateway/')).headers.get('location'), '/api-platform/cloud/ai-gateway/');
     assert.match(crawl(), /Crawled \d+ pages and \d+ links .*: 0 failed/);

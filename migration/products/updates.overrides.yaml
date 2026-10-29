@@ -1,0 +1,12 @@
+# Override list for wso2/docs-updates, updates/ (lib/overrides.mjs): fixes to the legacy
+# source and legacy-broken links the converter accepts, each with its reason (paths are under en/).
+patches:
+  - file: docs/updates/archive/finding-the-update-tool.md
+    find: 'How can I identify the update model I am currently using to update product packs<br>'
+    replace: "# Finding the Update Tool\n\nHow can I identify the update model I am currently using to update product packs<br>"
+    why: the archived page has no heading, so its title would be its file name (finding-the-update-tool)
+  - file: docs/updates/archive/migrating-to-updates2.0.md
+    find: '### How do I migrate from WUM and In-place to Updates 2.0? '
+    replace: "# Migrating to Updates 2.0\n\n### How do I migrate from WUM and In-place to Updates 2.0? "
+    why: the archived page has no heading, so its title would be its file name (migrating-to-updates2.0)
+accepted: []

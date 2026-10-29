@@ -647,13 +647,13 @@ test('the Pilot in the target layout (fixtures/pilot-target) composes: the one s
   fs.cpSync(path.join(root, 'navigation'), nav, { recursive: true });
   // Since ticket 16, API Platform Cloud and AI Gateway are on WSO2 Docs.
   const data = yaml.load(fs.readFileSync(path.join(nav, 'navigation.yaml'), 'utf8'));
-  assert.ok(!data.notYetOnWso2Docs['api-platform'] && !data.notYetOnWso2Docs['ai-gateway'] && !data.notYetOnWso2Docs['api-gateway']);
+  assert.ok(!data.notYetOnWso2Docs['api-platform'] && !data.notYetOnWso2Docs['ai-gateway'] && !data.notYetOnWso2Docs['api-gateway'] && !data.notYetOnWso2Docs['ai-workspace'] && !data.notYetOnWso2Docs['api-portal']);
   assert.ok(!data.contentRepos.some((r) => r.repo === 'wso2/docs-api-manager'), 'API Manager has joined docs-api-platform');
   const { manifest, issues } = compose(readInputs({ navigationDir: nav, contentDir: path.join(root, 'fixtures', 'pilot-target') }));
   assert.deepEqual(errorsIn(issues), [], formatIssues(issues));
   assert.deepEqual(issues.filter((i) => i.level === 'warning').map((i) => i.code), ['label-differs']);
   const d = manifest.docSpaces;
-  assert.deepEqual(Object.keys(d).slice(0, 8), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'identity-platform', 'identity-server', 'sandbox', 'contribute']);
+  assert.deepEqual(Object.keys(d).slice(0, 10), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'ai-workspace', 'api-portal', 'identity-platform', 'identity-server', 'sandbox', 'contribute']);
   assert.deepEqual([d['identity-platform'].model, d['identity-platform'].latest, d['identity-platform'].editions[0].parts], ['cloud-only', 'cloud', ['identity-server']]);
   assert.deepEqual([d['identity-server'].model, d['identity-server'].latest, d['identity-server'].cloud], ['versions-only', '7.3.0', { in: 'identity-platform' }]);
   assert.deepEqual(d['identity-server'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['identity-server/release/7.3.0', 'identity-server/release/7.2.0']);
@@ -665,9 +665,10 @@ test('the Pilot in the target layout (fixtures/pilot-target) composes: the one s
   assert.deepEqual(d['ai-gateway'].editions.map((e) => `${e.id}:${e.status}`), ['1.2.0:live', '2026.09.24:live', '1.1.0:legacy', '1.0.0:legacy']);
   assert.equal(d['ai-gateway'].latest, '1.2.0');
   assert.deepEqual(d['ai-gateway'].editions.slice(0, 2).map((e) => e.branch), ['ai-gateway/release/1.2.0', 'ai-gateway/release/2026.09.24']);
-  assert.deepEqual([d['api-platform'].model, d['api-platform'].editions[0].parts], ['cloud-only', ['ai-gateway', 'api-gateway']]);
+  assert.deepEqual([d['api-platform'].model, d['api-platform'].editions[0].parts], ['cloud-only', ['ai-gateway', 'api-gateway', 'ai-workspace', 'api-portal']]);
   assert.deepEqual([d['api-gateway'].model, d['api-gateway'].latest, d['api-gateway'].cloud], ['versions-only', '1.2.0', { in: 'api-platform' }]);
-  assert.deepEqual(manifest.sections['api-platform'].menu.map((m) => `${m.docSpace}:${m.versionIn}`), ['api-platform:header', 'api-manager:menu', 'api-gateway:menu', 'ai-gateway:menu']);
+  assert.deepEqual(manifest.sections['api-platform'].menu.map((m) => `${m.docSpace}:${m.versionIn}`), ['api-platform:header', 'api-manager:menu', 'api-gateway:menu', 'ai-gateway:menu', 'ai-workspace:menu', 'api-portal:menu']);
+  for (const slug of ['ai-workspace', 'api-portal']) assert.deepEqual([d[slug].model, d[slug].latest, d[slug].cloud], ['versions-only', '1.0.0', { in: 'api-platform' }], slug);
   assert.equal(d.sandbox.tagPrefix, '', 'a repo with one Doc space keeps unprefixed branches');
   assert.deepEqual(manifest.sections['identity-platform'].menu.map((m) => `${m.docSpace}:${m.versionIn}`), ['identity-platform:header', 'identity-server:menu']);
 });
@@ -706,7 +707,7 @@ test('a repo\'s tags never go to a Doc space that is not on WSO2 Docs yet', () =
 test('the compose command runs from the Platform checkout with its defaults', () => {
   const out = path.join(tmp(), 'manifest.json');
   const stdout = execFileSync(process.execPath, [cli, 'compose', '--out', out], { encoding: 'utf8', env: { ...process.env, GITHUB_ACTIONS: '' } });
-  assert.match(stdout, /8 Doc spaces, 2 Docs sections, 19 products not on WSO2 Docs yet/);
+  assert.match(stdout, /10 Doc spaces, 2 Docs sections, 17 products not on WSO2 Docs yet/);
   // Without --content or WSO2_DOCS_CONTENT_REPOS: the checkouts next to the Platform's.
   const env = { ...process.env, GITHUB_ACTIONS: '' };
   delete env.WSO2_DOCS_CONTENT_REPOS;
@@ -714,7 +715,7 @@ test('the compose command runs from the Platform checkout with its defaults', ()
   const dir = tmp();
   for (const repo of ['docs-identity-platform', 'docs-api-platform', 'docs-sandbox']) fs.cpSync(path.join(root, 'fixtures', 'content-repos', repo), path.join(dir, repo), { recursive: true });
   const real = execFileSync(process.execPath, [cli, 'compose', '--content', dir, '--out', path.join(dir, 'm.json')], { encoding: 'utf8', env });
-  assert.match(real, /8 Doc spaces, 2 Docs sections, 19 products not on WSO2 Docs yet/);
+  assert.match(real, /10 Doc spaces, 2 Docs sections, 17 products not on WSO2 Docs yet/);
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'm.json'), 'utf8')).docSpaces['identity-platform'].model, 'cloud-only');
   const missing = spawnSync(process.execPath, [cli, 'compose', '--content', tmp(), '--out', path.join(dir, 'x.json')], { encoding: 'utf8', env });
   assert.equal(missing.status, 1);

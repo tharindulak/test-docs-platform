@@ -132,7 +132,9 @@ function loadTree(t, config, sourceRoot, overrides) {
     redirectMap: new Map([...allRedirects, ...(view?.aliases ?? [])].map((r) => [r.from.replace(/\.md$/, ''), r.to])),
     basePath,
     globals: { ...mk.config, ...(mk.config.extra ?? {}), ...flags },
-    nav: pruneNav(view ? view.nav : mk.nav, flaggedOff),
+    // A nav entry for a page that redirects home (the legacy 404 page, listed
+    // as `'': page-not-found.md` to build it) is no page of the Doc space.
+    nav: pruneNav(view ? view.nav : mk.nav, new Set([...flaggedOff, ...(config.redirectToHome ?? [])])),
     view,
   };
 }
@@ -947,7 +949,9 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       if (!bodyText.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').trim()) bodyText = `${catalogCfg.intro}\n`;
       writeCatalog(page, fmTree, catalogCfg);
     }
-    if (page.target === 'index' && !bodyText.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/<\/?Edition[^>]*>/g, '').trim()) {
+    // The product config's cards replace a home page its theme template drew:
+    // Markdown there is the template's hard-coded copy (inline SVG cards).
+    if (page.target === 'index' && (config.homeCards || !bodyText.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/<\/?Edition[^>]*>/g, '').trim())) {
       bodyText = `${config.homeIntro ? `${config.homeIntro}\n\n` : ''}${homePageBody(homeTree.mk, pageOf, homeTreeId, file, config.homeCards)}`;
       // The cards' sections, drawn as cards by the overview layout.
       front.layout = 'overview';

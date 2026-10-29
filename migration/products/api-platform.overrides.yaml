@@ -11,10 +11,11 @@ patches:
     find: '](../../cloud/api-monetization/manage-paid-subscription-plans.md)'
     replace: ']({{base_path}}/monetization/manage-paid-subscription-plans/)'
     why: broken link on the legacy site (page moved without a legacy redirect); found by the converter
+  - file: docs/guides/ai-and-mcp/publish-mcp-servers-to-a-governed-catalog.md
+    find: '](../../cloud/devportal/admin-settings/llm-instructions/)'
+    replace: ']({{base_path}}/cloud/devportal/admin-settings/llm-instructions/)'
+    why: broken link on the legacy site (../../ from the page's URL lands under guides/); the guide means the Developer Portal's LLM Instructions, now in API Portal & MCP Hub's Cloud part
 accepted:
-  - page: cloud/ai-workspace/llm-proxies/manage-proxy.md
-    href: '#get-started'
-    why: the anchor is not on the target page on the legacy site either
   - page: get-started.md
     href: analytics-and-monetization/overview.md
     why: the legacy site has no page there either

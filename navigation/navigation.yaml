@@ -75,16 +75,6 @@ contentRepos:
 # part, or unversioned), then the links out (links-out), which never get a
 # Doc space.
 notYetOnWso2Docs:
-  api-portal:
-    displayName: API Portal & MCP Hub
-    in: api-platform
-    model: versions-only
-    legacyUrl: https://wso2.com/api-platform/docs/api-portal/1.0.0/
-  ai-workspace:
-    displayName: AI Workspace
-    in: api-platform
-    model: versions-only
-    legacyUrl: https://wso2.com/api-platform/docs/ai-workspace/1.0.0/
   integration-platform:
     displayName: Integration Platform Cloud
     in: integration-platform

@@ -1,10 +1,12 @@
 # A tiny wso2/docs-api-platform: one MkDocs build that keeps every version as
-# folders. Site-wide pages, a Cloud entry with AI Gateway's and API Gateway's
-# Cloud sub-sections (API Gateway's also lists a section from another folder,
-# cloud/federation/, which stays in API Platform Cloud), and their versions as
-# nav sections over folders (next/, 1.2.0/ and the date version 2026.09.24/).
-# test/migration-folders.test.mjs converts it with the real ai-gateway.mjs,
-# api-gateway.mjs and api-platform.mjs configs.
+# folders. Site-wide pages, a Cloud entry with the Cloud sub-sections of AI
+# Gateway, API Gateway, AI Workspace and API Portal (Developer Portal); API
+# Gateway's and AI Workspace's also list a section from another folder
+# (cloud/federation/, cloud/mcp-servers/), which stays in API Platform Cloud;
+# and their versions as nav sections over folders (next/, 1.2.0/, 1.0.0/ and
+# the date version 2026.09.24/). test/migration-folders.test.mjs converts it
+# with the real ai-gateway.mjs, api-gateway.mjs, ai-workspace.mjs,
+# api-portal.mjs and api-platform.mjs configs.
 site_name: "API Platform Documentation"
 site_url: https://wso2.com/bijira/docs
 nav:
@@ -25,6 +27,15 @@ nav:
               - Writing a Custom Policy: cloud/api-platform-gateway/writing-a-custom-policy.md
           - Third-Party Gateways:
               - Overview: cloud/federation/overview.md
+      - AI Workspace:
+          - Overview: cloud/ai-workspace/overview.md
+          - Quickstart: cloud/ai-workspace/quickstart.md
+          - MCP Registry:
+              - What is an MCP Registry?: cloud/mcp-servers/mcp-registry.md
+      - Developer Portal:
+          - Theming Developer Portal:
+              - Theming with AI: cloud/devportal/theming-devportal-with-ai.md
+          - AI Agent Discovery: cloud/devportal/discover-apis/ai-agent-discovery.md
   - API Gateway:
       - next:
           - Overview: api-gateway/next/overview.md
@@ -44,6 +55,17 @@ nav:
       - 2026.09.24:
           - Overview: ai-gateway/2026.09.24/overview.md
           - Quick Start Guide: ai-gateway/2026.09.24/quick-start-guide.md
+  - API Portal:
+      - next:
+          - Overview: api-portal/next/overview.md
+          - AI Agent Discovery: api-portal/next/ai-agent-discovery.md
+      - 1.0.0:
+          - Overview: api-portal/1.0.0/overview.md
+  - AI Workspace:
+      - next:
+          - Overview: ai-workspace/next/overview.md
+      - 1.0.0:
+          - Overview: ai-workspace/1.0.0/overview.md
   - Monetization:
       - Overview: monetization/overview.md
   - Guides:

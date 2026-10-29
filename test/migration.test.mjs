@@ -392,3 +392,55 @@ test('unversioned: custom markdownextradata delimiters, a template-drawn home fr
   fs.rmSync(src, { recursive: true, force: true });
   fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('unversioned: a nav-listed 404 page is left out; the config\'s cards replace a template\'s hard-coded home', async () => {
+  // A docs-updates-shaped project: `'': page-not-found.md` in the nav, and a
+  // home page whose Markdown is the template's inline-SVG cards.
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-updates-src-'));
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-updates-'));
+  const w = (p, s) => {
+    fs.mkdirSync(path.dirname(path.join(src, p)), { recursive: true });
+    fs.writeFileSync(path.join(src, p), s);
+  };
+  w('mkdocs.yml', [
+    'site_name: WSO2 Updates 2.0 Documentation',
+    'nav:',
+    '  - Home: index.md',
+    '  - Updates:',
+    '    - Get Started:',
+    '      - Overview: updates/overview.md',
+    '    - Hotfixes: updates/hotfixes.md',
+    "  - '': page-not-found.md",
+    '',
+  ].join('\n'));
+  w('docs/index.md', '---\ntemplate: templates/home-page.html\n---\n\n# WSO2 Updates Documentation\nWe bring updates.\n\n<div style="display: flex"><a href="updates/overview"><svg><g><line x1="1"/></g></svg>Overview</a></div>\n');
+  w('docs/updates/overview.md', '# Overview\n\nAbout updates.\n');
+  w('docs/updates/hotfixes.md', '# Hotfixes\n\nAbout hotfixes.\n');
+  w('docs/page-not-found.md', '# Page not found\n');
+  const config = {
+    ...apim,
+    slug: 'upd', sourceRepo: 'wso2/docs-upd', legacyBase: () => 'https://updates.docs.wso2.com/en/latest/', legacyHosts: ['updates.docs.wso2.com'],
+    docspace: { schemaVersion: 1, slug: 'upd', displayName: 'Upd', model: 'unversioned', owners: { team: 't' }, repo: 'wso2/docs-upd' },
+    editions: { cloud: { displayName: 'Upd' } },
+    topLevel: { Home: { page: 'index' }, Updates: { folder: 'guides' } },
+    sectionFolders: { 'Updates > Get Started': 'get-started' },
+    skeleton: [{ folder: 'get-started', label: 'Get started' }, { folder: 'guides', label: 'Guides' }],
+    pageOverrides: {}, placeholders: {}, typeOverrides: { index: 'concept' }, overrides: null, redirectsPlugin: false, variables: {},
+    excluded: ['page-not-found.md'], redirectToHome: ['page-not-found.md'],
+    homeIntro: 'Updates for WSO2 products.',
+    homeCards: [{ section: [{ title: 'Start', list_items: [{ title: 'Overview', url: 'Updates|Get Started|Overview' }, { title: 'Hotfixes', url: 'Updates|Hotfixes' }] }] }],
+  };
+  const { summary, report } = await convertProduct({ config, sourceRoot: src, outDir: out, edition: '_', legacyVersion: null, sourceRef: 'wso2/docs-upd@test' });
+  assert.equal(summary.compileFailures, 0, JSON.stringify(report.items.filter((i) => i.kind === 'compile')));
+  assert.ok(!fs.existsSync(path.join(out, 'docs/page-not-found.mdx')), 'the 404 page is no page');
+  assert.ok(fs.existsSync(path.join(out, 'docs/get-started/overview.mdx')));
+  const home = fs.readFileSync(path.join(out, 'docs/index.mdx'), 'utf8');
+  assert.match(home, /^layout: overview$/m);
+  assert.match(home, /^title: WSO2 Updates 2\.0$/m);
+  assert.match(home, /Updates for WSO2 products\./);
+  assert.match(home, /- \[Overview\]\(\.\/get-started\/overview\.mdx\)/);
+  assert.match(home, /- \[Hotfixes\]\(\.\/guides\/hotfixes\.mdx\)/);
+  assert.doesNotMatch(home, /svg|line|We bring updates/, 'the template\'s hard-coded cards are replaced');
+  fs.rmSync(src, { recursive: true, force: true });
+  fs.rmSync(out, { recursive: true, force: true });
+});

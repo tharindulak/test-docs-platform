@@ -9,10 +9,9 @@ owners:
   team: api-platform-docs
 
 # The products menu, labelled and ordered as wso2.com's header lists API
-# Platform. AI Workspace and API Portal & MCP Hub join as their Doc spaces are
-# converted (their Cloud pages wait in API Platform Cloud's ai-workspace/ and
-# api-portal/ groups until then); API Control Plane joins once its page in API
-# Platform Cloud is chosen.
+# Platform (API Manager, API Gateway, AI Gateway, AI Workspace, API Control
+# Plane, API Portal & MCP Hub, Monetization). API Control Plane joins once its
+# page in API Platform Cloud is chosen.
 products:
   - label: API Manager
     opens: { docSpace: api-manager }
@@ -20,16 +19,24 @@ products:
     opens: { docSpace: api-gateway }
   - label: AI Gateway
     opens: { docSpace: ai-gateway }
+  - label: AI Workspace
+    opens: { docSpace: ai-workspace }
+  - label: API Portal & MCP Hub
+    opens: { docSpace: api-portal }
   - label: Monetization
     opens: { docSpace: api-platform, page: guides/monetization/ }
 
 # The one shape: the family Cloud first, then the products.
 menu:
-  - docSpace: api-platform   # Cloud only, with AI Gateway and API Gateway as its Cloud parts: its version is chosen in the header
+  - docSpace: api-platform   # Cloud only, with AI Gateway, API Gateway, AI Workspace and API Portal & MCP Hub as its Cloud parts: its version is chosen in the header
     version-in: header
   - docSpace: api-manager
     version-in: menu
   - docSpace: api-gateway
     version-in: menu
   - docSpace: ai-gateway
+    version-in: menu
+  - docSpace: ai-workspace
+    version-in: menu
+  - docSpace: api-portal
     version-in: menu

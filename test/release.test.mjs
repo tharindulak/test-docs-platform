@@ -465,13 +465,13 @@ test('crawl gate: menus built into a page list only deployed Doc spaces, while a
   };
   // Baked from the composed manifest alone, the menus link to Doc spaces with no deployment: the gate fails.
   const composedOnly = await gate(publicManifest(policy, { environment: 'production' }));
-  assert.deepEqual([...new Set(composedOnly.failures.map((f) => new URL(f.url).pathname))].sort(), ['/api-manager/latest/', '/api-platform/cloud/', '/api-platform/cloud/ai-gateway/', '/api-platform/cloud/api-gateway/', '/api-platform/cloud/guides/monetization/']);
+  assert.deepEqual([...new Set(composedOnly.failures.map((f) => new URL(f.url).pathname))].sort(), ['/api-manager/latest/', '/api-platform/cloud/', '/api-platform/cloud/ai-gateway/', '/api-platform/cloud/ai-workspace/', '/api-platform/cloud/api-gateway/', '/api-platform/cloud/api-portal/', '/api-platform/cloud/guides/monetization/']);
   // Baked with the deployment state the build read, and the Doc space it builds counted as deployed: the gate passes.
   const baked = bakedManifest(policy, { environment: 'production', deployed: before, building: ['identity-server'] });
   assert.deepEqual((await gate(baked)).failures, []);
   assert.ok(productsMenu(baked, view).flatMap((g) => g.entries).some((e) => e.label === 'Identity Server'), 'the Doc space being built is in its own menus');
   assert.ok(!JSON.stringify(baked.sections['api-platform'].menu).includes('api-manager'), 'API Manager waits in the section\'s pending');
-  assert.deepEqual(baked.sections['api-platform'].pending.map((p) => p.docSpace ?? p.product.label), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'API Manager', 'API Gateway', 'AI Gateway', 'Monetization']);
+  assert.deepEqual(baked.sections['api-platform'].pending.map((p) => p.docSpace ?? p.product.label), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'ai-workspace', 'api-portal', 'API Manager', 'API Gateway', 'AI Gateway', 'AI Workspace', 'API Portal & MCP Hub', 'Monetization']);
   // With no deployment state (a local build), the menus are the composed manifest's.
   assert.deepEqual(bakedManifest(policy, { environment: 'production' }), publicManifest(policy, { environment: 'production' }));
   // A published manifest.json is deployment state too.

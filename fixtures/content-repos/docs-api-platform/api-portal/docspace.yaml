@@ -1,0 +1,21 @@
+# The Doc space manifest on the main line of docs-api-platform, as the converter
+# writes it (API Portal & MCP Hub, the fourth Cloud part of API Platform Cloud), copied
+# for the tests of the Pilot as it is; test/content-repo.test.mjs keeps the two
+# equal. Compose reads the real checkouts (WSO2_DOCS_CONTENT_REPOS or
+# --content; by default the directory the Platform checkout sits in).
+schemaVersion: 1
+slug: api-portal
+displayName: API Portal & MCP Hub
+editionNames:
+  selfHosted: API Portal & MCP Hub {version}
+home: api-platform
+cloud:
+  in: api-platform
+owners:
+  team: api-platform-docs
+repo: wso2/docs-api-platform
+editLinks: false
+issues:
+  repo: wso2/docs-api-platform
+editions:
+  - id: 1.0.0
