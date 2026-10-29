@@ -105,7 +105,8 @@ if (!changed.length) {
 } else {
   const s = summary.stats;
   const msg = [
-    `Convert ${config.docspace.displayName}${config.kind === 'family' ? '' : ` ${edition}`} from ${sourceRef}`,
+    // A family-level or unversioned Doc space has one Edition: no name for it.
+    `Convert ${config.docspace.displayName}${config.kind === 'family' || edition === '_' ? '' : ` ${edition}`} from ${sourceRef}`,
     '',
     `converted from ${sourceRef} by the WSO2 Docs converter (migration/ in wso2/docs-platform) into ${slug}/.`,
     `${s.pages} pages (${summary.navPages} in the legacy nav), ${s.partials} partials, ${s.apiPages} API pages, ${s.images} images; MDX compile failures: ${summary.compileFailures}.`,

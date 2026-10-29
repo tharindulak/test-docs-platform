@@ -1,0 +1,10 @@
+{
+  "docsSidebar": [
+    { "type": "category", "label": "Get Started", "collapsed": false, "items": ["get-started/what-is-amp", "get-started/quick-start"] },
+    { "type": "category", "label": "Concepts", "collapsed": false, "items": ["concepts/project"] },
+    { "type": "category", "label": "Guides", "collapsed": false, "items": [
+      { "type": "category", "label": "Installation", "collapsed": true, "items": ["guides/on-k3d", "guides/on-your-environment"] }
+    ] },
+    { "type": "doc", "id": "contributing", "label": "Contributing", "className": "sidebar-section-icon-contributing" }
+  ]
+}

@@ -1,0 +1,60 @@
+{/* Shared partial. Props expected from parent:
+       - props.production — (boolean, optional) the production variants
+       - props.expandRegistryConfig — (boolean, optional) registry config expanded
+*/}
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+export const Prod = ({production, children}) => (production ? <>{children}</> : null);
+export const Dev = ({production, children}) => (production ? null : <>{children}</>);
+
+Run the installer, then open the [console](../../get-started/what-is-amp.mdx).
+
+![Installer](../../img/project.png)
+
+<Tabs groupId="distribution">
+<TabItem value="community" label="Community" default>
+
+The community images are public.
+
+</TabItem>
+</Tabs>
+
+<Dev production={props.production}>
+
+```bash
+helm install amp --set debug=true
+```
+
+</Dev>
+
+<Prod production={props.production}>
+
+```bash
+helm install amp --set replicas=3
+```
+
+</Prod>
+
+export const RegistryConfig = ({expanded}) => {
+  const content = (
+    <>
+      <p>Override the registry settings:</p>
+      <pre><code className="language-bash">{`helm install amp-platform-resources \\
+  --version \${VERSION}`}</code></pre>
+      <table>
+        <thead><tr><th>Value</th><th>Default</th></tr></thead>
+        <tbody>
+          <tr><td><code>global.baseDomain</code></td><td><code>""</code></td></tr>
+        </tbody>
+      </table>
+    </>
+  );
+  if (expanded) {
+    return (<><h5>Container registry configuration</h5>{content}</>);
+  }
+  return (<details><summary>Container registry configuration</summary>{content}</details>);
+};
+
+<RegistryConfig expanded={props.expandRegistryConfig} />

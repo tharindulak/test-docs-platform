@@ -360,6 +360,10 @@ export class PageConverter {
         const toMdx = (ls) => prefix(htmlToMdx(ls.join('\n'), this.ctx), indStr);
         out.push(...(this.variantsOf(htmlLines, toMdx, indStr) ?? toMdx(htmlLines)));
         this.ctx.stats.htmlBlocks++;
+        // Python-Markdown ends the block at its closing tag, so a next line
+        // starts a block of its own; without a blank line MDX would join it
+        // to this one's paragraph (or make a --- a setext heading).
+        if (closed && !inList && end < lines.length && !isBlank(lines[end])) out.push('');
         i = end;
         prevBlank = false;
         continue;

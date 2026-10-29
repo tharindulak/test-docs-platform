@@ -1,0 +1,22 @@
+# The Pilot in the target layout (Changes to the Pilot): what the converter
+# writes to <repo>/<slug>/docspace.yaml on main for API Gateway, the second
+# Cloud part of API Platform Cloud.
+# test/compose.test.mjs composes it with navigation/ to prove the model.
+schemaVersion: 1
+slug: api-gateway
+displayName: API Gateway
+editionNames:
+  selfHosted: API Gateway {version}
+home: api-platform
+cloud:
+  in: api-platform
+owners:
+  team: api-platform-docs
+repo: wso2/docs-api-platform
+editLinks: false
+issues:
+  repo: wso2/docs-api-platform
+editions:
+  - id: 1.2.0
+  - id: 1.1.0
+  - id: 1.0.0

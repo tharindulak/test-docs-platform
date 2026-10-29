@@ -1,0 +1,11 @@
+{
+  "docsSidebar": [
+    { "type": "category", "label": "Get Started", "collapsed": false, "items": ["get-started/what-is-amp"], "className": "sidebar-section-icon-get-started" },
+    { "type": "category", "label": "Concepts", "collapsed": false, "items": ["concepts/project"] },
+    { "type": "category", "label": "Guides", "collapsed": false, "items": [
+      { "type": "category", "label": "Platform Administration", "collapsed": true, "items": [
+        { "type": "doc", "id": "guides/register-mcp-proxy", "label": "MCP Proxies" }
+      ] }
+    ] }
+  ]
+}

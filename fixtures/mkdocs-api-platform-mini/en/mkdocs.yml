@@ -1,8 +1,10 @@
 # A tiny wso2/docs-api-platform: one MkDocs build that keeps every version as
-# folders. Site-wide pages, a Cloud entry with AI Gateway's Cloud sub-section,
-# and AI Gateway's versions as nav sections over folders (next/ and the date
-# version 2026.09.24/). test/migration-folders.test.mjs converts it with the
-# real ai-gateway.mjs and api-platform.mjs configs.
+# folders. Site-wide pages, a Cloud entry with AI Gateway's and API Gateway's
+# Cloud sub-sections (API Gateway's also lists a section from another folder,
+# cloud/federation/, which stays in API Platform Cloud), and their versions as
+# nav sections over folders (next/, 1.2.0/ and the date version 2026.09.24/).
+# test/migration-folders.test.mjs converts it with the real ai-gateway.mjs,
+# api-gateway.mjs and api-platform.mjs configs.
 site_name: "API Platform Documentation"
 site_url: https://wso2.com/bijira/docs
 nav:
@@ -17,6 +19,19 @@ nav:
               - Guard: cloud/ai-gateway/llm/guard.md
           - Analytics:
               - Moesif Analytics: cloud/ai-gateway/analytics/moesif.md
+      - API Gateway:
+          - Self-Hosted Gateway:
+              - Getting Started: cloud/api-platform-gateway/getting-started.md
+              - Writing a Custom Policy: cloud/api-platform-gateway/writing-a-custom-policy.md
+          - Third-Party Gateways:
+              - Overview: cloud/federation/overview.md
+  - API Gateway:
+      - next:
+          - Overview: api-gateway/next/overview.md
+          - Policies:
+              - Writing a Custom Policy: api-gateway/next/policies/writing-a-custom-policy.md
+      - 1.2.0:
+          - Overview: api-gateway/1.2.0/overview.md
   - AI Gateway:
       - next:
           - Overview: ai-gateway/next/overview.md

@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { loadMkdocs, listMarkdown, loadLegacyRedirects, mkdocsUrl, redirectMaps, excludeDocs } from './mkdocs.mjs';
+import { loadMkdocs, listMarkdown, loadLegacyRedirects, mkdocsUrl, redirectMaps, excludeDocs, extradataDelimiters } from './mkdocs.mjs';
 import { planLayout, docUrl } from './layout.mjs';
 import { PageConverter, headingPlainText } from './markdown.mjs';
 import { mkdocsSlug, fileSlug } from './slug.mjs';
@@ -611,7 +611,13 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
   };
 
   // ---- Page bodies: variables (single-tree products) ------------------------------
-  const varPattern = /\{\{\s*([A-Za-z_][\w.]*)\s*\}\}/g;
+  // markdownextradata's variable delimiters ({{# … #}} in docs-security);
+  // under other ones a {{ x }} is plain text, and a variable the link rules
+  // resolve is written as {{base_path}}.
+  const delims = extradataDelimiters(homeTree.mk.config);
+  const customDelims = delims.start !== '{{' || delims.end !== '}}';
+  const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const varPattern = new RegExp(`${reEsc(delims.start)}\\s*([A-Za-z_][\\w.]*)\\s*${reEsc(delims.end)}`, 'g');
   const jinjaTag = /\{%-?\s*(if|elif|else|endif|for|endfor|set|include|macro|endmacro|block|endblock|extends|import)\b/;
   const extraKeys = new Set(Object.keys(homeTree.mk.config.extra ?? {}));
   // md_in_html: a <div markdown="1"> line only wraps Markdown (a styling
@@ -655,7 +661,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       if (tag) throw new Error(`${cur.label}: Jinja tag {% ${tag[1]} %} has no conversion rule`);
       return part.replace(varPattern, (m, name) => {
         const rule = config.variables[name];
-        if (rule?.remove) return m; // {{base_path}} is resolved by the link rules
+        if (rule?.remove) return customDelims ? `{{${name}}}` : m; // {{base_path}} is resolved by the link rules
         if (rule?.edition) return `\u0002${rule.edition}\u0002`;
         if (extraKeys.has(name.split('.')[0])) throw new Error(`${cur.label}: variable {{${name}}} has no conversion rule`);
         return m; // not a config variable: MkDocs left it as written
@@ -942,7 +948,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       writeCatalog(page, fmTree, catalogCfg);
     }
     if (page.target === 'index' && !bodyText.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/<\/?Edition[^>]*>/g, '').trim()) {
-      bodyText = `${config.homeIntro ? `${config.homeIntro}\n\n` : ''}${homePageBody(homeTree.mk, pageOf, homeTreeId, file)}`;
+      bodyText = `${config.homeIntro ? `${config.homeIntro}\n\n` : ''}${homePageBody(homeTree.mk, pageOf, homeTreeId, file, config.homeCards)}`;
       // The cards' sections, drawn as cards by the overview layout.
       front.layout = 'overview';
       stats.overviewPages = (stats.overviewPages ?? 0) + 1;
@@ -1474,9 +1480,10 @@ function dumpFront(front) {
   return `${lines.map((l) => (l.startsWith('description:') && !front[KEPT_DESCRIPTION] ? `${l}  # generated from the first paragraph; a writer should improve it` : l)).join('\n').replace(/\n+$/, '')}\n`;
 }
 
-function homePageBody(mk, pageOf, treeId, file) {
-  // The legacy home page is built from extra.home_page_cards in a template.
-  const cards = mk.config.extra?.home_page_cards ?? [];
+function homePageBody(mk, pageOf, treeId, file, homeCards = null) {
+  // The legacy home page is built from extra.home_page_cards in a template,
+  // or from cards the product config gives for a template that hard-codes them.
+  const cards = homeCards ?? mk.config.extra?.home_page_cards ?? [];
   const labelToSrc = new Map();
   const walk = (nodes, trail) => {
     for (const n of nodes) {

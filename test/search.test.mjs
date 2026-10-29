@@ -202,8 +202,8 @@ test('This Docs section: every Doc space its menu lists, at the Edition being re
   assert.equal(buildFilter({ scope: 'section', ctx: ipCloud, manifest }), or(clause('identity-platform', 'cloud'), clause('identity-server', 'cloud')));
   // In the Cloud part: the component's Cloud and the family's.
   assert.equal(buildFilter({ scope: 'section', ctx: isPart, manifest }), or(clause('identity-server', 'cloud'), clause('identity-platform', 'cloud')));
-  // API Manager 4.6.0: API Platform Cloud, AI Gateway's Cloud part, itself at 4.6.0.
-  assert.equal(buildFilter({ scope: 'section', ctx: apim, manifest }), or(clause('api-manager', '4.6.0'), clause('api-platform', 'cloud'), clause('ai-gateway', 'cloud')));
+  // API Manager 4.6.0: API Platform Cloud, the API Gateway and AI Gateway Cloud parts, itself at 4.6.0.
+  assert.equal(buildFilter({ scope: 'section', ctx: apim, manifest }), or(clause('api-manager', '4.6.0'), clause('api-platform', 'cloud'), clause('api-gateway', 'cloud'), clause('ai-gateway', 'cloud')));
   // The remembered Edition does not steer the section (the menu shows each Doc space's latest).
   assert.equal(buildFilter({ scope: 'section', ctx: apim, manifest, remembered: { 'ai-gateway': '2026.09.24' } }), buildFilter({ scope: 'section', ctx: apim, manifest }));
   // End of life: the Doc space being read falls back to where it opens (end of life is only under This Edition).
@@ -211,7 +211,7 @@ test('This Docs section: every Doc space its menu lists, at the Edition being re
   assert.match(buildFilter({ scope: 'section', ctx: apim, manifest: eol }), /docSpace:=`api-manager` && edition:=`4\.7\.0`/);
   // Doc space chips narrow it.
   assert.equal(buildFilter({ scope: 'section', ctx: apim, manifest, chips: { docSpaces: ['ai-gateway'] } }), or(clause('ai-gateway', 'cloud')));
-  assert.deepEqual(chipOptions('section', apim, manifest).docSpaces.map((d) => d.id), ['api-manager', 'api-platform', 'ai-gateway']);
+  assert.deepEqual(chipOptions('section', apim, manifest).docSpaces.map((d) => d.id), ['api-manager', 'api-platform', 'api-gateway', 'ai-gateway']);
   // Where a Cloud part's platform has no Cloud deployed (the published manifest says), its component opens its newest release.
   const deployed = structuredClone(manifest);
   for (const [slug, segs] of Object.entries({ 'api-platform': [], 'api-manager': ['4.7.0', '4.6.0', 'latest'], 'ai-gateway': ['1.2.0', 'latest'] })) {
@@ -240,7 +240,7 @@ test('the Docs section comes from the manifest: a section changed in the publish
 });
 
 test('All of WSO2 Docs: the section as it is, widened by one Edition of every other Doc space (remembered, else where its selector opens)', () => {
-  const others = [clause('ai-gateway', 'cloud'), clause('api-manager', '4.7.0'), clause('api-platform', 'cloud'), clause('contribute', '_')];
+  const others = [clause('ai-gateway', 'cloud'), clause('api-gateway', 'cloud'), clause('api-manager', '4.7.0'), clause('api-platform', 'cloud'), clause('contribute', '_')];
   const fromLanding = or(...others, clause('identity-platform', 'cloud'), clause('identity-server', 'cloud'));
   assert.equal(buildFilter({ scope: 'all', ctx: landing, manifest }), fromLanding, 'Cloud first, as the products menu opens them; Contribute (indexed) included');
   assert.equal(buildFilter({ scope: 'all', ctx: landing, manifest, remembered: { 'identity-server': '7.2.0', 'api-manager': 'latest' } }),

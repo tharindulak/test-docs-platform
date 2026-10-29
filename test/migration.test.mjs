@@ -151,6 +151,15 @@ test('raw HTML: admonition divs, simple and complex tables, anchors', () => {
   assert.ok(ctx.imports.has('Anchor'));
 });
 
+test('raw HTML: a block ends at its closing tag, as Python-Markdown ends it', () => {
+  // Consecutive <p> lines stay separate paragraphs, and a --- after them is a
+  // rule, never a setext heading over the paragraphs.
+  const { out } = convert('<p class="doc-info">Published: May 1</p>\n<p class="doc-info">Severity: High</p>\n---\n\n### Overview\n');
+  assert.match(out, /^Published: May 1\n\nSeverity: High\n\n---\n/);
+  const list = convert('* item\n    <p>inside</p>\n    more\n').out;
+  assert.doesNotMatch(list, /\n\n/, 'inside a list the item stays tight');
+});
+
 test('includes become partial components, also after a list marker', () => {
   const { out } = convert('1. {!includes/sign-in.md!}\n\n{!includes/other-part.md!}\n');
   assert.match(out, /^1\. <Psignin \/>$/m);
@@ -323,4 +332,63 @@ test('nearest anchor: every old word still there, or nearly the same words; neve
   assert.deepEqual(nearestAnchor('starting-the-server', ['starting-the-api-m-server', 'stopping-the-server']), { anchor: 'starting-the-api-m-server', score: 0.5 });
   assert.equal(nearestAnchor('register-an-api-resource', ['register-a-business-api']), null, 'a word is missing');
   assert.equal(nearestAnchor('configure', ['configure-users', 'configure-groups']), null, 'a tie is no suggestion');
+});
+
+test('unversioned: custom markdownextradata delimiters, a template-drawn home from the config\'s cards', async () => {
+  // A docs-security-shaped project: {{#base_path#}} variables, {{x}} left as
+  // written, and a home page with no Markdown (its theme template drew it).
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-unversioned-src-'));
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-unversioned-'));
+  const w = (p, s) => {
+    fs.mkdirSync(path.dirname(path.join(src, p)), { recursive: true });
+    fs.writeFileSync(path.join(src, p), s);
+  };
+  w('mkdocs.yml', [
+    'site_name: WSO2 Security Documentation',
+    'plugins:',
+    '  - markdownextradata:',
+    '      jinja_options:',
+    "        variable_start_string: '{{#'",
+    "        variable_end_string: '#}}'",
+    'nav:',
+    '  - Home: index.md',
+    '  - Processes:',
+    '    - Vulnerability Management: processes/vulnerability-management.md',
+    '  - Announcements:',
+    "    - '': announcements/index.md",
+    '    - WSO2-1: announcements/wso2-1.md',
+    'extra:',
+    "  base_path: '/en/latest'",
+    '',
+  ].join('\n'));
+  w('docs/index.md', '---\ntemplate: templates/home-page.html\n---\n\n<!-- drawn by the template -->\n');
+  w('docs/processes/vulnerability-management.md', '# Vulnerability management\n\nSee [the advisories]({{#base_path#}}/announcements/).\n');
+  w('docs/announcements/index.md', '# Announcements\n\n* [WSO2-1]({{#base_path#}}/announcements/wso2-1/)\n');
+  w('docs/announcements/wso2-1.md', '# WSO2-1\n\n<p class="doc-info">Severity: {{severity}}</p>\n\nPlain text.\n');
+  const config = {
+    ...apim,
+    slug: 'sec', sourceRepo: 'wso2/docs-sec', legacyBase: () => 'https://security.docs.wso2.com/en/latest/', legacyHosts: ['security.docs.wso2.com'],
+    docspace: { schemaVersion: 1, slug: 'sec', displayName: 'Sec', model: 'unversioned', owners: { team: 't' }, repo: 'wso2/docs-sec' },
+    editions: { cloud: { displayName: 'Sec' } },
+    topLevel: { Home: { page: 'index' }, Processes: { folder: 'concepts/processes' }, Announcements: { folder: 'reference/announcements' } },
+    sectionFolders: {}, pageOverrides: {}, placeholders: {}, typeOverrides: { index: 'concept' }, overrides: null, redirectsPlugin: true,
+    variables: { base_path: { remove: true } },
+    homeIntro: 'Security resources.',
+    homeCards: [{ section: [{ title: 'Announcements', list_items: [{ title: 'All announcements', url: 'Announcements|' }, { title: 'Vulnerability management', url: 'Processes|Vulnerability Management' }] }] }],
+  };
+  const { summary, report } = await convertProduct({ config, sourceRoot: src, outDir: out, edition: '_', legacyVersion: null, sourceRef: 'wso2/docs-sec@test' });
+  assert.equal(summary.compileFailures, 0, JSON.stringify(report.items.filter((i) => i.kind === 'compile')));
+  const read = (p) => fs.readFileSync(path.join(out, p), 'utf8');
+  assert.match(read('docs/concepts/processes/vulnerability-management.mdx'), /\[the advisories\]\(\.\.\/\.\.\/reference\/announcements\/index\.mdx\)/, '{{#base_path#}} links resolve');
+  assert.match(read('docs/reference/announcements/index.mdx'), /\[WSO2-1\]\(\.\/wso2-1\.mdx\)/);
+  assert.match(read('docs/reference/announcements/wso2-1.mdx'), /severity/i);
+  const home = read('docs/index.mdx');
+  assert.match(home, /^layout: overview$/m);
+  assert.match(home, /Security resources\./);
+  assert.match(home, /## Announcements/);
+  assert.match(home, /- \[All announcements\]\(\.\/reference\/announcements\/index\.mdx\)/);
+  assert.match(home, /- \[Vulnerability management\]\(\.\/concepts\/processes\/vulnerability-management\.mdx\)/);
+  assert.ok(!report.items.some((i) => i.kind === 'broken-link'), JSON.stringify(report.items.filter((i) => i.kind === 'broken-link')));
+  fs.rmSync(src, { recursive: true, force: true });
+  fs.rmSync(out, { recursive: true, force: true });
 });

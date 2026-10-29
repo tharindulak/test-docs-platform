@@ -17,7 +17,7 @@ Use only the terms in `GLOSSARY.md`. When a term is added, renamed or redefined,
 
 ## Where things are
 
-- Wayfinder maps and tickets: `.scratch/wso2-doc-space/` (first map) and `.scratch/wso2-docs-navigation/` (navigation map). Older tickets name `<workspace>/wso2docs` as the tracker; read it as `.scratch/` here.
+- Wayfinder maps and tickets: `.scratch/wso2-doc-space/` (first map) and `.scratch/wso2-docs-navigation/` (navigation map). Older tickets name `/home/jo/workspace/wso2docs` as the tracker; read it as `.scratch/` here.
 - The guides people follow: `standards/contribute/docs/get-started/product-teams.mdx` (product teams) and `standards/contribute/docs/get-started/platform-team.mdx` (the Platform team). Read them for how-to steps; the spec holds the rules.
 - Skills: `.claude/skills/` and `.agents/skills/`. Author skills shipped to writers: `skills/`.
 
@@ -25,8 +25,8 @@ Use only the terms in `GLOSSARY.md`. When a term is added, renamed or redefined,
 
 - **Outward-facing actions wait for the user's approval**: no push, no remote repo creation, no PRs or posting, no deploys. Requests carry no personal data.
 - **Stop only processes you started, by their PID.** `pkill` and `killall` reach other agents' runs.
-- **One heavy build at a time**, under `timeout 1500` with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, in your own worktree under `<workspace>/docs-platform-wt/`. The main checkout's `site/.docusaurus` is shared, so builds never run there.
-- **Large outputs go under `<workspace>/docs-platform-wt/_work-<task>/`**, since `/tmp` has a quota.
+- **One heavy build at a time**, under `timeout 1500` with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, in your own worktree under `/home/jo/workspace/docs-platform-wt/`. The main checkout's `site/.docusaurus` is shared, so builds never run there.
+- **Large outputs go under `/home/jo/workspace/docs-platform-wt/_work-<task>/`**, since `/tmp` has a quota.
 - **Leave other people's branches, worktrees and files as they are**; delete only what you created.
 - **Merge to `main` only after the full suite (`npm test`) passes**, and run it again on the merged commit.
 - **End every commit message with** `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.

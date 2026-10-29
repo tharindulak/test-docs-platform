@@ -183,13 +183,20 @@ node migration/verify.mjs parity --repo <repo>/identity-server --build <out> --s
 
 **An MkDocs build that keeps every version as folders** (`wso2/docs-api-platform`: `ai-gateway/<version>/` folders, a `cloud/` entry with a sub-section per Cloud part, site-wide pages) is read as one *view* per branch (`lib/folders.mjs`, a product's `view(edition)`):
 - `products/ai-gateway.mjs`: a release branch `ai-gateway/release/<version>` reads that version's folder (date versions such as `2026.09.24` are exact versions). The main line, AI Gateway's Cloud part, reads `next/` plus the Cloud sub-section: a Cloud page with the same name as a `next/` page keeps `next/`'s text and maps its legacy URL there, and the pair goes into `ai-gateway/.migration/cloud-diff.md` for the team. Every other Cloud page is added with `editions: cloud`.
-- `products/api-platform.mjs` (`kind: family` with pages of its own): API Platform Cloud, the whole site minus the version folders and the part, with the Cloud entry's sections filed into the family skeleton; its overview lists the Cloud parts.
-- Links that leave the view go to the sibling Doc space (`docs:<slug>/cloud/<page>/`, from its `redirects.yaml` on the branch), else to the legacy page. So convert the part, then the family, then the part once more.
+- `products/api-gateway.mjs`: the same for API Gateway (`api-gateway/<version>/`; its Cloud sub-section is `cloud/api-platform-gateway/`, the Cloud entry's Self-Hosted Gateway; the entry's Third-Party Gateways, `cloud/federation/`, stays in API Platform Cloud).
+- `products/api-platform.mjs` (`kind: family` with pages of its own): API Platform Cloud, the whole site minus the version folders and the parts, with the Cloud entry's sections filed into the family skeleton; its overview lists the Cloud parts.
+- Links that leave the view go to the sibling Doc space (`docs:<slug>/cloud/<page>/`, from its `redirects.yaml` on the branch), else to the legacy page. So convert the parts, then the family, then the parts once more.
 
 ```bash
-for run in "ai-gateway main" "api-platform main" "ai-gateway main" "ai-gateway ai-gateway/release/1.2.0"; do set -- $run
+for run in "ai-gateway main" "api-gateway main" "api-platform main" "ai-gateway main" "api-gateway main" "ai-gateway ai-gateway/release/1.2.0" "api-gateway api-gateway/release/1.2.0"; do set -- $run
   node migration/sync.mjs $1 --source <docs-api-platform checkout> --repo <docs-api-platform> --branch $2; done
 node migration/verify.mjs coverage --repo <repo>/ai-gateway --build <out> --source <checkout>/en --legacy-base https://wso2.com/api-platform/docs/ --scope ai-gateway/1.2.0 --also <repo>/api-platform/redirects.yaml
+```
+
+**An unversioned Doc space** (`model: unversioned` in its manifest, such as Platform Security from `wso2/docs-security`, `products/platform-security.mjs`) has one Edition, `_`, built from `main`, and no release branches. Its Docs releases are Cloud-style tags, `cloud-<YYYY.MM.DD>.<n>`.
+
+```bash
+node migration/sync.mjs platform-security --source <docs-security checkout> --repo <docs-security> --branch main
 ```
 
 The converter is re-runnable: it regenerates the Doc space directory (and, on `main`, the root files), so fixes go into its rules or the product config, never into its output. Anything it cannot convert is listed in `.migration/report.md`, never dropped silently.

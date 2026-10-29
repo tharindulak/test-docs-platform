@@ -1,0 +1,20 @@
+# Override list for wso2/docs-security, platform-security/ (lib/overrides.mjs): fixes to the legacy
+# source and legacy-broken links the converter accepts, each with its reason (paths are under en/).
+patches:
+  - file: docs/security-announcements/security-advisories/2024/WSO2-2024-3561.md
+    find: '({{#base_path#}}/public-artifacts/WSO2-2024-3561_temporary_mitigation.zip)'
+    replace: '({{#base_path#}}/assets/attachments/WSO2-2024-3561_temporary_mitigation.zip)'
+    why: the public-artifacts folder was retired (its index redirects home); the zip is in assets/attachments/, as the same page's download list links it
+  - file: docs/security-announcements/security-advisories/2026/WSO2-2026-5051.md
+    find: 'security-advisories/2024/WSO2-2025-4510/'
+    replace: 'security-advisories/2025/WSO2-2025-4510/'
+    why: the footnote names the 2024 folder; the advisory WSO2-2025-4510 is in 2025/ and has no legacy redirect
+  - file: docs/security-announcements/security-advisories/2021/WSO2-2020-0716.md
+    find: '(https://github.com/wso2* rbon-commons/pull/407)'
+    replace: '(https://github.com/wso2/carbon-commons/pull/407)'
+    why: typo in the link target (its own text names the URL); as written it is no URL, and the Markdown twin check fails the build on it
+  - file: docs/security-announcements/security-advisories/2025/WSO2-2025-4494.md
+    find: '/assets/attachments/WSO2-2025-4494/Case-3.pdf)'
+    replace: '/assets/attachments/WSO2-2025-4494/case-3.pdf)'
+    why: the file is case-3.pdf (the same page's download list links it so); Case-3.pdf resolves only on a case-insensitive file system, so a Linux build would not find it
+accepted: []

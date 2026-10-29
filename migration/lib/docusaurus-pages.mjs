@@ -14,6 +14,8 @@
 //     GuidesCatalog and ArtifactPicker → <DocCardList />, and Palette cards,
 //     chips and grids (also written as <div class="palette-…">) → headings,
 //     text and link lists. Each counts in the run report.
+//   - A ```mermaid block stays code (the Platform renders no diagrams),
+//     counted and listed as a fallback.
 //   - Links and images resolve through the context: other pages to their new
 //     .mdx files, pages outside the Doc space to the legacy site.
 //   - The H1 moves to front matter (`title`); `:::type Title` becomes
@@ -34,6 +36,8 @@ const classOf = (n) => String(attrValue(n, 'class') ?? attrValue(n, 'className')
 const PALETTE = new Set(['PaletteGrid', 'PaletteCard', 'PaletteChip']);
 // Imports that go: the components they bring are rewritten or dropped.
 const DROPPED_IMPORTS = /^(?:@theme\/ThemedImage|@docusaurus\/useBaseUrl|@site\/)/;
+// Imports a rewrite may need, and the ones an inlined partial moves to its page.
+const FROM = { Tabs: '@theme/Tabs', TabItem: '@theme/TabItem', DocCardList: '@theme/DocCardList' };
 
 function attr(node, name) {
   return node.attributes?.find((a) => a.type === 'mdxJsxAttribute' && a.name === name);
@@ -78,6 +82,38 @@ function htmlCommentsToMdx(text, ctx) {
     ctx.count('HTML comment');
     return `{/*${inner.replace(/\*\//g, '* /')}*/}`;
   });
+}
+
+// A component a page or partial defines (`export const`), read without
+// running it when it has one of two shapes Agent Manager's install partial
+// uses (no code is run, and anything else stays an item):
+//   - a conditional wrapper: ({p, children}) => (p ? <>{children}</> : null),
+//     or the reverse: its children where the prop is set (or not set);
+//   - a collapsible section: ({p}) => { const content = (<>…</>); if (p)
+//     return (<><hN>Heading</hN>{content}</>); return (<details><summary>…
+//     </summary>{content}</details>); }: its content under the heading or in
+//     <details>, with <pre><code className="language-x">{`…`}</code></pre>
+//     as a fenced code block and <p> as a paragraph.
+export function knownComponent(src) {
+  const kids = '<>\\{children\\}<\\/>';
+  const w = new RegExp(`^export const (\\w+) = \\(\\{(\\w+), children\\}\\) => \\(\\2 \\? (${kids}|null) : (${kids}|null)\\);?\\s*$`).exec(src.trim());
+  if (w && (w[3] === 'null') !== (w[4] === 'null')) return { kind: 'wrapper', name: w[1], prop: w[2], whenSet: w[4] === 'null' };
+  const c = /^export const (\w+) = \(\{(\w+)\}\) => \{\s*const content = \(\s*<>([\s\S]*?)<\/>\s*\);\s*if \(\2\) \{\s*return \(<><h([1-6])>([^<]*)<\/h\4>\{content\}<\/>\);\s*\}\s*return \(<details><summary>([^<]*)<\/summary>\{content\}<\/details>\);\s*\};?\s*$/.exec(src.trim());
+  if (!c) return null;
+  const blocks = [];
+  // The fragment's top-level elements, one block each.
+  const re = /<pre><code className="language-([\w-]+)">\{`([\s\S]*?)`\}<\/code><\/pre>|<p>([\s\S]*?)<\/p>|(<(table|ul|ol|div)[\s>][\s\S]*?<\/\5>)/g;
+  for (let m; (m = re.exec(c[3]));) {
+    if (m[1]) blocks.push(`\`\`\`${m[1]}\n${m[2].replace(/\\([`$\\])/g, '$1')}\n\`\`\``);
+    else if (m[3] !== undefined) blocks.push(m[3].replace(/<code>([^<]*)<\/code>/g, '`$1`').replace(/\s*\n\s*/g, ' ').trim());
+    else {
+      // Dedented by the opening tag's indent.
+      const lead = m.index - (c[3].lastIndexOf('\n', m.index) + 1);
+      const lines = m[4].split('\n');
+      blocks.push([lines[0], ...lines.slice(1).map((l) => l.slice(Math.min(lead, /^ */.exec(l)[0].length)))].join('\n'));
+    }
+  }
+  return { kind: 'collapsible', name: c[1], prop: c[2], level: Number(c[4]), heading: c[5].trim(), summary: c[6].trim(), content: blocks.join('\n\n') };
 }
 
 const quote = (s) => (/["{}\n]/.test(s) ? `{${JSON.stringify(s)}}` : `"${s}"`);
@@ -148,6 +184,8 @@ export function rewriteBody(input, ctx) {
   // The heading level a block sits under, from the headings before it.
   const headings = [];
   const imports = { have: new Set(), need: new Set() };
+  const defined = new Map(); // components the page defines, of a known shape
+  const inlined = new Map(); // local name → a partial with props, inlined
   let h1 = null;
 
   const visit = (node, ancestors) => {
@@ -224,12 +262,29 @@ export function rewriteBody(input, ctx) {
       const kept = [];
       for (const s of node.data?.estree?.body ?? []) {
         if (s.type !== 'ImportDeclaration') {
+          // A component of a shape the converter knows is applied where it is used.
+          const known = s.type === 'ExportNamedDeclaration' ? knownComponent(body.slice(s.start, s.end)) : null;
+          if (known) {
+            defined.set(known.name, known);
+            continue;
+          }
           kept.push(null);
           ctx.item('code', `${s.type} in the page is not accepted (content carries no code); removed`);
           continue;
         }
         const spec = s.source.value;
         if (DROPPED_IMPORTS.test(spec)) continue;
+        // A partial that takes props: inlined where it is used (Platform
+        // partials take none).
+        if (/^\.\.?\//.test(spec) && ctx.propsPartial?.(spec)) {
+          for (const x of s.specifiers) inlined.set(x.local.name, spec);
+          continue;
+        }
+        // Inlined into a page: its imports move to the page.
+        if (ctx.inlined) {
+          for (const x of s.specifiers) if (FROM[x.local.name]) imports.need.add(x.local.name);
+          continue;
+        }
         let from = spec;
         if (/^\.\.?\//.test(spec)) from = ctx.partial(spec) ?? spec;
         const names = s.specifiers.map((x) => x.local.name);
@@ -274,6 +329,12 @@ export function rewriteBody(input, ctx) {
       if (at >= 0) add(s + at, s + at + node.url.length, to);
       return;
     }
+    if (node.type === 'code' && node.lang === 'mermaid') {
+      // The Platform has no Mermaid theme: the diagram's source shows as code.
+      ctx.count('mermaid (shown as code)');
+      ctx.item('fallback', 'a Mermaid diagram is shown as its code: the Platform renders no Mermaid diagrams');
+      return;
+    }
     if (node.type === 'containerDirective') {
       // :::caution → :::warning (Documentation standards, decision 4: five types).
       const to = ctx.admonitions?.[node.name];
@@ -289,6 +350,35 @@ export function rewriteBody(input, ctx) {
 
     const [s, e] = range(node);
     const name = node.name;
+    if (inlined.has(name)) {
+      const props = {};
+      for (const a of node.attributes ?? []) if (a.type === 'mdxJsxAttribute') props[a.name] = attrValue(node, a.name);
+      const r = ctx.inline(inlined.get(name), props);
+      add(s, e, block(node, r.body.replace(/\n+$/, '')));
+      for (const n of r.needs) imports.need.add(n);
+      ctx.count('partial with props (inlined)');
+      return;
+    }
+    const known = defined.get(name);
+    if (known?.kind === 'wrapper') {
+      // Children shown when the prop is set (or when it is not).
+      const on = Boolean(attrValue(node, known.prop));
+      const close = closeTagStart(node);
+      if (on === known.whenSet) {
+        removeLines(s, openTagEnd(node));
+        if (close !== null) removeLines(close, e);
+      } else removeBlock(node);
+      ctx.count('conditional wrapper (applied)');
+      return;
+    }
+    if (known?.kind === 'collapsible') {
+      // Its content under a heading when the prop is set, else in <details>.
+      add(s, e, block(node, attrValue(node, known.prop)
+        ? `${'#'.repeat(known.level)} ${known.heading}\n\n${known.content}`
+        : `<details>\n<summary>${known.summary}</summary>\n\n${known.content}\n\n</details>`));
+      ctx.count('collapsible section (applied)');
+      return;
+    }
     if (name === 'ThemedImage') {
       const src = { ...themedSources(node), ...(attrValue(node, 'light') ? { light: attrValue(node, 'light') } : {}), ...(attrValue(node, 'dark') ? { dark: attrValue(node, 'dark') } : {}) };
       const alt = attrValue(node, 'alt') ?? '';
@@ -418,7 +508,8 @@ export function rewriteBody(input, ctx) {
 
   let out = slice(0, body.length, false);
   // Imports the rewrites need (Tabs for PatternImplementationTabs, DocCardList).
-  const FROM = { Tabs: '@theme/Tabs', TabItem: '@theme/TabItem', DocCardList: '@theme/DocCardList' };
+  // Inlined into a page: the page imports what the partial needs.
+  if (ctx.inlined) return { body: out.replace(/^\n+/, '').replace(//g, '{'), h1, needs: [...imports.need] };
   const missing = [...imports.need].filter((n) => !imports.have.has(n));
   if (missing.length) out = `${missing.map((n) => `import ${n} from '${FROM[n]}';`).join('\n')}\n${/^import /.test(out.replace(/^\n+/, '')) ? '' : '\n'}${out.replace(/^\n+/, '')}`;
   return { body: out.replace(/^\n+/, '').replace(//g, '{'), h1 };

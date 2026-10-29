@@ -14,6 +14,8 @@ import { autogenerate, parseSidebarsSource, planDocusaurus, readDocs, readVersio
 import { rewriteBody } from '../migration/lib/docusaurus-pages.mjs';
 import { validate } from '../lib/schemas.mjs';
 import integrator from '../migration/products/integrator.mjs';
+import agentManager from '../migration/products/agent-manager.mjs';
+import agentPlatform from '../migration/products/agent-platform.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const site = path.join(root, 'fixtures', 'docusaurus-mini');
@@ -309,4 +311,173 @@ WSO2 Integrator builds integrations, AI agents and APIs. Start with the [quick s
   assert.equal(git(repo, 'branch', '--show-current'), 'integrator/release/1.0.0');
   const out = execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-docs.mjs'), 'bundle', path.join(repo, 'integrator'), '--tag', 'integrator/1.0.0-docs.1', '--dry-run'], { encoding: 'utf8', env });
   assert.match(out, /dry run/i);
+});
+
+// ---- Agent Manager and Agent Platform Cloud (wso2/docs-agent-platform) ----------------
+// One docs plugin: version-cloud (the Cloud part, on main), version-v1.0.0
+// (agent-manager/release/1.0.0), docs/ (Next, unreleased: not converted).
+const ampSite = path.join(root, 'fixtures', 'docusaurus-amp-mini');
+
+test('the Agent Manager and Agent Platform configs: a product whose Cloud is a part of the family Cloud', () => {
+  assert.deepEqual(validate('docspace', agentManager.docspace), []);
+  assert.deepEqual(validate('docspace', agentPlatform.docspace), []);
+  assert.deepEqual(agentManager.docspace.cloud, { in: 'agent-platform' });
+  assert.deepEqual(agentManager.docspace.editions, [{ id: '1.0.0', branch: 'agent-manager/release/1.0.0' }]);
+  assert.deepEqual(agentPlatform.docspace.editions, [{ id: 'cloud', parts: ['agent-manager'] }]);
+  assert.equal(agentManager.sourceVersion('1.0.0'), 'v1.0.0', 'the site\'s version folders carry a v');
+  assert.equal(agentManager.sourceVersion('cloud'), 'cloud');
+  assert.equal(agentManager.legacyBase('cloud'), 'https://wso2.com/agent-platform/docs/cloud/');
+  assert.equal(agentManager.legacyBase('1.0.0'), 'https://wso2.com/agent-platform/docs/v1.0.0/');
+});
+
+test('layout: with no category link, the first category\'s first page is the Edition home (home: first-doc)', () => {
+  const cloud = readVersion(ampSite, 'cloud', { sidebar: agentManager.sidebar });
+  const plan = planDocusaurus({ tree: cloud.tree, docs: cloud.docs, config: agentManager });
+  const t = (p, id) => p.pages.get(id)?.target;
+  assert.equal(t(plan, 'get-started/what-is-amp'), 'index');
+  assert.equal(t(plan, 'concepts/project'), 'concepts/project');
+  assert.equal(t(plan, 'guides/register-mcp-proxy'), 'guides/platform-administration/register-mcp-proxy');
+  assert.equal(plan.pages.get('guides/register-mcp-proxy').sidebarLabel, 'MCP proxies');
+
+  const v1 = readVersion(ampSite, 'v1.0.0', { sidebar: agentManager.sidebar });
+  const p1 = planDocusaurus({ tree: v1.tree, docs: v1.docs, config: agentManager });
+  assert.equal(t(p1, 'get-started/what-is-amp'), 'index');
+  assert.equal(t(p1, 'get-started/quick-start'), 'get-started/quick-start');
+  assert.equal(p1.pages.get('get-started/quick-start').position, 1, 'the rest of the category keeps its order');
+  assert.equal(t(p1, 'contributing'), 'reference/contributing');
+});
+
+test('rewrite: a Mermaid diagram stays a code block, counted and listed as a fallback', () => {
+  const r = rw('Text.\n\n```mermaid\ngraph LR\n  A --> B\n```\n');
+  assert.match(r.body, /```mermaid\ngraph LR\n {2}A --> B\n```/);
+  assert.equal(r.counts['mermaid (shown as code)'], 1);
+  assert.match(r.items.find((i) => i.kind === 'fallback').message, /Mermaid diagram is shown as its code/);
+});
+
+test('sync: Agent Manager\'s Cloud part on main from version-cloud, 1.0.0 from version-v1.0.0, and the family Cloud overview', () => {
+  const work = tmp('docusaurus-amp');
+  const src = path.join(work, 'docs-agent-platform');
+  fs.cpSync(ampSite, src, { recursive: true });
+  const git = (dir, ...args) => execFileSync('git', ['-C', dir, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  git(src, 'init', '-q', '-b', 'main');
+  git(src, 'add', '-A');
+  git(src, 'commit', '-q', '-m', 'source');
+  const repo = path.join(work, 'target');
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_AUTHOR_EMAIL: 'test@example.invalid', GIT_COMMITTER_NAME: 'Test', GIT_COMMITTER_EMAIL: 'test@example.invalid' };
+  const sync = (product, branch) => execFileSync(process.execPath, [path.join(root, 'migration', 'sync.mjs'), product, '--source', src, '--repo', repo, '--branch', branch], { encoding: 'utf8', env });
+  sync('agent-manager', 'main');
+  sync('agent-platform', 'main');
+  sync('agent-manager', 'agent-manager/release/1.0.0');
+  const show = (ref, f) => git(repo, 'show', `${ref}:${f}`);
+  const files = (ref, dir) => git(repo, 'ls-tree', '-r', '--name-only', ref).split('\n').filter((f) => f.startsWith(dir));
+
+  assert.deepEqual(files('main', 'agent-manager/docs/').concat(files('main', 'agent-manager/assets/')), [
+    'agent-manager/docs/concepts/_category_.yml', 'agent-manager/docs/concepts/project.mdx', 'agent-manager/docs/guides/_category_.yml',
+    'agent-manager/docs/guides/platform-administration/_category_.yml',
+    'agent-manager/docs/guides/platform-administration/register-mcp-proxy.mdx', 'agent-manager/docs/index.mdx',
+    'agent-manager/assets/pages/img/project.png',
+  ], 'the Cloud pages only (not Next), and only the referenced images');
+  assert.equal(show('main', 'agent-manager/docs/index.mdx'), `---
+title: WSO2 Agent Manager
+description: An open control plane for AI agents.
+type: concept
+---
+
+An open control plane for AI agents. Start with [projects](./concepts/project.mdx).`);
+  const project = show('main', 'agent-manager/docs/concepts/project.mdx');
+  assert.match(project, /\[MCP proxies\]\(\.\.\/guides\/platform-administration\/register-mcp-proxy\.mdx#register\)/);
+  assert.match(project, /!\[Project view\]\(\.\.\/\.\.\/assets\/pages\/img\/project\.png\)/);
+  assert.match(project, /^:::warning$/m);
+  const map = new Map(yaml.load(show('main', 'agent-manager/redirects.yaml')).legacy.map((l) => [l.from, l.to]));
+  assert.equal(map.get('https://wso2.com/agent-platform/docs/cloud/get-started/what-is-amp'), '');
+  assert.equal(map.get('https://wso2.com/agent-platform/docs/cloud/guides/register-mcp-proxy'), 'guides/platform-administration/register-mcp-proxy');
+  const report = JSON.parse(show('main', 'agent-manager/.migration/report.json')).summary;
+  assert.equal(report.compileFailures, 0);
+  assert.equal(report.contentSafetyFindings, 0);
+  assert.equal(report.stats.components['mermaid (shown as code)'], 1);
+
+  // The family Cloud: an overview with one product card per part.
+  const overview = show('main', 'agent-platform/docs/index.mdx');
+  assert.match(overview, /^title: Agent Platform Cloud$/m);
+  assert.match(overview, /^layout: overview$/m);
+  assert.match(overview, /\[Agent Manager Cloud\]\(docs:agent-manager\/cloud\/\)/);
+  assert.match(overview, /\[Agent Manager Self-hosted \(newest release\)\]\(docs:agent-manager\/latest\/\)/);
+  assert.deepEqual(yaml.load(show('main', 'agent-platform/docspace.yaml')), agentPlatform.docspace);
+
+  // The release branch: version-v1.0.0, the top-level Contributing page, and
+  // a partial that takes props, inlined into each page that uses it.
+  assert.deepEqual(files('agent-manager/release/1.0.0', 'agent-manager/docs/').filter((f) => f.endsWith('.mdx')), [
+    'agent-manager/docs/concepts/project.mdx', 'agent-manager/docs/get-started/quick-start.mdx', 'agent-manager/docs/guides/installation/on-k3d.mdx',
+    'agent-manager/docs/guides/installation/on-your-environment.mdx', 'agent-manager/docs/index.mdx', 'agent-manager/docs/reference/contributing.mdx',
+  ]);
+  assert.deepEqual(files('agent-manager/release/1.0.0', 'agent-manager/partials/'), [], 'a partial with props has no file of its own');
+  const k3d = show('agent-manager/release/1.0.0', 'agent-manager/docs/guides/installation/on-k3d.mdx');
+  assert.equal(k3d, `---
+title: On k3d
+description: Install OpenChoreo first.
+type: how-to
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+Install OpenChoreo first.
+
+{/* Shared partial. Props expected from parent:
+       - props.production — (boolean, optional) the production variants
+       - props.expandRegistryConfig — (boolean, optional) registry config expanded
+*/}
+
+Run the installer, then open the [console](../../index.mdx).
+
+![Installer](../../../assets/pages/img/project.png)
+
+<Tabs groupId="distribution">
+<TabItem value="community" label="Community" default>
+
+The community images are public.
+
+</TabItem>
+</Tabs>
+
+\`\`\`bash
+helm install amp --set debug=true
+\`\`\`
+
+<details>
+<summary>Container registry configuration</summary>
+
+Override the registry settings:
+
+\`\`\`bash
+helm install amp-platform-resources \\
+  --version \${VERSION}
+\`\`\`
+
+<table>
+  <thead><tr><th>Value</th><th>Default</th></tr></thead>
+  <tbody>
+    <tr><td><code>global.baseDomain</code></td><td><code>""</code></td></tr>
+  </tbody>
+</table>
+
+</details>
+`.replace(/\n$/, ''));
+  const env1 = show('agent-manager/release/1.0.0', 'agent-manager/docs/guides/installation/on-your-environment.mdx');
+  assert.match(env1, /^import Tabs from '@theme\/Tabs';\nimport TabItem from '@theme\/TabItem';\n/m, 'the partial\'s imports move to the page');
+  assert.match(env1, /--set replicas=3/);
+  assert.doesNotMatch(env1, /debug=true|<details>|\{props\./);
+  assert.match(env1, /^##### Container registry configuration\n\nOverride the registry settings:/m);
+  const relReport = JSON.parse(show('agent-manager/release/1.0.0', 'agent-manager/.migration/report.json')).summary;
+  assert.equal(relReport.contentSafetyFindings, 0);
+  assert.equal(relReport.compileFailures, 0);
+  assert.equal(relReport.stats.components['partial with props (inlined)'], 2);
+  const relMap = new Map(yaml.load(show('agent-manager/release/1.0.0', 'agent-manager/redirects.yaml')).legacy.map((l) => [l.from, l.to]));
+  assert.equal(relMap.get('https://wso2.com/agent-platform/docs/v1.0.0/get-started/quick-start'), 'get-started/quick-start');
+
+  // Both Editions bundle: every Platform check passes.
+  assert.match(execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-docs.mjs'), 'bundle', path.join(repo, 'agent-manager'), '--tag', 'agent-manager/1.0.0-docs.1', '--dry-run'], { encoding: 'utf8', env }), /dry run/i);
+  git(repo, 'checkout', '-q', 'main');
+  assert.match(execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-docs.mjs'), 'bundle', repo, '--tag', 'agent-platform/cloud-2026.10.29.1', '--dry-run'], { encoding: 'utf8', env }), /dry run/i);
 });

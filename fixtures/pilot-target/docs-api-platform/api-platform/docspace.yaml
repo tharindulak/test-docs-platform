@@ -20,3 +20,4 @@ editions:
   - id: cloud
     parts:
       - ai-gateway
+      - api-gateway

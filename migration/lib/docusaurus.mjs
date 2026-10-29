@@ -294,7 +294,9 @@ const slugKeep = (name) => (/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(name) ? name : 
 // config: topLevel (top-level sidebar label → { folder } for a category's
 // items, with its link doc at <folder>/index, or { page } for where a single
 // doc or a category's link doc goes), skeleton, excluded (source folder
-// prefixes left out of the Doc space), properNouns.
+// prefixes left out of the Doc space), properNouns, home ('first-link': the
+// first top-level category's link doc is the Edition home; 'first-doc': its
+// first doc when it links none).
 export function planDocusaurus({ tree, docs, config }) {
   const pages = new Map();
   const categories = new Map();
@@ -407,6 +409,16 @@ export function planDocusaurus({ tree, docs, config }) {
   };
 
   (config.skeleton ?? []).forEach((s, i) => categories.set(s.folder, { label: s.label, position: i + 1, skeleton: true }));
+  // config.home 'first-doc': the first top-level category's first page is
+  // its link (and so the Edition home) when no category links a page.
+  if (config.home === 'first-doc') {
+    const first = tree.find((n) => n.kind === 'category');
+    const at = first && !first.linkId ? first.items.findIndex((i) => i.kind === 'doc') : -1;
+    if (at >= 0) {
+      tree = tree.map((n) => (n === first ? { ...n, linkId: n.items[at].id, items: n.items.filter((_, i) => i !== at) } : n));
+      config = { ...config, home: 'first-link' };
+    }
+  }
   let homePlaced = false;
   for (const node of tree) {
     const nodeLabel = node.kind === 'doc' ? (node.label ?? docs.get(node.id)?.fm.sidebar_label ?? docs.get(node.id)?.title) : node.label;

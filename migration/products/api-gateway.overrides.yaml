@@ -1,0 +1,6 @@
+# Override list for wso2/docs-api-platform, api-gateway/ (lib/overrides.mjs): fixes to the legacy source and
+# legacy-broken links the converter accepts, each with its reason (paths are under en/). Proposed by
+# `node migration/overrides.mjs suggest api-gateway ...` from the run reports of every
+# branch, then reviewed.
+patches: []
+accepted: []

@@ -56,6 +56,17 @@ export function redirectMaps(config) {
   return [];
 }
 
+// The variable delimiters mkdocs-markdownextradata renders pages with: its
+// jinja_options' variable_start_string and variable_end_string, else Jinja's
+// {{ and }}. Under other delimiters a {{ x }} in a page is plain text.
+export function extradataDelimiters(config) {
+  for (const p of config.plugins ?? []) {
+    const o = p && typeof p === 'object' ? p.markdownextradata?.jinja_options : null;
+    if (o) return { start: String(o.variable_start_string ?? '{{'), end: String(o.variable_end_string ?? '}}') };
+  }
+  return { start: '{{', end: '}}' };
+}
+
 // Pages listed in exclude_docs (gitignore-style lines; plain paths only).
 export function excludeDocs(config) {
   return String(config.exclude_docs ?? '').split('\n').map((l) => l.trim().replace(/^\//, '')).filter((l) => l && !l.startsWith('#'));

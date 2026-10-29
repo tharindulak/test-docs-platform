@@ -23,6 +23,7 @@ import { planVersionRelease } from '../lib/content-repo.mjs';
 import { validate } from '../lib/schemas.mjs';
 import aig from '../migration/products/ai-gateway.mjs';
 import platform from '../migration/products/api-platform.mjs';
+import agw from '../migration/products/api-gateway.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
@@ -67,8 +68,18 @@ test('a view of the one MkDocs site: a version folder, the main line with its Cl
   assert.ok(main.inScope('cloud/ai-gateway/x.md') && main.inScope('ai-gateway/next/x.md') && !main.inScope('ai-gateway/2026.09.24/x.md'));
   // API Platform Cloud: the whole site but the version folders and the part; Cloud spliced.
   const fam = selectView({ nav: mk.nav, files, view: platform.view('cloud') });
-  assert.deepEqual(fam.nav.map((n) => n.label), ['Overview', 'Get Started', 'Introduction', 'Monetization', 'Guides']);
-  assert.ok(fam.pageFiles.every((f) => !/^(ai-gateway|cloud\/ai-gateway)\//.test(f)), fam.pageFiles.join(', '));
+  assert.deepEqual(fam.nav.map((n) => n.label), ['Overview', 'Get Started', 'Introduction', 'Third-Party Gateways', 'Monetization', 'Guides'], 'the API Gateway Cloud section that is not the part (cloud/federation/) stays, one level up');
+  assert.ok(fam.pageFiles.every((f) => !/^(ai-gateway|api-gateway|cloud\/ai-gateway|cloud\/api-platform-gateway)\//.test(f)), fam.pageFiles.join(', '));
+  assert.ok(fam.pageFiles.includes('cloud/federation/overview.md'));
+  // API Gateway: a version folder; the main line is next/ plus the Cloud
+  // sub-section's folder (cloud/api-platform-gateway/), not the other folder
+  // its Cloud section lists.
+  assert.deepEqual(selectView({ nav: mk.nav, files, view: agw.view('1.2.0') }).pageFiles, ['api-gateway/1.2.0/overview.md']);
+  const gw = selectView({ nav: mk.nav, files, view: agw.view('cloud') });
+  assert.deepEqual([...gw.cloudOnly], ['cloud/api-platform-gateway/getting-started.md']);
+  assert.deepEqual(gw.aliases, [{ from: 'cloud/api-platform-gateway/writing-a-custom-policy.md', to: 'api-gateway/next/policies/writing-a-custom-policy.md' }]);
+  assert.deepEqual(gw.nav.map((n) => n.label), ['Overview', 'Policies', 'Self-Hosted Gateway']);
+  assert.ok(!gw.inScope('cloud/federation/overview.md'));
   assert.ok(fam.pageFiles.includes('guides/shared.md'));
   // Redirects: those from or to a page in the view.
   const redirects = [
@@ -115,10 +126,12 @@ test('date versions are exact versions: 2026.09.24 builds, marks and ranks, whil
   assert.deepEqual(planVersionRelease({ dirs, space: 'ai-gateway', version: '2026.09.24' }), [{ slug: 'ai-gateway', tagPrefix: 'ai-gateway/', ref: 'ai-gateway/release/2026.09.24', version: '2026.09.24' }]);
 });
 
-test('the manifests the two configs write are valid and point at each other (family Cloud and its part)', () => {
-  for (const c of [aig, platform]) assert.deepEqual(validate('docspace', c.docspace), [], c.slug);
-  assert.deepEqual(platform.docspace.editions, [{ id: 'cloud', parts: ['ai-gateway'] }]);
+test('the manifests the configs write are valid and point at each other (family Cloud and its parts)', () => {
+  for (const c of [aig, agw, platform]) assert.deepEqual(validate('docspace', c.docspace), [], c.slug);
+  assert.deepEqual(platform.docspace.editions, [{ id: 'cloud', parts: ['ai-gateway', 'api-gateway'] }]);
   assert.deepEqual(aig.docspace.cloud, { in: 'api-platform' });
+  assert.deepEqual(agw.docspace.cloud, { in: 'api-platform' });
+  assert.deepEqual(agw.docspace.editions.map((e) => e.id), ['1.2.0', '1.1.0', '1.0.0'], 'product placement: three Editions, newest first');
   assert.equal(platform.kind, 'family');
   assert.ok(!platform.overview, 'API Platform Cloud has pages of its own, not only an overview');
   assert.deepEqual(platform.parts.map((p) => p.docSpace), platform.docspace.editions[0].parts);
@@ -137,7 +150,7 @@ test('sync: API Platform Cloud and AI Gateway in one Content repo; main, a date-
   });
   // The part first, then the family (its overview links into the part), then
   // the part again (its links reach the family's pages), then a release branch.
-  for (const [p, b] of [['ai-gateway', 'main'], ['api-platform', 'main'], ['ai-gateway', 'main'], ['ai-gateway', 'ai-gateway/release/2026.09.24']]) {
+  for (const [p, b] of [['ai-gateway', 'main'], ['api-gateway', 'main'], ['api-platform', 'main'], ['ai-gateway', 'main'], ['api-gateway', 'main'], ['ai-gateway', 'ai-gateway/release/2026.09.24'], ['api-gateway', 'api-gateway/release/1.2.0']]) {
     const r = sync(p, '--branch', b);
     assert.equal(r.status, 0, `${p} ${b}: ${r.stdout}${r.stderr}`);
   }
@@ -191,7 +204,22 @@ test('sync: API Platform Cloud and AI Gateway in one Content repo; main, a date-
   assert.equal(famMap.get(`${LEGACY}monetization/overview/`), 'guides/monetization');
   assert.equal(famMap.get(`${LEGACY}next/`), '', 'the unreleased home goes to the home');
   assert.deepEqual(yaml.load(show('main', 'api-platform/docspace.yaml')), platform.docspace);
-  assert.match(show('main', 'README.md'), /\| `api-platform\/` \| API Platform Cloud \| Cloud on `main` \(Cloud parts: ai-gateway\) \|/);
+  assert.match(show('main', 'README.md'), /\| `api-platform\/` \| API Platform Cloud \| Cloud on `main` \(Cloud parts: ai-gateway, api-gateway\) \|/);
+  assert.match(home, /### API Gateway\n\n[^\n]+\n\n- \[API Gateway Cloud\]\(docs:api-gateway\/cloud\/\)\n- \[API Gateway Self-hosted \(newest release\)\]\(docs:api-gateway\/latest\/\)/);
+  assert.match(show('main', 'api-platform/docs/guides/third-party-gateways/overview.mdx'), /\[self-hosted gateway\]\(docs:api-gateway\/cloud\/guides\/self-hosted-gateway\/getting-started\/\)/, 'a link into API Gateway\'s Cloud part');
+
+  // API Gateway's main line: next/ plus its Cloud-only page; the federation page is not its.
+  for (const f of ['api-gateway/docs/index.mdx', 'api-gateway/docs/guides/policies/writing-a-custom-policy.mdx', 'api-gateway/docs/guides/self-hosted-gateway/getting-started.mdx']) assert.ok(main.includes(f), f);
+  assert.ok(!main.some((f) => /^api-gateway\/docs\/.*(federation|third-party)/.test(f)));
+  const gs = show('main', 'api-gateway/docs/guides/self-hosted-gateway/getting-started.mdx');
+  assert.match(gs, /^editions: cloud$/m);
+  assert.match(gs, /\[federation\]\(docs:api-platform\/cloud\/guides\/third-party-gateways\/overview\/\)/);
+  const gwMap = new Map(yaml.load(show('main', 'api-gateway/redirects.yaml')).legacy.map((l) => [l.from, l.to]));
+  assert.equal(gwMap.get(`${LEGACY}cloud/api-platform-gateway/writing-a-custom-policy/`), 'guides/policies/writing-a-custom-policy', 'a paired Cloud page maps to its main-line page');
+  assert.deepEqual(yaml.load(show('main', 'api-gateway/docspace.yaml')), agw.docspace);
+  const gwRel = 'api-gateway/release/1.2.0';
+  assert.ok(git(repo, 'diff', '--name-only', 'main', gwRel).split('\n').every((f) => f.startsWith('api-gateway/')));
+  assert.deepEqual(files(gwRel).filter((f) => f.startsWith('api-gateway/docs/') && f.endsWith('.mdx')), ['api-gateway/docs/index.mdx']);
   assert.match(show('main', 'README.md'), /\| `ai-gateway\/` \| AI Gateway \| 1\.2\.0 on `ai-gateway\/release\/1\.2\.0`; 2026\.09\.24 on `ai-gateway\/release\/2026\.09\.24`; its Cloud part of api-platform on `main` \|/);
 
   // The date-versioned release branch: its folder only; only ai-gateway/ changed.

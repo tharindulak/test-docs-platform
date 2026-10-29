@@ -1,6 +1,6 @@
 # Product placement
 
-Last checked against code: 2026-10-27
+Last checked against code: 2026-10-29
 
 Where every product on wso2.com, and on wso2.com/documentation's Solutions and Other, goes in WSO2 Docs. Every product gets a place, even though only the Pilot moves now. The shape is in [navigation.md](navigation.md#family-clouds-and-cloud-parts). [N-map] [N06] [N12]
 
@@ -13,9 +13,9 @@ Where every product on wso2.com, and on wso2.com/documentation's Solutions and O
 | Agent Platform | Agent Platform Cloud (`agent-platform`); Cloud part: Agent Manager | Family Cloud | Cloud | | header | `docs-agent-platform` | No |
 | Agent Platform | Agent Manager (`agent-manager`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-agent-platform` | No |
 | Agent Platform | AI Gateway, borrowed from API Platform | | | | menu | | No (borrowing is tested in code) |
-| API Platform | API Platform Cloud (`api-platform`, formerly Bijira); Cloud parts: API Gateway, AI Gateway, AI Workspace, API Portal & MCP Hub | Family Cloud | Cloud | | header | `docs-api-platform` | Yes, with AI Gateway as its only part so far |
+| API Platform | API Platform Cloud (`api-platform`, formerly Bijira); Cloud parts: API Gateway, AI Gateway, AI Workspace, API Portal & MCP Hub | Family Cloud | Cloud | | header | `docs-api-platform` | Yes, with AI Gateway and API Gateway as its parts so far |
 | API Platform | API Manager (`api-manager`) | Product | 4.7.0, 4.6.0 | 4.5.0 to 3.0.0 on `apim.docs.wso2.com`; 2.6.0 to 1.9.0 on Confluence (`wso2docs.atlassian.net`) | menu | `docs-api-platform` | Yes |
-| API Platform | API Gateway (`api-gateway`) | Product | 1.2.0, 1.1.0, 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | No (Cloud pages wait in API Platform Cloud's `guides/api-gateway/`) |
+| API Platform | API Gateway (`api-gateway`) | Product | 1.2.0, 1.1.0, 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | Yes (its Cloud part is the Cloud sub-section's Self-Hosted Gateway; Third-Party Gateways stays in API Platform Cloud's `guides/third-party-gateways/`) |
 | API Platform | AI Gateway (`ai-gateway`) | Product | 1.2.0, 2026.09.24 (Cloud is its part) | 1.1.0, 1.0.0 on the old site | menu | `docs-api-platform` | Yes |
 | API Platform | API Portal & MCP Hub (`api-portal`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | No |
 | API Platform | AI Workspace (`ai-workspace`) | Product | 1.0.0 (Cloud is its part) | | menu | `docs-api-platform` | No |
@@ -60,6 +60,7 @@ Where every product on wso2.com, and on wso2.com/documentation's Solutions and O
 - **API Manager and API Platform are separate Doc spaces in the API Platform Docs section**, sharing `docs-api-platform`. The first map left their merge open; the navigation map placed them. [N06] [N07]
 - **APK has no place**: it is gone from wso2.com and no current docs were found. [N06]
 - **The converted sources**: Identity Server and Identity Platform Cloud from `wso2/docs-is`, API Manager from `wso2/docs-apim`, API Platform Cloud and its products from `wso2/docs-api-platform` (one MkDocs build with every version as folders), Agent Manager, Integrator and Healthcare by a light Docusaurus import, the rest through the MkDocs converter. [N07] [N12] [N16]
+- **Except when the source keeps its own Cloud version.** A source that already publishes a separately kept Cloud version (Agent Platform's Docusaurus `version-cloud`) seeds the main line from that version, not from Next, so unreleased Self-hosted text never becomes the Cloud docs.
 - **Until its Doc space is published, every placed Doc space is listed in the Platform navigation file's `notYetOnWso2Docs`** under the slug above, in its group, opening its old site: a family Cloud as `cloud-only`, a product as `versions-only` (its Cloud is a Cloud part) or `unversioned`. Each link out above is listed there too, as `links-out`, and never gets a Doc space. In each group the family Cloud comes first, then the products, then the links out. Unlisted Doc spaces are not listed, and nothing outside this table is (Support and lifecycle has no place). `test/compose.test.mjs` keeps the file and this table equal. [N06] [N12] [N14] [N25]
 - **A component's main line is seeded from its newest Self-hosted line** (the `next/` folder or "Next"), plus pages found only in the Cloud sources marked Cloud only; same-name pages that differ go into a diff report for the team. [N12] [N16]
 

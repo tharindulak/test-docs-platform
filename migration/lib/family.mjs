@@ -31,7 +31,9 @@ export async function convertFamily({ config, sourceRoot, repoDir, sourceRef, co
   const outDir = path.join(repoDir, config.slug);
   const report = new Report();
   const o = config.overview;
-  const mk = loadMkdocs(path.resolve(sourceRoot, o.tree));
+  // No `tree` (a Docusaurus source has no family home page): the overview
+  // is the intro and the product cards only.
+  const mk = o.tree ? loadMkdocs(path.resolve(sourceRoot, o.tree)) : { nav: [], config: {} };
   const labelToSrc = new Map();
   const walk = (nodes, trail) => {
     for (const n of nodes) {
@@ -108,7 +110,7 @@ export async function convertFamily({ config, sourceRoot, repoDir, sourceRef, co
   fs.writeFileSync(path.join(outDir, '.migration', 'report.json'), `${JSON.stringify({ summary, items: report.items }, null, 2)}\n`);
   fs.writeFileSync(path.join(outDir, '.migration', 'report.md'), [
     `# Conversion report: ${config.docspace.displayName}`, '',
-    `Converted from \`${sourceRef}\`: the family-level overview, from the legacy home page's cards (${cards} linked into ${summary.parts.join(', ')}).`, '',
+    `Converted from \`${sourceRef}\`: the family-level overview, ${o.tree ? `from the legacy home page's cards (${cards} linked into ${summary.parts.join(', ')})` : `the intro and a card per Cloud part (${summary.parts.join(', ')}); the source has no family home page`}.`, '',
     ...(report.items.length ? report.items.map((i) => `- **${i.kind}** ${i.file ?? ''}: ${i.message}`) : ['Nothing outstanding.']), '',
   ].join('\n'));
   return { summary, report, failures };

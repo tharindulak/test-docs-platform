@@ -49,7 +49,7 @@ const writePublished = (dir, published) => {
 // The section change merged first: api-platform lists a Doc space that is coming.
 const withComing = (slug, extra = {}) => {
   const p = structuredClone(policy);
-  p.sections['api-platform'].pending = [{ at: 3, docSpace: slug, ...extra }, { at: 3, product: { label: 'MCP Hub', opens: { docSpace: slug } } }];
+  p.sections['api-platform'].pending = [{ at: 4, docSpace: slug, ...extra }, { at: 4, product: { label: 'MCP Hub', opens: { docSpace: slug } } }];
   return publishedOf(p);
 };
 
@@ -248,17 +248,17 @@ test('a section entry stays hidden until its Doc space is published', () => {
   const { manifest } = mergeManifest(policy, state(['api-manager/4.7.0', 'identity-server/7.3.0', 'identity-platform/cloud']));
   const sec = manifest.sections['api-platform'];
   assert.deepEqual(sec.menu.map((m) => m.docSpace), ['api-manager']);
-  assert.deepEqual(sec.pending.filter((p) => p.docSpace).map((p) => [p.at, p.docSpace, p.versionIn]), [[0, 'api-platform', 'header'], [2, 'ai-gateway', 'menu']], 'their places and the section\'s own version-in');
+  assert.deepEqual(sec.pending.filter((p) => p.docSpace).map((p) => [p.at, p.docSpace, p.versionIn]), [[0, 'api-platform', 'header'], [2, 'api-gateway', 'menu'], [3, 'ai-gateway', 'menu']], 'their places and the section\'s own version-in');
   assert.deepEqual(sec.products.map((p) => p.label), ['API Manager']);
   assert.ok(!manifest.productsMenu.find((g) => g.id === 'api-platform').entries.some((e) => e.opens.docSpace === 'ai-gateway'));
-  assert.deepEqual(sectionEntries(sec).menu.map((e) => e.slug), ['api-platform', 'api-manager', 'ai-gateway'], 'the section manifest\'s order');
+  assert.deepEqual(sectionEntries(sec).menu.map((e) => e.slug), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway'], 'the section manifest\'s order');
   // A Cloud part is published with its platform's Cloud; Identity Server has its own deployments anyway.
   assert.deepEqual(manifest.sections['identity-platform'].menu.map((m) => m.docSpace), ['identity-platform', 'identity-server']);
   const parts = mergeManifest(policy, state(['api-platform/cloud'])).manifest.sections['api-platform'];
-  assert.deepEqual(parts.menu.map((m) => m.docSpace), ['api-platform', 'ai-gateway'], 'AI Gateway is published as a Cloud part of API Platform Cloud');
+  assert.deepEqual(parts.menu.map((m) => m.docSpace), ['api-platform', 'api-gateway', 'ai-gateway'], 'AI Gateway and API Gateway are published as Cloud parts of API Platform Cloud');
   // Compose from that published file still sees every entry.
   const { manifest: again } = compose({ ...sourcesFromPublished({ environment: 'staging', ...manifest }), missingRepos: [] });
-  assert.deepEqual(again.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'ai-gateway']);
+  assert.deepEqual(again.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway']);
 });
 
 test('preview and check compose from the published manifest and the repo alone; compose --pr shows each issue on its file', { timeout: 900_000 }, () => {
@@ -266,7 +266,7 @@ test('preview and check compose from the published manifest and the repo alone; 
   const repoDir = path.join(dir, 'docs-api-platform');
   fs.mkdirSync(repoDir);
   git(repoDir, 'init', '-q', '-b', 'main');
-  for (const d of ['api-platform', 'api-manager', 'ai-gateway']) {
+  for (const d of ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway']) {
     fs.cpSync(path.join(root, 'fixtures', 'content-repos', 'docs-api-platform', d), path.join(repoDir, d), { recursive: true });
   }
   writeRepoRoot(repoDir, { repo: 'wso2/docs-api-platform' });
@@ -309,7 +309,7 @@ test('preview and check compose from the published manifest and the repo alone; 
   assert.equal(report.checks.find((c) => c.id === 'preview-build').status, 'pass', 'the template builds as Cloud');
   assert.equal(report.checks.find((c) => c.id === 'data-files').status, 'pass');
   const composed = JSON.parse(read(os.homedir(), '.cache', 'wso2-docs', 'composed', 'mcp-hub.json'));
-  assert.deepEqual(composed.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'ai-gateway', 'mcp-hub'], 'the menu the build drew');
+  assert.deepEqual(composed.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'mcp-hub'], 'the menu the build drew');
   assert.deepEqual(composed.docSpaces['mcp-hub'].editions.map((e) => `${e.id}@${e.branch}`), ['cloud@main', '1.0.0@mcp-hub/release/1.0.0']);
   const home = read(dir, 'build', 'index.html');
   assert.match(home, /class="[^"]*overview/i, 'the overview home');

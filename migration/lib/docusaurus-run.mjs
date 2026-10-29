@@ -38,7 +38,9 @@ export function siteDirOf(source, config) {
 
 export async function convertDocusaurus({ config, siteDir, outDir, edition, sourceRef, compile = true, log = () => {} }) {
   const report = new Report();
-  const v = readVersion(siteDir, edition, { sidebar: config.sidebar });
+  // The site's name for the version (versioned_docs/version-<name>), when it
+  // differs from the Edition id (Agent Manager's v1.0.0 is Edition 1.0.0).
+  const v = readVersion(siteDir, config.sourceVersion?.(edition) ?? edition, { sidebar: config.sidebar });
   log(`Sidebar: ${v.sidebarHow}`);
   const plan = planDocusaurus({ tree: v.tree, docs: v.docs, config });
   for (const i of [...v.issues, ...plan.issues]) report.add(i.kind, i.src ?? null, i.message);
@@ -142,21 +144,39 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
   };
   const components = stats.components;
   const pageCounts = new Map();
+  const inlinedPartials = new Set(); // partials with props, inlined into pages
 
   const convert = (fromSrc, outFile, page) => {
     const text = fs.readFileSync(path.join(v.docsDir, fromSrc), 'utf8');
     const fm = matter(text);
     const counts = {};
-    const { body, h1 } = rewriteBody(fm.content, {
-      link: linkFrom(fromSrc, outFile, page),
-      image: imageFrom(fromSrc, outFile),
+    const partialPath = (from, spec) => posix.normalize(posix.join(posix.dirname(from), spec));
+    const isPartial = (rel) => !docsBySrc.has(rel) && /\.mdx?$/.test(rel) && fs.existsSync(path.join(v.docsDir, rel));
+    // The context for the page, or for a partial with props inlined into it
+    // (its links and images resolve from the partial, land in the page).
+    const ctxFor = (from) => ({
+      link: linkFrom(from, outFile, page),
+      image: imageFrom(from, outFile),
+      // A partial that reads props ({props.x}) is inlined where it is used,
+      // each props expression replaced by the call's literal value.
+      propsPartial: (spec) => {
+        const rel = partialPath(from, spec);
+        return isPartial(rel) && /\{props\.\w+\}/.test(fs.readFileSync(path.join(v.docsDir, rel), 'utf8'));
+      },
+      inline: (spec, props) => {
+        const rel = partialPath(from, spec);
+        inlinedPartials.add(rel);
+        const text = matter(fs.readFileSync(path.join(v.docsDir, rel), 'utf8')).content
+          .replace(/\{props\.(\w+)\}/g, (m, k) => `{${JSON.stringify(props[k] ?? false)}}`);
+        return rewriteBody(text, { ...ctxFor(rel), inlined: true });
+      },
       partial: (spec) => {
-        const rel = posix.normalize(posix.join(posix.dirname(fromSrc), spec));
-        if (!docsBySrc.has(rel) && fs.existsSync(path.join(v.docsDir, rel)) && /\.mdx?$/.test(rel)) {
+        const rel = partialPath(from, spec);
+        if (isPartial(rel)) {
           if (!partialFiles.has(rel)) partialFiles.set(rel, `partials/${posix.dirname(rel) === '.' ? '' : `${posix.dirname(rel)}/`}${posix.basename(rel).replace(/^_/, '').replace(/\.mdx?$/, '')}.mdx`);
           return relLink(outFile, partialFiles.get(rel));
         }
-        report.add('import', fromSrc, `import of ${spec}: not a partial in this version; kept as written`);
+        report.add('import', from, `import of ${spec}: not a partial in this version; kept as written`);
         return null;
       },
       site: (name, p) => {
@@ -169,8 +189,9 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
         components[kind] = (components[kind] ?? 0) + n;
         counts[kind] = (counts[kind] ?? 0) + n;
       },
-      item: (kind, message) => report.add(kind, fromSrc, message),
+      item: (kind, message) => report.add(kind, from, message),
     });
+    const { body, h1 } = rewriteBody(fm.content, ctxFor(fromSrc));
     const palette = ['palette-grid', 'palette-card', 'palette-chip'].filter((k) => counts[k]);
     if (palette.length) {
       stats.paletteFallbacks += palette.reduce((n, k) => n + counts[k], 0);
@@ -226,7 +247,10 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
     written.push(dest);
     stats.partials++;
   }
-  for (const p of v.partials) if (!partialFiles.has(p)) report.add('partial', p, 'a partial no converted page imports; left out');
+  for (const p of v.partials) {
+    if (inlinedPartials.has(p)) report.add('partial', p, 'a partial that takes props: inlined into each page that uses it (Platform partials take none)');
+    else if (!partialFiles.has(p)) report.add('partial', p, 'a partial no converted page imports; left out');
+  }
 
   // ---- Images (Q76: only the ones the pages reference) ----------------------------
   for (const [abs, rel] of assets) {
