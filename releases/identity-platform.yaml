@@ -6,6 +6,11 @@ docSpace: identity-platform
 repo: tharindulak/docs-is
 editions:
   cloud:
+    - tag: identity-platform/cloud-2026.10.29.1
+      asset: identity-platform-cloud-2026.10.29.1.docs.zip
+      sha256: 3c457e6bf2afddbc7f92a4939fa8cb534b21abd0af003319676b3c459f4ae94e
+      sourceCommit: 8bce102cdb22b46eebff8f8f3f8341214599b91c
+      acceptedAt: "2026-10-29T12:25:02.670Z"
     - tag: identity-platform/cloud-2026.10.28.1
       asset: identity-platform-cloud-2026.10.28.1.docs.zip
       sha256: edd52bf8de35496f88ec79fe6c42d086ed83097f971ad561c326f4556ab39e27
