@@ -1,0 +1,13 @@
+# The intake record of agent-platform: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: agent-platform
+repo: tharindulak/docs-agent-platform
+editions:
+  cloud:
+    - tag: agent-platform/cloud-2026.10.29.1
+      asset: agent-platform-cloud-2026.10.29.1.docs.zip
+      sha256: 1b07cceb52e29ba760f51616c18abc913b7f2e63064bee1f458131a8b4dccf82
+      sourceCommit: a957e6c13ddce3b75610fb6852fd31d098be709b
+      acceptedAt: "2026-10-29T06:05:35.809Z"
