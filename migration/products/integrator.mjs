@@ -1,12 +1,16 @@
 // Converter config for Integrator (wso2/docs-integrator, a Docusaurus 3 site
-// under en/, branch wso2-integrator → directory integrator/, branches
-// integrator/release/<version>). Integrator on the proof (ticket 19): docs/
-// is the main line (`next`), versioned_docs/version-5.1.0 and 5.0.0 the
-// releases; connectors/ and icp/ are other Doc spaces, left out, and links
-// into them go to the legacy site.
+// under en/ → directory integrator/, branches integrator/release/<version>).
+// Integrator on the proof (ticket 19): versioned_docs/version-5.1.0 and 5.0.0
+// of the wso2-integrator branch are the releases; connectors/ and icp/ are
+// other Doc spaces, left out, and links into them go to the legacy site.
+// Integrator's Cloud is a Cloud part of Integration Platform Cloud
+// (integration-platform.mjs; Product placement), so main is that part: the
+// docs/ of the `saas` branch, the Cloud docs the team keeps separately (as
+// Agent Manager's version-cloud), converted with --source <saas checkout>.
+// The wso2-integrator branch's docs/ (Next) is not converted.
 const LEGACY = 'https://wso2.com/integration-platform/docs/';
 // The legacy site serves its newest release at its root, Next at /next/ and
-// older releases at /<version>/.
+// older releases at /<version>/; the Cloud docs are the saas site.
 const NEWEST = '5.1.0';
 
 export default {
@@ -15,7 +19,9 @@ export default {
   sourceRepo: 'wso2/docs-integrator',
   sourceRoot: 'en', // docusaurus.config.ts lives here
   sidebar: 'mainSidebar',
-  legacyBase: (edition) => `${LEGACY}integrator/${edition === NEWEST ? '' : `${edition}/`}`,
+  // The Cloud part is the saas site's docs/ (its only version).
+  sourceVersion: (edition) => (edition === 'cloud' ? 'next' : edition),
+  legacyBase: (edition) => (edition === 'cloud' ? `${LEGACY}saas/` : `${LEGACY}integrator/${edition === NEWEST ? '' : `${edition}/`}`),
   // product://<site>/<path> links and the sites the theme's components link
   // to (CloudDocsLink and PrereqCard cloud: the WSO2 Cloud docs, "saas").
   legacySites: { integrator: `${LEGACY}integrator/`, saas: `${LEGACY}saas/`, connectors: `${LEGACY}connectors/` },
@@ -32,6 +38,7 @@ export default {
     displayName: 'Integrator',
     editionNames: { selfHosted: 'WSO2 Integrator {version}' },
     home: 'integration-platform',
+    cloud: { in: 'integration-platform' },
     owners: { team: 'integration-platform-docs' },
     repo: 'wso2/docs-integrator',
     // Hidden during the Pilot: the Pilot repos are generated.
@@ -40,6 +47,10 @@ export default {
     editions: [{ id: '5.1.0', branch: 'integrator/release/5.1.0' }, { id: '5.0.0', branch: 'integrator/release/5.0.0' }],
   },
   editions: {
+    cloud: {
+      displayName: 'Integrator Cloud',
+      productName: 'WSO2 Integrator',
+    },
     'self-hosted': {
       displayName: 'WSO2 Integrator {version}',
       productName: 'WSO2 Integrator',

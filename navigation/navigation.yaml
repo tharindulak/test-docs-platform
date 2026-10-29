@@ -79,23 +79,6 @@ contentRepos:
 # part, or unversioned), then the links out (links-out), which never get a
 # Doc space.
 notYetOnWso2Docs:
-  integration-platform:
-    displayName: Integration Platform Cloud
-    in: integration-platform
-    model: cloud-only
-    formerNames: [Devant]
-    legacyUrl: https://wso2.com/integration-platform/docs/saas/
-  # On the Integrator site today ("ICP 2.1.0" in its menu).
-  integration-control-plane:
-    displayName: Integration Control Plane
-    in: integration-platform
-    model: versions-only
-    legacyUrl: https://wso2.com/integration-platform/docs/integrator/
-  connectors:
-    displayName: Connectors
-    in: integration-platform
-    model: unversioned
-    legacyUrl: https://wso2.com/integration-platform/docs/connectors/catalog
   micro-integrator:
     displayName: Micro Integrator
     in: integration-platform

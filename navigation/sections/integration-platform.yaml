@@ -1,6 +1,7 @@
-# Proof only (2026-10-28): a minimal Integration Platform section so Integrator,
-# the family's first Doc space on WSO2 Docs, has a home. The Integration team
-# defines the real one; its other products stay in notYetOnWso2Docs.
+# Proof only (2026-10-28, extended 2026-10-29): a minimal Integration
+# Platform section for the Doc spaces from wso2/docs-integrator. The
+# Integration team defines the real one; its links out stay in
+# notYetOnWso2Docs.
 schemaVersion: 1
 id: integration-platform
 title: Integration Platform Documentation
@@ -9,6 +10,15 @@ owners:
 products:
   - label: Integrator
     opens: { docSpace: integrator }
+  - label: Integration Control Plane
+    opens: { docSpace: integration-control-plane }
+  - label: Connectors
+    opens: { docSpace: connectors }
 menu:
-  - docSpace: integrator
+  - docSpace: integration-platform   # Cloud only, with Integrator as its Cloud part: its version is chosen in the header
     version-in: header
+  - docSpace: integrator
+    version-in: menu
+  - docSpace: integration-control-plane
+    version-in: header
+  - docSpace: connectors

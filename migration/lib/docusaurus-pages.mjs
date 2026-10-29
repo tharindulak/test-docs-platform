@@ -11,7 +11,9 @@
 //     CloudDocsLink and EipReferenceLink → links, PrereqCard → an admonition,
 //     Prerequisites and Steps unwrapped, QuickstartHeader → two bold lines,
 //     PatternImage → an image, TabAwareToc and PaletteIcon dropped,
-//     GuidesCatalog and ArtifactPicker → <DocCardList />, and Palette cards,
+//     GuidesCatalog and ArtifactPicker → <DocCardList />, ConnectorHeader →
+//     its description and facts as text, a catalog component the product
+//     config names (ctx.catalog) removed for the catalog layout, and Palette cards,
 //     chips and grids (also written as <div class="palette-…">) → headings,
 //     text and link lists. Each counts in the run report.
 //   - A ```mermaid block stays code (the Platform renders no diagrams),
@@ -453,6 +455,28 @@ export function rewriteBody(input, ctx) {
       if (node.type === 'mdxJsxFlowElement') removeBlock(node);
       else add(s, e, '');
       ctx.count(name);
+      return;
+    }
+    if (ctx.catalog?.(name)) {
+      // A catalog component the product config names (Connectors'
+      // ConnectorCatalog): the page takes the catalog layout over a data file
+      // the run writes from the site's data module; the element goes.
+      removeBlock(node);
+      ctx.count(`${name} (catalog layout)`);
+      return;
+    }
+    if (name === 'ConnectorHeader') {
+      // A connector page's header card: its description and facts as text
+      // (the page's title is its own).
+      const v = (k) => attrValue(node, k);
+      const facts = [
+        v('version') && `**Version:** ${v('version')}`,
+        v('packageName') && `**Package:** \`${v('packageName')}\``,
+        v('vendor') && `**Vendor:** ${v('vendor')}`,
+        v('category') && `**Category:** ${v('category')}`,
+      ].filter(Boolean);
+      add(s, e, block(node, [v('description'), facts.join(' · ')].filter(Boolean).join('\n\n')));
+      ctx.count('ConnectorHeader');
       return;
     }
     if (name === 'GuidesCatalog' || name === 'ArtifactPicker') {

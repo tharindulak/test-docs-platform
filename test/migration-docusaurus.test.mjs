@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import { autogenerate, parseSidebarsSource, planDocusaurus, readDocs, readVersion } from '../migration/lib/docusaurus.mjs';
+import { autogenerate, exportedLiteral, parseSidebarsSource, planDocusaurus, readDocs, readVersion } from '../migration/lib/docusaurus.mjs';
 import { rewriteBody } from '../migration/lib/docusaurus-pages.mjs';
 import { validate } from '../lib/schemas.mjs';
 import integrator from '../migration/products/integrator.mjs';
@@ -19,16 +19,23 @@ import agentPlatform from '../migration/products/agent-platform.mjs';
 import healthcare from '../migration/products/healthcare.mjs';
 import { convertDocusaurus } from '../migration/lib/docusaurus-run.mjs';
 import { editionForBranch } from '../lib/content-repo.mjs';
+import icp from '../migration/products/integration-control-plane.mjs';
+import connectors from '../migration/products/connectors.mjs';
+import integrationPlatform from '../migration/products/integration-platform.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const site = path.join(root, 'fixtures', 'docusaurus-mini');
 const tmp = (name) => fs.mkdtempSync(path.join(os.tmpdir(), `wso2-${name}-`));
 const shape = (items) => items.map((i) => (i.kind === 'category' ? { label: i.label, link: i.linkId, items: shape(i.items) } : i.kind === 'doc' ? i.id : `link:${i.href}`));
 
-test('the Integrator config writes a valid Doc space manifest: versions-only, 5.1.0 and 5.0.0 on prefixed branches', () => {
+test('the Integrator config writes a valid Doc space manifest: 5.1.0 and 5.0.0 on prefixed branches, its Cloud a part of Integration Platform Cloud', () => {
   assert.deepEqual(validate('docspace', integrator.docspace), []);
   assert.deepEqual(integrator.docspace.editions, [{ id: '5.1.0', branch: 'integrator/release/5.1.0' }, { id: '5.0.0', branch: 'integrator/release/5.0.0' }]);
   assert.equal(integrator.docspace.home, 'integration-platform');
+  assert.deepEqual(integrator.docspace.cloud, { in: 'integration-platform' });
+  assert.equal(integrator.sourceVersion('cloud'), 'next', 'the Cloud part is the saas site\'s docs/');
+  assert.equal(integrator.sourceVersion('5.1.0'), '5.1.0');
+  assert.equal(integrator.legacyBase('cloud'), 'https://wso2.com/integration-platform/docs/saas/');
   assert.equal(integrator.legacyBase('5.1.0'), 'https://wso2.com/integration-platform/docs/integrator/', 'the legacy site serves its newest release at its root');
   assert.equal(integrator.legacyBase('next'), 'https://wso2.com/integration-platform/docs/integrator/next/');
   assert.equal(integrator.legacyBase('5.0.0'), 'https://wso2.com/integration-platform/docs/integrator/5.0.0/');
@@ -69,6 +76,20 @@ test('sidebars.ts is read without running it: its object literal, literals only'
   assert.equal(parseSidebarsSource("const s = { docs: require('./gen.js') };\nexport default s;\n"), null, 'a function call: not read');
   assert.equal(parseSidebarsSource('export default { docs: [...items] };'), null, 'a spread: not read');
   assert.equal(parseSidebarsSource('export default makeSidebars();'), null);
+  // sidebarSpreads: 'drop' (Connectors): a spread in a list is left out and counted.
+  const dropped = { n: 0 };
+  assert.deepEqual(parseSidebarsSource("export default { docs: ['a', ...hidden('x'), 'b'] };", { spreads: 'drop', dropped }), { docs: ['a', 'b'] });
+  assert.equal(dropped.n, 1);
+  assert.equal(parseSidebarsSource("export default { docs: ['a', make()] };", { spreads: 'drop' }), null, 'a call that is not spread: still not read');
+});
+
+test('a module\'s exported literal is read without running it (a catalog\'s data module)', () => {
+  const text = fs.readFileSync(path.join(root, 'fixtures', 'docusaurus-connectors-mini', 'src', 'data', 'connectors.ts'), 'utf8');
+  assert.deepEqual(exportedLiteral(text, 'CATEGORIES'), ['Communication', 'CRM & Sales']);
+  assert.equal(exportedLiteral(text, 'CONNECTORS').length, 3, 'its comments are not items');
+  assert.equal(exportedLiteral(text, 'CONNECTORS')[0].link, 'crm-sales/salesforce/overview');
+  assert.equal(exportedLiteral(text, 'VENDORS'), null, 'no such export');
+  assert.equal(exportedLiteral('export const X = [fn()];', 'X'), null, 'code: not read');
 });
 
 test('docs: ids, legacy URLs (slug, id, index and same-name docs), partials apart', () => {
@@ -265,7 +286,7 @@ Back up first.
   assert.match(r.body, /```md\n:::caution\[not a directive\]\n<ThemedImage sources=\{\{light: useBaseUrl\('\/img\/x\.png'\)\}\} \/>\n```/, 'code stays as written (Docusaurus labels admonition titles in code too)');
 });
 
-test('sync: main from docs/ (next) and a release branch from versioned_docs/, compiled, safe and bundled', async () => {
+test('sync: main (the Cloud part) from the saas site docs/ and a release branch from versioned_docs/, compiled, safe and bundled', async () => {
   const work = tmp('docusaurus');
   const src = path.join(work, 'docs-integrator', 'en');
   fs.cpSync(site, src, { recursive: true });
@@ -303,7 +324,7 @@ WSO2 Integrator builds integrations, AI agents and APIs. Start with the [quick s
   assert.match(qs, /^---\ntitle: Build an automation\ndescription: Build an automation that prints Hello World when it runs\.\ntype: quick-start\nsidebar_label: Automation quick start\nsidebar_position: 2\nkeywords:\n {2}- automation\n {2}- quick start\n---\n/);
   assert.match(qs, /<ThemedImage light="\.\.\/\.\.\/assets\/img\/flow-light\.png" dark="\.\.\/\.\.\/assets\/img\/flow-dark\.png" alt="The home screen with the Create card" \/>/);
   assert.match(qs, /\[patterns\]\(\.\.\/guides\/develop-and-test\/patterns\/message-filter\.mdx#how-it-works\)/);
-  assert.match(qs, /\[control plane\]\(https:\/\/wso2\.com\/integration-platform\/docs\/integrator\/next\/icp\/start\)/, 'icp/ is on the legacy site');
+  assert.match(qs, /\[control plane\]\(https:\/\/wso2\.com\/integration-platform\/docs\/saas\/icp\/start\)/, 'icp/ is on the legacy site');
   assert.match(qs, /\[HTTP connector\]\(https:\/\/wso2\.com\/integration-platform\/docs\/connectors\/catalog\/http\)/);
   assert.match(qs, /\[Cloud console\]\(https:\/\/wso2\.com\/integration-platform\/docs\/saas\/manage\/integrations\)/);
   const router = show('main', 'integrator/docs/guides/develop-and-test/patterns/content-router.mdx');
@@ -312,7 +333,7 @@ WSO2 Integrator builds integrations, AI agents and APIs. Start with the [quick s
   assert.match(show('main', 'integrator/partials/develop/foundations.mdx'), /\[quick start\]\(\.\.\/\.\.\/docs\/get-started\/quick-start\.mdx\)[^]*!\[Pattern overview\]\(\.\.\/\.\.\/assets\/img\/develop\/pattern\.png\)/, 'a partial links from where it now is');
   assert.deepEqual(yaml.load(show('main', 'integrator/docs/guides/develop-and-test/_category_.yml')), { label: 'Develop and test', position: 1 });
   const map = new Map(yaml.load(show('main', 'integrator/redirects.yaml')).legacy.map((l) => [l.from, l.to]));
-  const NEXT = 'https://wso2.com/integration-platform/docs/integrator/next/';
+  const NEXT = 'https://wso2.com/integration-platform/docs/saas/'; // the Cloud docs' legacy site
   assert.equal(map.get(`${NEXT}get-started/quickstarts/build-automation`), 'get-started/quick-start');
   assert.equal(map.get(`${NEXT}overview`), '');
   assert.equal(map.get(`${NEXT}develop`), 'guides/develop-and-test');
@@ -328,7 +349,7 @@ WSO2 Integrator builds integrations, AI agents and APIs. Start with the [quick s
     EipReferenceLink: 1, TabAwareToc: 1, PatternImage: 1, PatternImplementationTabs: 1,
   });
   assert.match(show('main', 'integrator/.migration/report.md'), /\| Sidebar read from \| sidebars\.ts \(its object literal parsed, not run\) \|/);
-  assert.match(git(repo, 'log', '-1', '--format=%B', 'main'), /^Convert Integrator next from wso2\/docs-integrator@[0-9a-f]{40}\n[^]*Co-Authored-By: Test <test@example\.invalid>$/);
+  assert.match(git(repo, 'log', '-1', '--format=%B', 'main'), /^Convert Integrator cloud from wso2\/docs-integrator@[0-9a-f]{40}\n[^]*Co-Authored-By: Test <test@example\.invalid>$/);
 
   // The release branch: cut from main, only integrator/ changed.
   const rel = files('integrator/release/1.0.0');
@@ -512,4 +533,173 @@ helm install amp-platform-resources \\
   assert.match(execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-docs.mjs'), 'bundle', path.join(repo, 'agent-manager'), '--tag', 'agent-manager/1.0.0-docs.1', '--dry-run'], { encoding: 'utf8', env }), /dry run/i);
   git(repo, 'checkout', '-q', 'main');
   assert.match(execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-docs.mjs'), 'bundle', repo, '--tag', 'agent-platform/cloud-2026.10.29.1', '--dry-run'], { encoding: 'utf8', env }), /dry run/i);
+});
+
+// ---- Integration Control Plane, Connectors and Integration Platform Cloud ------------
+// The rest of wso2/docs-integrator: ICP is icp/ of the Integrator site
+// (docusaurus-icp-mini), Connectors its own site whose docs plugin reads
+// docs/connectors/ (docusaurus-connectors-mini), and Integration Platform
+// Cloud the family overview over Integrator's Cloud part.
+const icpSite = path.join(root, 'fixtures', 'docusaurus-icp-mini');
+const connectorsSite = path.join(root, 'fixtures', 'docusaurus-connectors-mini');
+
+test('the ICP, Connectors and Integration Platform Cloud configs write valid Doc space manifests', () => {
+  for (const c of [icp, connectors, integrationPlatform]) assert.deepEqual(validate('docspace', c.docspace), [], c.slug);
+  assert.deepEqual(icp.docspace.editions, [{ id: '2.1.0', branch: 'integration-control-plane/release/2.1.0' }]);
+  assert.equal(icp.docspace.cloud, undefined, 'ICP has no Cloud');
+  assert.equal(icp.sourceVersion('2.1.0'), '5.1.0', 'ICP 2.1.0 is icp/ of Integrator 5.1.0');
+  assert.equal(icp.sourceVersion('next'), 'next');
+  assert.equal(icp.legacyBase('2.1.0'), 'https://wso2.com/integration-platform/docs/integrator/');
+  assert.equal(icp.legacyBase('next'), 'https://wso2.com/integration-platform/docs/integrator/next/');
+  assert.equal(connectors.docspace.model, 'unversioned');
+  assert.equal(connectors.docspace.cloud, undefined, 'an unversioned Doc space is not a Cloud part (spec/open-items.md)');
+  assert.equal(connectors.legacyBase('_'), 'https://wso2.com/integration-platform/docs/connectors/');
+  assert.deepEqual(integrationPlatform.docspace.editions, [{ id: 'cloud', parts: ['integrator'] }]);
+  assert.deepEqual(integrationPlatform.docspace.formerNames, ['Devant']);
+  assert.equal(integrationPlatform.docspace.brand, 'WSO2 Cloud');
+  for (const c of [icp, connectors, integrationPlatform, integrator]) {
+    assert.equal(c.docspace.repo, 'wso2/docs-integrator');
+    assert.equal(c.docspace.home, 'integration-platform');
+  }
+});
+
+test('layout: a Doc space carved out of another\'s site reads only its folder (only, sidebarItems), re-filed into the skeleton', () => {
+  const next = readVersion(icpSite, 'next', { items: icp.sidebarItems });
+  assert.match(next.sidebarHow, /sidebarItems/);
+  const plan = planDocusaurus({ tree: next.tree, docs: next.docs, config: icp });
+  const t = (id) => plan.pages.get(id)?.target;
+  assert.equal(t('icp/index'), 'index', 'the overview is the Edition home');
+  assert.equal(t('icp/quick-start'), 'get-started/quick-start');
+  assert.equal(t('icp/user-stores/ldap-user-store'), 'guides/user-stores/ldap-user-store');
+  assert.equal(t('icp/management-api'), 'reference/management-api');
+  assert.equal(t('get-started/get-started'), undefined, 'Integrator\'s own pages are left out, not unlisted');
+  assert.deepEqual(plan.excluded, ['get-started/get-started']);
+  assert.deepEqual(plan.categories.get('guides/user-stores'), { label: 'User stores', position: 1 });
+});
+
+test('layout: Connectors reads docs/connectors/, leaves the sidebar\'s spreads out and keeps the hidden pages unlisted', () => {
+  const v = readVersion(connectorsSite, 'next', { sidebar: connectors.sidebar, docsPath: connectors.docsPath, spreads: connectors.sidebarSpreads });
+  assert.match(v.sidebarHow, /sidebars\.ts \(its object literal parsed, not run; 1 spreads left out\)/);
+  assert.match(v.issues[0].message, /1 spreads in the sidebar/);
+  const plan = planDocusaurus({ tree: v.tree, docs: v.docs, config: connectors });
+  const p = (id) => plan.pages.get(id);
+  assert.equal(p('catalog/index').target, 'index', 'the Connector Catalog is the Edition home');
+  assert.equal(p('catalog/crm-sales/salesforce/overview').target, 'reference/catalog/salesforce/index');
+  assert.equal(p('catalog/crm-sales/salesforce/setup-guide').target, 'reference/catalog/salesforce/setup-guide');
+  assert.equal(p('overview').target, 'concepts/overview');
+  assert.equal(p('reference/faq').target, 'reference/faq');
+  assert.deepEqual([p('catalog/communication/twilio/4.0.x/actions').target, p('catalog/communication/twilio/4.0.x/actions').inSidebar], ['reference/catalog/twilio/4.0.x/actions', false]);
+});
+
+test('rewrite: a catalog component goes (the page takes the catalog layout); ConnectorHeader becomes its description and facts', () => {
+  const r = rw('Intro.\n\n<ConnectorCatalog categories={CATEGORIES} connectors={CONNECTORS} />\n');
+  assert.match(r.body, /<ConnectorCatalog/, 'a catalog only where the config names it');
+  const used = [];
+  const counts = {};
+  const out = rewriteBody('Intro.\n\n<ConnectorCatalog categories={CATEGORIES} connectors={CONNECTORS} />\n\nAfter.\n', {
+    link: () => undefined, image: () => null, partial: () => null, site: () => '', item: () => {},
+    count: (k, n = 1) => { counts[k] = (counts[k] ?? 0) + n; },
+    catalog: (name) => (name === 'ConnectorCatalog' ? (used.push(name), true) : false),
+  });
+  assert.equal(out.body, 'Intro.\n\nAfter.\n');
+  assert.deepEqual(used, ['ConnectorCatalog']);
+  assert.equal(counts['ConnectorCatalog (catalog layout)'], 1);
+  const h = rw('<ConnectorHeader\n  name="Alfresco"\n  version="2.0.2"\n  vendor="Alfresco"\n  category="Storage & Files"\n  description="Content management"\n  packageName="ballerinax/alfresco"\n/>\n\nSet it up.\n');
+  assert.equal(h.body, 'Content management\n\n**Version:** 2.0.2 · **Package:** `ballerinax/alfresco` · **Vendor:** Alfresco · **Category:** Storage & Files\n\nSet it up.\n');
+  assert.equal(h.counts.ConnectorHeader, 1);
+});
+
+test('sync: Integrator\'s Cloud part, Integration Platform Cloud, Connectors and ICP on main; ICP 2.1.0 on its release branch; each bundles', () => {
+  const work = tmp('docusaurus-integration');
+  const git = (dir, ...args) => execFileSync('git', ['-C', dir, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  // Three source checkouts, as the branches are: saas (the Integrator Cloud
+  // site), wso2-integrator (with icp/) and wso2-connectors.
+  const checkout = (from, name) => {
+    const dir = path.join(work, name);
+    fs.cpSync(from, path.join(dir, 'en'), { recursive: true });
+    git(dir, 'init', '-q', '-b', name);
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'source');
+    return dir;
+  };
+  const saas = checkout(site, 'saas');
+  const integratorSite = checkout(icpSite, 'wso2-integrator');
+  const connectorsSrc = checkout(connectorsSite, 'wso2-connectors');
+  const repo = path.join(work, 'target');
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_AUTHOR_EMAIL: 'test@example.invalid', GIT_COMMITTER_NAME: 'Test', GIT_COMMITTER_EMAIL: 'test@example.invalid' };
+  const sync = (product, source, branch) => execFileSync(process.execPath, [path.join(root, 'migration', 'sync.mjs'), product, '--source', source, '--repo', repo, '--branch', branch], { encoding: 'utf8', env });
+  sync('integrator', saas, 'main');
+  sync('integration-platform', saas, 'main');
+  sync('connectors', connectorsSrc, 'main');
+  sync('integration-control-plane', integratorSite, 'main');
+  sync('integration-control-plane', integratorSite, 'integration-control-plane/release/2.1.0');
+  const show = (ref, f) => git(repo, 'show', `${ref}:${f}`);
+  const files = (ref, dir) => git(repo, 'ls-tree', '-r', '--name-only', ref).split('\n').filter((f) => f.startsWith(dir));
+  const subjects = git(repo, 'log', '--format=%s', 'main').split('\n').map((s) => s.replace(/@[0-9a-f]{40}$/, '@…'));
+  assert.deepEqual(subjects, [
+    'Convert Integration Control Plane next from wso2/docs-integrator@…',
+    'Convert Connectors from wso2/docs-integrator@…',
+    'Convert Integration Platform Cloud from wso2/docs-integrator@…',
+    'Convert Integrator cloud from wso2/docs-integrator@…',
+  ]);
+
+  // Integrator's main line is its Cloud part; the family Cloud lists it.
+  assert.deepEqual(yaml.load(show('main', 'integrator/docspace.yaml')).cloud, { in: 'integration-platform' });
+  assert.deepEqual(yaml.load(show('main', 'integrator/editions.yaml')).cloud, { displayName: 'Integrator Cloud', productName: 'WSO2 Integrator' });
+  const overview = show('main', 'integration-platform/docs/index.mdx');
+  assert.match(overview, /^title: Integration Platform Cloud$/m);
+  assert.match(overview, /^layout: overview$/m);
+  assert.match(overview, /\[Integrator Cloud\]\(docs:integrator\/cloud\/\)/);
+  assert.deepEqual(yaml.load(show('main', 'integration-platform/docspace.yaml')), integrationPlatform.docspace);
+
+  // Connectors: the catalog home over connectors.yaml, each connector's pages below reference/catalog/.
+  assert.deepEqual(files('main', 'connectors/docs/').filter((f) => !f.endsWith('_category_.yml')), [
+    'connectors/docs/concepts/overview.mdx', 'connectors/docs/connectors.yaml', 'connectors/docs/guides/using-connectors.mdx', 'connectors/docs/index.mdx',
+    'connectors/docs/reference/catalog/salesforce/actions.mdx', 'connectors/docs/reference/catalog/salesforce/index.mdx', 'connectors/docs/reference/catalog/salesforce/setup-guide.mdx',
+    'connectors/docs/reference/catalog/twilio/4.0.x/actions.mdx', 'connectors/docs/reference/catalog/twilio/actions.mdx', 'connectors/docs/reference/catalog/twilio/index.mdx',
+    'connectors/docs/reference/faq.mdx',
+  ]);
+  const home = show('main', 'connectors/docs/index.mdx');
+  assert.match(home, /^layout: catalog\ndata: \.\/connectors\.yaml$/m);
+  assert.doesNotMatch(home, /ConnectorCatalog|@site/);
+  const data = yaml.load(show('main', 'connectors/docs/connectors.yaml'));
+  assert.deepEqual(validate('catalog', data), []);
+  assert.deepEqual(data.items.map((i) => [i.id, i.href, i.category, i.tags]), [
+    ['salesforce', './reference/catalog/salesforce/index.mdx', 'crm-and-sales', ['Salesforce']],
+    ['twilio', './reference/catalog/twilio/index.mdx', 'communication', ['Twilio']],
+  ], 'a connector whose page is gone is left out; logos on another host too');
+  assert.match(show('main', 'connectors/docs/reference/catalog/salesforce/index.mdx'), /\[integration\]\(https:\/\/wso2\.com\/integration-platform\/docs\/integrator\/develop-and-test\/build-integrations\)/, 'links into Integrator go to the legacy site');
+  assert.match(show('main', 'connectors/docs/reference/catalog/twilio/4.0.x/actions.mdx'), /^unlisted: true$/m);
+  const using = show('main', 'connectors/docs/guides/using-connectors.mdx');
+  assert.match(using, /\[what a connector is\]\(\.\.\/concepts\/overview\.mdx#what-a-connector-is\)/, 'an anchor the page has stays');
+  assert.match(using, /\[its modules\]\(\.\.\/concepts\/overview\.mdx\)/, 'an anchor the page lacks goes; the link to the page stays');
+  assert.match(show('main', 'connectors/.migration/report.md'), /link to \.\/overview\.md#modules: the page has no heading #modules; the link goes to the page/);
+  const connMap = new Map(yaml.load(show('main', 'connectors/redirects.yaml')).legacy.map((l) => [l.from, l.to]));
+  assert.equal(connMap.get('https://wso2.com/integration-platform/docs/connectors/catalog'), '');
+  assert.equal(connMap.get('https://wso2.com/integration-platform/docs/connectors/catalog/crm-sales/salesforce/setup-guide'), 'reference/catalog/salesforce/setup-guide');
+  const connReport = JSON.parse(show('main', 'connectors/.migration/report.json')).summary;
+  assert.equal(connReport.compileFailures, 0);
+  assert.equal(connReport.contentSafetyFindings, 0);
+  assert.equal(connReport.stats.catalogItems, 2);
+
+  // ICP: main is the next preview from docs/icp/; the release branch 5.1.0's icp/.
+  assert.deepEqual(files('main', 'integration-control-plane/docs/').filter((f) => f.endsWith('.mdx')), [
+    'integration-control-plane/docs/get-started/quick-start.mdx', 'integration-control-plane/docs/guides/user-stores/configure-user-stores.mdx',
+    'integration-control-plane/docs/guides/user-stores/ldap-user-store.mdx', 'integration-control-plane/docs/index.mdx', 'integration-control-plane/docs/reference/management-api.mdx',
+  ]);
+  assert.match(show('main', 'integration-control-plane/docs/index.mdx'), /\[get started with Integrator\]\(https:\/\/wso2\.com\/integration-platform\/docs\/integrator\/next\/get-started\)/);
+  assert.deepEqual(files('integration-control-plane/release/2.1.0', 'integration-control-plane/docs/').filter((f) => f.endsWith('.mdx')), [
+    'integration-control-plane/docs/get-started/quick-start.mdx', 'integration-control-plane/docs/index.mdx',
+  ]);
+  assert.match(show('integration-control-plane/release/2.1.0', 'integration-control-plane/docs/index.mdx'), /ICP 2\.1\.0 supports/);
+  const icpMap = new Map(yaml.load(show('integration-control-plane/release/2.1.0', 'integration-control-plane/redirects.yaml')).legacy.map((l) => [l.from, l.to]));
+  assert.equal(icpMap.get('https://wso2.com/integration-platform/docs/integrator/icp/quick-start'), 'get-started/quick-start');
+  assert.deepEqual(files('integration-control-plane/release/2.1.0', 'connectors/'), files('main', 'connectors/'), 'a release branch is a copy of main');
+
+  // Each bundles: ICP 2.1.0 on its branch, Connectors (`_`) and the Cloud tree on main.
+  const bundle = (dir, tag) => execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-docs.mjs'), 'bundle', path.join(repo, dir), '--tag', tag, '--dry-run'], { encoding: 'utf8', env });
+  assert.match(bundle('integration-control-plane', 'integration-control-plane/2.1.0-docs.1'), /dry run/i);
+  git(repo, 'checkout', '-q', 'main');
+  assert.match(bundle('connectors', 'connectors/cloud-2026.10.29.1'), /dry run/i);
+  assert.match(bundle('integration-platform', 'integration-platform/cloud-2026.10.29.1'), /dry run/i);
 });

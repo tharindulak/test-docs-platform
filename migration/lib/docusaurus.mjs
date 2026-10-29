@@ -34,10 +34,12 @@ export function numberPrefix(name) {
 
 // Where a version lives in the site: docs/ and the sidebars file for `next`,
 // versioned_docs/ and versioned_sidebars/ for a release.
-export function versionPaths(siteDir, edition) {
+// docsPath: the docs plugin's `path` where it is not docs/ (Connectors keeps
+// its pages in docs/connectors/).
+export function versionPaths(siteDir, edition, docsPath = 'docs') {
   if (edition === 'next') {
     const sidebarFile = ['sidebars.json', 'sidebars.ts', 'sidebars.js', 'sidebars.mjs', 'sidebars.cjs'].map((f) => path.join(siteDir, f)).find((f) => fs.existsSync(f)) ?? null;
-    return { docsDir: path.join(siteDir, 'docs'), sidebarFile };
+    return { docsDir: path.join(siteDir, docsPath), sidebarFile };
   }
   return {
     docsDir: path.join(siteDir, 'versioned_docs', `version-${edition}`),
@@ -102,7 +104,7 @@ function readDoc(docsDir, src) {
 // ---- Sidebars -----------------------------------------------------------------
 
 // The value of an estree node made only of literals, or a thrown error.
-function literalValue(n) {
+function literalValue(n, opts = {}) {
   switch (n.type) {
     case 'Literal':
       if (n.regex || n.bigint !== undefined) throw new Error(`${n.raw} is not a plain literal`);
@@ -114,16 +116,20 @@ function literalValue(n) {
       if (n.operator === '-' && n.argument.type === 'Literal' && typeof n.argument.value === 'number') return -n.argument.value;
       throw new Error(`the ${n.operator} operator`);
     case 'ArrayExpression':
-      return n.elements.map((e) => {
+      return n.elements.flatMap((e) => {
+        if (e?.type === 'SpreadElement' && opts.spreads === 'drop') {
+          opts.dropped.n++;
+          return [];
+        }
         if (!e || e.type === 'SpreadElement') throw new Error('a spread or hole');
-        return literalValue(e);
+        return [literalValue(e, opts)];
       });
     case 'ObjectExpression': {
       const out = {};
       for (const p of n.properties) {
         if (p.type !== 'Property' || p.computed || p.method || p.kind !== 'init') throw new Error('an object property that is not a plain key and value');
         const key = p.key.type === 'Identifier' ? p.key.name : String(p.key.value);
-        out[key] = literalValue(p.value);
+        out[key] = literalValue(p.value, opts);
       }
       return out;
     }
@@ -132,14 +138,15 @@ function literalValue(n) {
   }
 }
 
-// The object literal a sidebars.ts or .js file exports, read without running
-// it: the literal after `const <name>[: Type] =`, `module.exports =` or
-// `export default`. Returns null when it holds anything but literals.
-export function parseSidebarsSource(text) {
-  const code = text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/(^|[^:'"`])\/\/[^\n]*/g, (m, p) => p + ' '.repeat(m.length - p.length));
-  const m = /(?:\b(?:const|let|var)\s+[\w$]+\s*(?::\s*[\w$.<>, ]+)?\s*=|module\.exports\s*=|export\s+default)\s*\{/.exec(code);
-  if (!m) return null;
-  const start = m.index + m[0].length - 1;
+const blankComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/(^|[^:'"`])\/\/[^\n]*/g, (m, p) => p + ' '.repeat(m.length - p.length));
+
+// The literal (an object or a list) that starts at `start` in code with its
+// comments blanked, read without running it; null when it holds anything but
+// literals. spreads: 'drop' leaves out a spread in a list (`...fn(x)`),
+// counting it in dropped.n, instead of refusing the whole literal.
+function literalAt(code, start, { spreads, dropped = { n: 0 } } = {}) {
+  const open = code[start];
+  const close = open === '[' ? ']' : '}';
   let depth = 0;
   let end = -1;
   for (let i = start, q = null; i < code.length; i++) {
@@ -150,8 +157,8 @@ export function parseSidebarsSource(text) {
       continue;
     }
     if (c === '"' || c === "'" || c === '`') q = c;
-    else if (c === '{') depth++;
-    else if (c === '}' && --depth === 0) { end = i + 1; break; }
+    else if (c === open) depth++;
+    else if (c === close && --depth === 0) { end = i + 1; break; }
   }
   if (end < 0) return null;
   // MDX's expression parser gives the estree without a new dependency.
@@ -161,20 +168,44 @@ export function parseSidebarsSource(text) {
     if (expr?.type !== 'mdxFlowExpression') return null;
     const body = expr.data?.estree?.body ?? [];
     if (body.length !== 1 || body[0].type !== 'ExpressionStatement') return null;
-    return literalValue(body[0].expression);
+    return literalValue(body[0].expression, { spreads, dropped });
   } catch {
     return null;
   }
 }
 
-// The version's sidebar config and how it was read.
-export function loadSidebars(sidebarFile) {
+// The object literal a sidebars.ts or .js file exports, read without running
+// it: the literal after `const <name>[: Type] =`, `module.exports =` or
+// `export default`. Returns null when it holds anything but literals; with
+// spreads: 'drop', a spread in a list is left out and counted instead.
+export function parseSidebarsSource(text, { spreads, dropped = { n: 0 } } = {}) {
+  const code = blankComments(text);
+  const m = /(?:\b(?:const|let|var)\s+[\w$]+\s*(?::\s*[\w$.<>, ]+)?\s*=|module\.exports\s*=|export\s+default)\s*\{/.exec(code);
+  if (!m) return null;
+  return literalAt(code, m.index + m[0].length - 1, { spreads, dropped });
+}
+
+// The literal a module exports by name (`export const NAME[: Type] = […]` or
+// `{…}`), read without running it; null when it is missing or holds anything
+// but literals. A catalog's data module (Connectors' src/data/connectors.ts)
+// is read this way.
+export function exportedLiteral(text, name) {
+  const code = blankComments(text);
+  const m = new RegExp(`\\bexport\\s+const\\s+${name}\\s*(?::[^=]+)?=\\s*([[{])`).exec(code);
+  return m ? literalAt(code, m.index + m[0].length - 1) : null;
+}
+
+// The version's sidebar config and how it was read. spreads: 'drop' (the
+// product config's sidebarSpreads) leaves out a spread in a list; the docs
+// it would add are then in no sidebar, so unlisted.
+export function loadSidebars(sidebarFile, { spreads } = {}) {
   if (!sidebarFile) return { config: null, how: 'no sidebars file: folders' };
   const text = fs.readFileSync(sidebarFile, 'utf8');
   if (sidebarFile.endsWith('.json')) return { config: JSON.parse(text), how: `${path.basename(sidebarFile)} (JSON)` };
-  const config = parseSidebarsSource(text);
+  const dropped = { n: 0 };
+  const config = parseSidebarsSource(text, { spreads, dropped });
   return config
-    ? { config, how: `${path.basename(sidebarFile)} (its object literal parsed, not run)` }
+    ? { config, how: `${path.basename(sidebarFile)} (its object literal parsed, not run${dropped.n ? `; ${dropped.n} spreads left out` : ''})`, droppedSpreads: dropped.n }
     : { config: null, how: `${path.basename(sidebarFile)} could not be read without running it: folders and sidebar_position` };
 }
 
@@ -253,13 +284,21 @@ export function normalizeSidebar(items, docs, categories, issues = []) {
 }
 
 // One version of the site, read: its docs, partials, sidebar tree and how
-// the sidebar was read.
-export function readVersion(siteDir, edition, { sidebar: sidebarId } = {}) {
-  const { docsDir, sidebarFile } = versionPaths(siteDir, edition);
+// the sidebar was read. Options, from the product config: sidebar (its id),
+// docsPath, spreads (sidebarSpreads) and items (sidebarItems: sidebar items
+// that replace the file's, such as one folder's autogenerated slice for a
+// Doc space carved out of another's site).
+export function readVersion(siteDir, edition, { sidebar: sidebarId, docsPath, spreads, items } = {}) {
+  const { docsDir, sidebarFile } = versionPaths(siteDir, edition, docsPath);
   if (!fs.existsSync(docsDir)) throw new Error(`${docsDir} does not exist: no ${edition} docs in this site`);
   const { docs, partials, categories } = readDocs(docsDir);
-  const { config, how } = loadSidebars(sidebarFile);
   const issues = [];
+  if (items) {
+    const tree = normalizeSidebar(items, docs, categories, issues);
+    return { docsDir, docs, partials, categories, tree, sidebarHow: `the product config's sidebarItems (${JSON.stringify(items)})`, issues };
+  }
+  const { config, how, droppedSpreads } = loadSidebars(sidebarFile, { spreads });
+  if (droppedSpreads) issues.push({ kind: 'sidebar', message: `${droppedSpreads} spreads in the sidebar (code, not literals) were left out; the docs they add are unlisted` });
   let raw;
   if (config) {
     const id = sidebarId ?? Object.keys(config)[0];
@@ -284,6 +323,14 @@ function commonDir(srcs) {
   return out.join('/');
 }
 
+// A source doc another Doc space holds: under one of the config's `excluded`
+// folders, or outside its `only` folders (a Doc space carved out of another's
+// site: Integration Control Plane is icp/ of the Integrator site).
+export function isLeftOut(config, src) {
+  if ((config.excluded ?? []).some((f) => src === f || src.startsWith(f))) return true;
+  return Boolean(config.only) && !config.only.some((f) => src === f || src.startsWith(f));
+}
+
 // Keep a source file name that is already a kebab-case slug, so URLs stay
 // recognisable; otherwise slug it.
 const slugKeep = (name) => (/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(name) ? name : fileSlug(name));
@@ -306,7 +353,7 @@ export function planDocusaurus({ tree, docs, config }) {
   const counters = new Map();
   const urls = new Map();
   const sectionSources = new Map(); // folder → the source dir it stands for
-  const isExcluded = (src) => (config.excluded ?? []).some((f) => src === f || src.startsWith(f));
+  const isExcluded = (src) => isLeftOut(config, src);
   const label = (l) => (l ? sentenceCase(String(l), config.properNouns) : null);
   const nextPos = (folder) => {
     const n = (counters.get(folder) ?? 0) + 1;

@@ -12,11 +12,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { readVersion, planDocusaurus } from './docusaurus.mjs';
+import { readVersion, planDocusaurus, isLeftOut, exportedLiteral } from './docusaurus.mjs';
 import { rewriteBody } from './docusaurus-pages.mjs';
 import { compileCheck } from './compile.mjs';
 import { generatedDescription, Report } from './run.mjs';
 import { loadOverrides, SourceOverrides } from './overrides.mjs';
+import { fileSlug } from './slug.mjs';
+import { createSlugger } from '@docusaurus/utils';
 import { loadContentRepo } from '../../lib/content.mjs';
 import { loadContext } from '../../lib/check/content.mjs';
 import { checkContentSafety } from '../../lib/check/safety.mjs';
@@ -44,7 +46,9 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
   const overrides = new SourceOverrides(useOverrides ? loadOverrides(config.overrides) : { patches: [], accepted: [] }, { sourceRoot: siteDir, edition });
   // The site's name for the version (versioned_docs/version-<name>), when it
   // differs from the Edition id (Agent Manager's v1.0.0 is Edition 1.0.0).
-  const v = readVersion(siteDir, config.sourceVersion?.(edition) ?? edition, { sidebar: config.sidebar });
+  const v = readVersion(siteDir, config.sourceVersion?.(edition) ?? edition, {
+    sidebar: config.sidebar, docsPath: config.docsPath, spreads: config.sidebarSpreads, items: config.sidebarItems,
+  });
   // A source file of the version, with the override list's patches applied.
   const readSource = (rel) => overrides.read(path.join(v.docsDir, rel));
   log(`Sidebar: ${v.sidebarHow}`);
@@ -64,10 +68,32 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
   const docsBySrc = new Map([...v.docs.values()].map((d) => [d.src, d]));
   const docsByUrl = new Map([...v.docs.values()].map((d) => [d.url, d]));
   const pageOf = (d) => (d ? plan.pages.get(d.id) : null);
-  const excluded = (d) => plan.excluded.includes(d.id) || (config.excluded ?? []).some((f) => d.src.startsWith(f));
+  const excluded = (d) => plan.excluded.includes(d.id) || isLeftOut(config, d.src);
   const legacyUrl = (route, hash = '') => `${legacyBase}${route.replace(/^\/+/, '')}${hash}`;
   const assets = new Map(); // source file → asset path in the Doc space
   const partialFiles = new Map(); // source partial (docs-relative) → partials/ path
+
+  // The anchors a doc has: its headings' ids (explicit {#id} or slugged as
+  // Docusaurus slugs them) and id="…" attributes, outside code. Null (not
+  // checked) for a page that imports a partial, which may bring headings of
+  // its own.
+  const anchorCache = new Map();
+  const anchorsOf = (d) => {
+    if (anchorCache.has(d.src)) return anchorCache.get(d.src);
+    const text = matter(readSource(d.src)).content.replace(/^(```|~~~)[\s\S]*?^\1/gm, '');
+    let out = null;
+    if (!/^import\s[^\n]*from\s+['"]\.{1,2}\/[^'"]*\.mdx?['"]/m.test(text)) {
+      const slugger = createSlugger();
+      out = new Set();
+      for (const m of text.matchAll(/^#{1,6}[ \t]+(.+?)[ \t]*$/gm)) {
+        const explicit = /\{#([\w-]+)\}\s*$/.exec(m[1]);
+        out.add(explicit ? explicit[1] : slugger.slug(m[1].replace(/`/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_]/g, '').trim()));
+      }
+      for (const m of text.matchAll(/\bid=["']([^"']+)["']/g)) out.add(m[1]);
+    }
+    anchorCache.set(d.src, out);
+    return out;
+  };
 
   // Where a link goes from a file (its source path in the version, its
   // output path in the Doc space); undefined keeps it, null unlinks it.
@@ -82,7 +108,16 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
         return legacyUrl(d.url, hash);
       }
       const p = pageOf(d);
-      return p ? relLink(outFile, `docs/${p.target}.mdx`) + hash : null;
+      if (!p) return null;
+      // A heading the page lacks (legacy-broken): the link goes to the page.
+      let h = hash;
+      const anchors = h.length > 1 ? anchorsOf(d) : null;
+      if (anchors && !anchors.has(decodeURIComponent(h.slice(1)))) {
+        report.add('link', fromSrc, `link to ${url}: the page has no heading ${h}; the link goes to the page`);
+        stats.droppedAnchors = (stats.droppedAnchors ?? 0) + 1;
+        h = '';
+      }
+      return relLink(outFile, `docs/${p.target}.mdx`) + h;
     };
     const product = /^product:\/\/([\w-]+)\/?(.*)$/.exec(pathPart);
     if (product) {
@@ -156,6 +191,7 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
     const text = readSource(fromSrc);
     const fm = matter(text);
     const counts = {};
+    let catalog = null; // a catalog component the page uses (config.catalogs)
     const partialPath = (from, spec) => posix.normalize(posix.join(posix.dirname(from), spec));
     const isPartial = (rel) => !docsBySrc.has(rel) && /\.mdx?$/.test(rel) && fs.existsSync(path.join(v.docsDir, rel));
     // The context for the page, or for a partial with props inlined into it
@@ -190,6 +226,11 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
         return `${config.legacySites[name]}${String(p).replace(/^\/+/, '')}`;
       },
       admonitions: config.admonitions,
+      catalog: (name) => {
+        if (!config.catalogs?.[name] || !page) return false;
+        catalog = name;
+        return true;
+      },
       count: (kind, n = 1) => {
         if (!n) return;
         components[kind] = (components[kind] ?? 0) + n;
@@ -204,7 +245,57 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
       report.add('palette', fromSrc, `Palette ${palette.map((k) => `${k.replace('palette-', '')}s ${counts[k]}`).join(', ')} became plain Markdown (headings, text, link lists)`);
     }
     pageCounts.set(fromSrc, counts);
-    return { fm: fm.data ?? {}, body, h1 };
+    return { fm: fm.data ?? {}, body, h1, catalog };
+  };
+
+  // A catalog component (config.catalogs) → the catalog layout over a data
+  // file next to the page (Extension points: generated upstream, committed as
+  // data). Its items come from the site's data module, read without running
+  // it; each item's page resolves through the plan like a link.
+  const writeCatalog = (name, outFile, fromSrc) => {
+    const cfg = config.catalogs[name];
+    const text = fs.readFileSync(path.join(siteDir, cfg.module), 'utf8');
+    const list = exportedLiteral(text, cfg.items);
+    if (!Array.isArray(list)) throw new Error(`${cfg.module} has no literal export ${cfg.items} to read the ${name} catalog from`);
+    const dataFile = posix.join(posix.dirname(outFile), cfg.file);
+    const fromCats = cfg.categories ? exportedLiteral(text, cfg.categories) : [];
+    const categories = (Array.isArray(fromCats) ? fromCats : []).map((c) => ({ id: fileSlug(String(c)), label: String(c) }));
+    const items = [];
+    const ids = new Set();
+    let logos = 0;
+    for (const raw of list) {
+      const c = cfg.item(raw);
+      let id = fileSlug(c.name);
+      for (let n = 2; ids.has(id); n++) id = `${fileSlug(c.name)}-${n}`;
+      ids.add(id);
+      // c.doc: a doc id, or the doc's route (a folder's index page).
+      const d = c.doc ? v.docs.get(c.doc) ?? docsByUrl.get(c.doc) : null;
+      let href = null;
+      if (d && excluded(d)) href = legacyUrl(d.url);
+      else if (d && pageOf(d)) href = relLink(dataFile, `docs/${pageOf(d).target}.mdx`);
+      else if (c.url) href = c.url;
+      if (!href) {
+        report.add('catalog', fromSrc, `${cfg.module}: "${c.name}" names the doc ${c.doc}, which is no page; left out`);
+        continue;
+      }
+      const item = { id, name: c.name, description: c.description || c.name, href };
+      if (c.category) {
+        item.category = fileSlug(c.category);
+        if (!categories.some((x) => x.id === item.category)) categories.push({ id: item.category, label: c.category });
+      }
+      if (c.tags?.length) item.tags = [...new Set(c.tags)];
+      // The catalog schema takes a logo under assets/ only; a logo on another
+      // host is left out (the card is drawn without one).
+      if (c.logo) logos++;
+      items.push(item);
+    }
+    if (logos) report.add('catalog', fromSrc, `${logos} ${name} items have a logo on another host; the catalog layout takes logos under assets/ only, so they are drawn without one`);
+    stats.catalogItems = (stats.catalogItems ?? 0) + items.length;
+    const head = `# Catalog data file (schemas/catalog.schema.json in wso2/docs-platform), drawn by\n# ${posix.basename(outFile)} (layout: catalog). Generated by the WSO2 Docs converter from\n# ${cfg.module} (${cfg.items}) in ${config.sourceRepo}; until it is generated upstream,\n# change it in migration/products/ of wso2/docs-platform, not here.\n`;
+    const dest = path.join(outDir, dataFile);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, `${head}${yaml.dump({ schemaVersion: 1, ...(categories.length ? { categories } : {}), items }, { lineWidth: -1 })}`);
+    return `./${cfg.file}`;
   };
 
   const typeFor = (target) => {
@@ -216,7 +307,7 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
   for (const page of [...plan.pages.values()].sort((a, b) => a.target.localeCompare(b.target))) {
     const d = v.docs.get(page.id);
     const outFile = `docs/${page.target}.mdx`;
-    const { fm, body, h1 } = convert(d.src, outFile, d);
+    const { fm, body, h1, catalog } = convert(d.src, outFile, d);
     const title = String(fm.title ?? h1 ?? d.title).trim();
     const front = { title };
     const desc = typeof fm.description === 'string' ? fm.description.trim().replace(/\s+/g, ' ') : '';
@@ -227,6 +318,10 @@ export async function convertDocusaurus({ config, siteDir, outDir, edition, sour
       if (desc) report.add('description', d.src, `description longer than 160 characters (${desc.length}); one was generated from the first paragraph`);
     }
     front.type = typeFor(page.target);
+    if (catalog) {
+      front.layout = 'catalog';
+      front.data = writeCatalog(catalog, outFile, d.src);
+    }
     if (page.sidebarLabel && page.sidebarLabel !== title) {
       front.sidebar_label = page.sidebarLabel;
       stats.sidebarLabels++;
@@ -324,6 +419,7 @@ function reportMarkdown(summary, report) {
     ['Links', s.links], ['Links to the legacy site (other Doc spaces, unconverted pages)', s.legacyLinks], ['Broken links removed (text kept)', s.droppedLinks],
     ['Generated descriptions to review', s.generatedDescriptions], ['sidebar_label set', s.sidebarLabels],
     ['Palette cards, chips and grids made plain Markdown', s.paletteFallbacks],
+    ...(s.catalogItems !== undefined ? [['Catalog items (layout: catalog)', s.catalogItems]] : []),
     ['Legacy redirect entries written', s.legacyRedirects],
     ['Override patches applied (override list)', `${summary.overrides.patchesApplied} of ${summary.overrides.patches}`],
     ['MDX compile failures', summary.compileFailures], ['Content-safety findings', summary.contentSafetyFindings],

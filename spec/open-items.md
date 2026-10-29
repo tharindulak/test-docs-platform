@@ -1,6 +1,6 @@
 # Open items and known conflicts
 
-Last checked against code: 2026-10-27
+Last checked against code: 2026-10-29
 
 What the spec has not decided, and where the code on `main` contradicts a decided rule. Each item is closed by a decision from the user (then the rule goes into its topic file) or by a code fix (then the item is deleted). Until then, the rule in the topic file stands.
 
@@ -64,4 +64,5 @@ Each is a bug against the rule named, unless the user changes the rule.
 [B03]: ../.scratch/wso2-docs-bundles/issues/03-reusable-bundle-workflow-spec.md
 [B06]: ../.scratch/wso2-docs-bundles/issues/06-vm-hosting-spec.md
 [B17]: ../.scratch/wso2-docs-bundles/issues/17-identity-server-on-the-proof.md
+[B19]: ../.scratch/wso2-docs-bundles/issues/19-integrator-on-the-proof.md
 [B20]: ../.scratch/wso2-docs-bundles/issues/20-api-gateway-on-the-proof.md
