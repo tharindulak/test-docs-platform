@@ -1,0 +1,13 @@
+# The intake record of connectors: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: connectors
+repo: tharindulak/docs-integrator
+editions:
+  _:
+    - tag: connectors/cloud-2026.10.29.2
+      asset: connectors-cloud-2026.10.29.2.docs.zip
+      sha256: ea714144d3832ee5cd8952979a8f2ff8d64a2cba70058dd3d046c977c744880f
+      sourceCommit: ab167d28707410a0c9aea6c5597c36245375b770
+      acceptedAt: "2026-10-29T07:40:35.514Z"
