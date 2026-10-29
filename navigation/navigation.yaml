@@ -66,6 +66,7 @@ contentRepos:
   - repo: tharindulak/docs-updates
   - repo: tharindulak/docs-open-banking
   - repo: tharindulak/docs-choreo-dev
+  - repo: tharindulak/open-healthcare-docs
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards

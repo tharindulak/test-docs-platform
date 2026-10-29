@@ -10,8 +10,10 @@ owners:
 products:
   - label: Accelerator for Financial Services
     opens: { docSpace: financial-services }
+  - label: Accelerator for Healthcare
+    opens: { docSpace: healthcare }
 
-# Accelerator for Healthcare (unversioned) joins when its Doc space is converted.
 menu:
   - docSpace: financial-services
     version-in: menu
+  - docSpace: healthcare
