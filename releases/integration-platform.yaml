@@ -1,0 +1,13 @@
+# The intake record of integration-platform: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: integration-platform
+repo: tharindulak/docs-integrator
+editions:
+  cloud:
+    - tag: integration-platform/cloud-2026.10.29.1
+      asset: integration-platform-cloud-2026.10.29.1.docs.zip
+      sha256: 13270a64057cd508cea0151ad2bbd5e8857cae85874ecff2493b3d61341ebe16
+      sourceCommit: 30a2837d11453f6792128a70b786d0313f6c4a22
+      acceptedAt: "2026-10-29T06:05:35.809Z"
