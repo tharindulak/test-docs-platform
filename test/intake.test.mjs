@@ -528,6 +528,15 @@ test('wso2-release: plan --scope records from a push, record-check on an intake 
   assert.equal(r.status, 1);
   assert.match(r.stderr, /other\.txt: an intake pull request/);
   assert.match(run('help').stdout, /flip .*--backwards/);
+
+  // An intake run with nothing new still writes its report, its folder made
+  // (intake.yml reads it; a quiet run used to fail on the missing folder).
+  const empty = path.join(dir, 'empty.json');
+  fs.writeFileSync(empty, JSON.stringify({ docSpaces: {} }));
+  const reportFile = path.join(dir, 'intake', 'intake.json');
+  r = run('intake', '--policy', empty, '--records', path.join(dir, 'none'), '--report', reportFile, '--work', path.join(dir, 'work'));
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(reportFile, 'utf8')), { changes: [], issues: [], errors: [] });
 });
 
 test('rebuilds build each deployed tag from its recorded bundle; the Platform\'s own Doc space builds from the Platform', () => {

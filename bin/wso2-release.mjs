@@ -301,7 +301,10 @@ async function main(argv) {
         log: (m) => console.log(m),
       });
       const report = { changes: r.changes.map(({ file, ...c }) => ({ ...c, file: path.relative(process.cwd(), file) })), issues: r.issues, errors: r.errors };
-      if (o.report) fs.writeFileSync(o.report, `${JSON.stringify(report, null, 2)}\n`);
+      if (o.report) {
+        fs.mkdirSync(path.dirname(path.resolve(o.report)), { recursive: true });
+        fs.writeFileSync(o.report, `${JSON.stringify(report, null, 2)}\n`);
+      }
       for (const e of r.errors) console.log(process.env.GITHUB_ACTIONS ? `::warning title=Intake::${e}` : `warning: ${e}`);
       console.log(`Intake: ${r.changes.length} record${r.changes.length === 1 ? '' : 's'} changed, ${r.issues.length} new issue${r.issues.length === 1 ? '' : 's'}`);
       return 0;

@@ -28,9 +28,10 @@ export default {
   legacyBase: () => `${LEGACY}connectors/`,
   legacySites: { connectors: `${LEGACY}connectors/`, integrator: `${LEGACY}integrator/`, saas: `${LEGACY}saas/` },
   excluded: [],
-  // The Connector Catalog (the first top-level category's link page, where
-  // the legacy /connectors/catalog lands) is the Edition home.
-  home: 'first-link',
+  // The Overview page is the Edition home. The Connector Catalog (where the
+  // legacy /connectors/catalog lands) is reference/catalog/, its data file
+  // beside it: only index files may sit directly under docs/ (the sidebar
+  // skeleton), as in the Platform's boilerplate catalog.
 
   catalogs: {
     ConnectorCatalog: {
@@ -75,7 +76,7 @@ export default {
   // connector keeps its own folder below reference/catalog/.
   topLevel: {
     'Connector Catalog': { folder: 'reference/catalog' },
-    Overview: { page: 'concepts/overview' },
+    Overview: { page: 'index' },
     'Using Connectors': { page: 'guides/using-connectors' },
     'Build a Connector': { folder: 'guides/build-your-own' },
     'Publish Connector': { page: 'guides/publish-connector' },

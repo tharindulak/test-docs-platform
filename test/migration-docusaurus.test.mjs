@@ -583,10 +583,10 @@ test('layout: Connectors reads docs/connectors/, leaves the sidebar\'s spreads o
   assert.match(v.issues[0].message, /1 spreads in the sidebar/);
   const plan = planDocusaurus({ tree: v.tree, docs: v.docs, config: connectors });
   const p = (id) => plan.pages.get(id);
-  assert.equal(p('catalog/index').target, 'index', 'the Connector Catalog is the Edition home');
+  assert.equal(p('catalog/index').target, 'reference/catalog/index', 'the Connector Catalog, its data file beside it (only index files sit directly under docs/)');
   assert.equal(p('catalog/crm-sales/salesforce/overview').target, 'reference/catalog/salesforce/index');
   assert.equal(p('catalog/crm-sales/salesforce/setup-guide').target, 'reference/catalog/salesforce/setup-guide');
-  assert.equal(p('overview').target, 'concepts/overview');
+  assert.equal(p('overview').target, 'index', 'the Overview is the Edition home');
   assert.equal(p('reference/faq').target, 'reference/faq');
   assert.deepEqual([p('catalog/communication/twilio/4.0.x/actions').target, p('catalog/communication/twilio/4.0.x/actions').inSidebar], ['reference/catalog/twilio/4.0.x/actions', false]);
 });
@@ -652,30 +652,31 @@ test('sync: Integrator\'s Cloud part, Integration Platform Cloud, Connectors and
   assert.match(overview, /\[Integrator Cloud\]\(docs:integrator\/cloud\/\)/);
   assert.deepEqual(yaml.load(show('main', 'integration-platform/docspace.yaml')), integrationPlatform.docspace);
 
-  // Connectors: the catalog home over connectors.yaml, each connector's pages below reference/catalog/.
+  // Connectors: the Overview home; the catalog over connectors.yaml at reference/catalog/, each connector's pages below it.
   assert.deepEqual(files('main', 'connectors/docs/').filter((f) => !f.endsWith('_category_.yml')), [
-    'connectors/docs/concepts/overview.mdx', 'connectors/docs/connectors.yaml', 'connectors/docs/guides/using-connectors.mdx', 'connectors/docs/index.mdx',
+    'connectors/docs/guides/using-connectors.mdx', 'connectors/docs/index.mdx',
+    'connectors/docs/reference/catalog/connectors.yaml', 'connectors/docs/reference/catalog/index.mdx',
     'connectors/docs/reference/catalog/salesforce/actions.mdx', 'connectors/docs/reference/catalog/salesforce/index.mdx', 'connectors/docs/reference/catalog/salesforce/setup-guide.mdx',
     'connectors/docs/reference/catalog/twilio/4.0.x/actions.mdx', 'connectors/docs/reference/catalog/twilio/actions.mdx', 'connectors/docs/reference/catalog/twilio/index.mdx',
     'connectors/docs/reference/faq.mdx',
   ]);
-  const home = show('main', 'connectors/docs/index.mdx');
+  const home = show('main', 'connectors/docs/reference/catalog/index.mdx');
   assert.match(home, /^layout: catalog\ndata: \.\/connectors\.yaml$/m);
   assert.doesNotMatch(home, /ConnectorCatalog|@site/);
-  const data = yaml.load(show('main', 'connectors/docs/connectors.yaml'));
+  const data = yaml.load(show('main', 'connectors/docs/reference/catalog/connectors.yaml'));
   assert.deepEqual(validate('catalog', data), []);
   assert.deepEqual(data.items.map((i) => [i.id, i.href, i.category, i.tags]), [
-    ['salesforce', './reference/catalog/salesforce/index.mdx', 'crm-and-sales', ['Salesforce']],
-    ['twilio', './reference/catalog/twilio/index.mdx', 'communication', ['Twilio']],
+    ['salesforce', './salesforce/index.mdx', 'crm-and-sales', ['Salesforce']],
+    ['twilio', './twilio/index.mdx', 'communication', ['Twilio']],
   ], 'a connector whose page is gone is left out; logos on another host too');
   assert.match(show('main', 'connectors/docs/reference/catalog/salesforce/index.mdx'), /\[integration\]\(https:\/\/wso2\.com\/integration-platform\/docs\/integrator\/develop-and-test\/build-integrations\)/, 'links into Integrator go to the legacy site');
   assert.match(show('main', 'connectors/docs/reference/catalog/twilio/4.0.x/actions.mdx'), /^unlisted: true$/m);
   const using = show('main', 'connectors/docs/guides/using-connectors.mdx');
-  assert.match(using, /\[what a connector is\]\(\.\.\/concepts\/overview\.mdx#what-a-connector-is\)/, 'an anchor the page has stays');
-  assert.match(using, /\[its modules\]\(\.\.\/concepts\/overview\.mdx\)/, 'an anchor the page lacks goes; the link to the page stays');
+  assert.match(using, /\[what a connector is\]\(\.\.\/index\.mdx#what-a-connector-is\)/, 'an anchor the page has stays');
+  assert.match(using, /\[its modules\]\(\.\.\/index\.mdx\)/, 'an anchor the page lacks goes; the link to the page stays');
   assert.match(show('main', 'connectors/.migration/report.md'), /link to \.\/overview\.md#modules: the page has no heading #modules; the link goes to the page/);
   const connMap = new Map(yaml.load(show('main', 'connectors/redirects.yaml')).legacy.map((l) => [l.from, l.to]));
-  assert.equal(connMap.get('https://wso2.com/integration-platform/docs/connectors/catalog'), '');
+  assert.equal(connMap.get('https://wso2.com/integration-platform/docs/connectors/catalog'), 'reference/catalog', 'the legacy catalog lands on the catalog');
   assert.equal(connMap.get('https://wso2.com/integration-platform/docs/connectors/catalog/crm-sales/salesforce/setup-guide'), 'reference/catalog/salesforce/setup-guide');
   const connReport = JSON.parse(show('main', 'connectors/.migration/report.json')).summary;
   assert.equal(connReport.compileFailures, 0);
