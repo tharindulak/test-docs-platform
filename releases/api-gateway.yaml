@@ -1,0 +1,25 @@
+# The intake record of api-gateway: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: api-gateway
+repo: tharindulak/docs-api-platform
+editions:
+  1.2.0:
+    - tag: api-gateway/1.2.0-docs.1
+      asset: api-gateway-1.2.0-docs.1.docs.zip
+      sha256: 6073150ed74c187da9490bca4830f1712f9fd9d9cd89c2ec750407af6813942d
+      sourceCommit: d03517a331373834bc381e53407dc7a023529984
+      acceptedAt: "2026-10-29T01:14:54.679Z"
+  1.1.0:
+    - tag: api-gateway/1.1.0-docs.1
+      asset: api-gateway-1.1.0-docs.1.docs.zip
+      sha256: 58d6d53a88b800c352beb9aee731e0ffd19c6e42ffc28da71747c6b59a1f0467
+      sourceCommit: b9469120b2b54734fc9eef3e43008829c4e6de39
+      acceptedAt: "2026-10-29T01:14:54.679Z"
+  1.0.0:
+    - tag: api-gateway/1.0.0-docs.1
+      asset: api-gateway-1.0.0-docs.1.docs.zip
+      sha256: 9c5f14fb753bbc35970c997cc1c249223507ec2cd1bc8281ee95507016dac1f4
+      sourceCommit: 6a49b337ad820c964c8f537836da08632cadb15f
+      acceptedAt: "2026-10-29T01:14:54.679Z"
