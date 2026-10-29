@@ -1,0 +1,13 @@
+# The intake record of platform-security: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: platform-security
+repo: tharindulak/docs-security
+editions:
+  _:
+    - tag: cloud-2026.10.29.1
+      asset: platform-security-cloud-2026.10.29.1.docs.zip
+      sha256: 589fa34e48354998130550ec4504fa2a689d1c413055fc06ae4b484f8eabc8b4
+      sourceCommit: da7e59b5e7e67a780720166600f47b5a9fa6dd8e
+      acceptedAt: "2026-10-29T01:38:57.197Z"
