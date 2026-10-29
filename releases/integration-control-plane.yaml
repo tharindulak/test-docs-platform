@@ -1,0 +1,13 @@
+# The intake record of integration-control-plane: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: integration-control-plane
+repo: tharindulak/docs-integrator
+editions:
+  2.1.0:
+    - tag: integration-control-plane/2.1.0-docs.1
+      asset: integration-control-plane-2.1.0-docs.1.docs.zip
+      sha256: eeccccef51a2b6c9b50a823363ddd4b5b0a9097fb4aa6cc238a10c54f22d5462
+      sourceCommit: 80c3c0e2c3a021ee98df7a0f46bf0f0bbcf26fd7
+      acceptedAt: "2026-10-29T06:27:39.125Z"
