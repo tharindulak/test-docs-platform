@@ -17,3 +17,9 @@ editions:
       sha256: 599e2cb44c54b6f5bb3e2bdf9233f685eeb27a8dac81623a833463c832d74daf
       sourceCommit: e89ee19d8462f8e86b0bea6dc2ab134fdea85196
       acceptedAt: "2026-10-29T09:19:13.805Z"
+  7.1.0:
+    - tag: identity-server/7.1.0-docs.1
+      asset: identity-server-7.1.0-docs.1.docs.zip
+      sha256: 30fab3beb5d3f66353dcdf8d356d7a3f2a9035f1444151f44ab808ab0ed306cf
+      sourceCommit: 15d29ebccb3c7686d7aa9c602615f06dde6cd3b9
+      acceptedAt: "2026-10-29T12:25:02.670Z"
