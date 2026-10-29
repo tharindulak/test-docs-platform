@@ -50,6 +50,7 @@ sections:
   - { id: api-platform, in: api-platform }
   - { id: identity-platform, in: identity-platform }
   - { id: integration-platform, in: integration-platform }
+  - { id: other, in: other }
 
 # Where the Doc space manifests are: each repo's main line, at
 # <path>/<slug>/docspace.yaml.
@@ -57,6 +58,7 @@ contentRepos:
   - repo: tharindulak/docs-api-platform
   - repo: tharindulak/docs-is
   - repo: tharindulak/docs-integrator
+  - repo: tharindulak/docs-security
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards
@@ -158,8 +160,3 @@ notYetOnWso2Docs:
     in: other
     model: unversioned
     legacyUrl: https://updates.docs.wso2.com/en/latest/
-  platform-security:
-    displayName: Platform Security
-    in: other
-    model: unversioned
-    legacyUrl: https://security.docs.wso2.com/en/latest/

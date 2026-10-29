@@ -1,0 +1,15 @@
+# Docs section manifest: Other (the products menu's Other group, as
+# wso2.com/documentation groups it). Schema: schemas/section.schema.json.
+# Like Solutions, Other has no family Cloud: its menu is its products.
+schemaVersion: 1
+id: other
+title: Other Documentation
+owners:
+  team: docs-platform
+
+products:
+  - label: Platform Security
+    opens: { docSpace: platform-security }
+
+menu:
+  - docSpace: platform-security
