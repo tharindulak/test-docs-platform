@@ -17,3 +17,9 @@ editions:
       sha256: 032354b32b5bb7877ee73940e94266b0e5e07abca12accfa11d71ab9f0b8aa22
       sourceCommit: 83deae861404f30168215a2e9f3a2b0568e226cd
       acceptedAt: "2026-10-28T10:30:23.177Z"
+  4.5.0:
+    - tag: api-manager/4.5.0-docs.1
+      asset: api-manager-4.5.0-docs.1.docs.zip
+      sha256: 0566246c2665c0211bf3b97f7fa65c5d437bab4fb01a3d4d3fdc88ff3a39fdc0
+      sourceCommit: 57d38c3b033c0b4f8fcd62e405bac0a4c0c40511
+      acceptedAt: "2026-10-29T10:40:27.633Z"
