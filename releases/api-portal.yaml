@@ -1,0 +1,13 @@
+# The intake record of api-portal: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: api-portal
+repo: tharindulak/docs-api-platform
+editions:
+  1.0.0:
+    - tag: api-portal/1.0.0-docs.1
+      asset: api-portal-1.0.0-docs.1.docs.zip
+      sha256: 3e44cc53adf8096e8c8763b8d43e951c84023c4bf26625f046e38b84d86fae5f
+      sourceCommit: 7b38f3a9947ef61e9a78ae12257441ee729814e0
+      acceptedAt: "2026-10-29T03:20:07.208Z"
