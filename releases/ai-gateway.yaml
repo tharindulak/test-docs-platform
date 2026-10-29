@@ -22,3 +22,9 @@ editions:
       sha256: c0c27b653f86ab46db19506713ad6028926feaa0b6a5e614819f8b3033cf17a3
       sourceCommit: 57a661c7472bc1ba1050a66ea8a926c75dafe874
       acceptedAt: "2026-10-28T05:25:29.679Z"
+  1.1.0:
+    - tag: ai-gateway/1.1.0-docs.1
+      asset: ai-gateway-1.1.0-docs.1.docs.zip
+      sha256: a7d688f88a85801986cea8f953edb35f6f909f518d98510ad619a71c4fe1a762
+      sourceCommit: 16ba2ef6db00961ed7d12272d867b5431f1a8bf4
+      acceptedAt: "2026-10-29T10:40:27.633Z"
