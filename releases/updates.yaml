@@ -1,0 +1,13 @@
+# The intake record of updates: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: updates
+repo: tharindulak/docs-updates
+editions:
+  _:
+    - tag: cloud-2026.10.29.1
+      asset: updates-cloud-2026.10.29.1.docs.zip
+      sha256: ee466a3d7d8470369418dfe0b473998959581f05b3226c3fe89b7e02f22014c8
+      sourceCommit: 0508d42fc6925dbcc86f80b5a55ddd8c8aad36fe
+      acceptedAt: "2026-10-29T02:12:55.931Z"
