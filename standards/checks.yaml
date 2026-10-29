@@ -69,7 +69,7 @@ checks:
     title: Folder skeleton
     blocking: true
     release: true
-    what: "Top-level `docs/` folders follow the sidebar skeleton: get-started, guides, concepts, reference, deploy-and-operate, release-notes."
+    what: "Top-level `docs/` folders follow the sidebar skeleton: get-started, guides, concepts, reference, deploy-and-operate, release-notes. In a Doc space with `audienceGroups`, only the groups sit at the top, and the skeleton folders sit inside each group."
     fix: Move the folder under one of the skeleton folders; add sections below the top level only.
   - id: image-size
     title: Image size

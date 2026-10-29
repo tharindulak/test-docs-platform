@@ -35,6 +35,7 @@ import { editionForBranch } from '../../lib/content-repo.mjs';
 import { groupByTag, collectOperations, schemaAnchor } from '../../lib/openapi.mjs';
 import { editionFromId } from '../../lib/edition.mjs';
 import { productCards } from './overview.mjs';
+import { combineSites, siteResolver } from './sites.mjs';
 
 const posix = path.posix;
 
@@ -157,7 +158,24 @@ const frontMatter = (tree, src) => {
   return tree.frontOf.get(src);
 };
 
-export async function convertProduct({ config, sourceRoot, outDir, edition, legacyVersion, sourceRef, compile = true, useOverrides = true, log = () => {} }) {
+// A product of several MkDocs sites (config.sites, one audience group each)
+// is read as one combined tree (sites.mjs).
+export async function convertProduct(args) {
+  if (!args.config.sites) return convertTrees(args);
+  const combined = combineSites(args.config, args.sourceRoot);
+  try {
+    return await convertTrees({ ...args, sourceRoot: combined.root });
+  } finally {
+    combined.cleanup();
+  }
+}
+
+async function convertTrees({ config, sourceRoot, outDir, edition, legacyVersion, sourceRef, compile = true, useOverrides = true, log = () => {} }) {
+  const sites = config.sites ? siteResolver(config) : null;
+  // A legacy page's URL path under the legacy base.
+  const legacyUrlOf = (src) => (sites ? sites.legacyUrlOf(src) : mkdocsUrl(src));
+  // Further legacy bases the pages link to (an older address of the same site).
+  const linkBases = config.legacyLinkBases ?? [];
   const report = new Report();
   const overrides = new SourceOverrides(useOverrides ? loadOverrides(config.overrides) : { patches: [], accepted: [] }, { sourceRoot, edition });
   const multi = Boolean(config.trees);
@@ -187,8 +205,9 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
   const isApiSrc = (tree, src) => /redoc/.test(String(frontMatter(tree, src).data?.template ?? ''));
   const layouts = new Map();
   for (const [id, tree] of trees) {
-    const l = planLayout({ nav: tree.nav, files: tree.pageFiles, config, isApiPage: (s) => isApiSrc(tree, s), ...(config.apiSlug ? { apiSlug: config.apiSlug } : {}), unlistedTargets: tree.view?.unlistedTargets });
+    const l = planLayout({ nav: tree.nav, files: tree.pageFiles, config, isApiPage: (s) => isApiSrc(tree, s), ...(config.apiSlug ? { apiSlug: config.apiSlug } : {}), unlistedTargets: tree.view?.unlistedTargets ?? config.unlistedTargets });
     for (const issue of l.issues) report.add(issue.kind, issue.src ? (multi ? `${id}:${issue.src}` : issue.src) : null, issue.message);
+    if (sites) for (const lp of l.pages.values()) lp.oldUrl = sites.legacyUrlOf(lp.src);
     layouts.set(id, l);
   }
   // A merged page: one Content repo page, with its source page in each tree.
@@ -262,6 +281,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     p = posix.normalize(p || '.');
     if (p === '.') p = '';
     if (p.startsWith('../')) return null;
+    if (sites) p = sites.srcPath(p);
     const candidates = p.endsWith('.md') ? [p] : [`${p}.md`, p ? `${p}/index.md` : 'index.md'];
     for (const c of candidates) if (pageOf.has(`${tree.id}\0${c}`)) return { page: pageOf.get(`${tree.id}\0${c}`), viaRedirect: depth > 0 };
     for (const c of candidates) if (tree.files.includes(c) && (config.fragments ?? []).some((f) => c.startsWith(f))) return { fragment: c };
@@ -270,7 +290,10 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     if (depth < 6) {
       for (const k of [key, `${key}/index`]) {
         if (tree.redirectMap.has(k)) {
-          const to = tree.redirectMap.get(k).replace('{{SITE_URL}}', '').replace(/^\/+/, '');
+          let to = tree.redirectMap.get(k).replace('{{SITE_URL}}', '');
+          // A combined site's redirects name their targets by full legacy URL.
+          if (sites) for (const b of [...(tree.legacyBases ?? []), ...linkBases]) if (to.toLowerCase().startsWith(b.toLowerCase())) to = to.slice(b.length);
+          to = to.replace(/^\/+/, '');
           const hit = findSource(tree, to, depth + 1);
           if (hit) return { ...hit, viaRedirect: true };
         }
@@ -325,7 +348,8 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     if (!a) {
       const srcFile = path.join(tree.docsDir, assetPath);
       const hash = hashOf(srcFile);
-      const base = assetPath.startsWith('assets/') ? assetPath : `assets/${assetPath}`;
+      const rel = sites ? sites.assetPath(assetPath) : assetPath;
+      const base = rel.startsWith('assets/') ? rel : `assets/${rel}`;
       a = byBaseHash.get(`${base}\0${hash}`);
       if (!a) {
         a = { id: assets.length, base, hash, src: srcFile, kinds: new Set(), path: null };
@@ -379,7 +403,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     if (href.includes('{{base_path}}')) return { site: href.slice(href.indexOf('{{base_path}}') + '{{base_path}}'.length) };
     const abs = /^https?:\/\/([^/]+)(\/[^?#]*)?([?#].*)?$/i.exec(href);
     if (abs) {
-      const base = (tree.legacyBases ?? []).find((b) => href.toLowerCase().startsWith(b.toLowerCase()) || `${href}/`.toLowerCase() === b.toLowerCase());
+      const base = [...(tree.legacyBases ?? []), ...linkBases].find((b) => href.toLowerCase().startsWith(b.toLowerCase()) || `${href}/`.toLowerCase() === b.toLowerCase());
       if (base) {
         stats.legacyHostLinks++;
         return { site: `/${href.slice(base.length)}` };
@@ -394,6 +418,10 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//')) return { external: true };
     if (href.startsWith('/')) {
       if (tree.basePath && (href === tree.basePath || href.startsWith(`${tree.basePath}/`))) return { site: href.slice(tree.basePath.length) || '/' };
+      for (const b of linkBases) {
+        const bp = new URL(b).pathname.replace(/\/$/, '');
+        if (href === bp || href.startsWith(`${bp}/`)) return { site: href.slice(bp.length) || '/' };
+      }
       return { site: href };
     }
     // Relative: Markdown files resolve from the file's folder, URLs from the page URL.
@@ -426,7 +454,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     const ctx = {
       config, stats, knownLanguages: KNOWN_LANGUAGES, contextIds: cur.ctxIds, regions: cur.regions,
       get legacyBase() { return treeOf((ctx.activeSet?.() ?? cur.ctxIds)[0] ?? cur.ctxIds[0]).legacyBases[0]; },
-      tokenText: multi ? tokenText : null,
+      tokenText,
       report: (kind, message) => say(kind, message),
       language: (l) => config.languages[l.toLowerCase()] ?? l.toLowerCase(),
       admonitionType: (raw) => {
@@ -521,9 +549,11 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
           const sp = sitePathFor(tokenText(src.trim(), c), tree, lp?.src ?? cur.label, lp?.oldUrl ?? cur.oldUrl ?? '');
           if (sp.external) { external = src; continue; }
           let p = decodeURIComponent(sp.site.split(/[?#]/)[0]).replace(/^\/+/, '').replace(/["']+$/, '');
+          if (sites) p = sites.srcPath(p);
           const isFile = (q) => q && fs.existsSync(path.join(tree.docsDir, q)) && fs.statSync(path.join(tree.docsDir, q)).isFile();
           if (!isFile(p) && /^\.\.\//.test(src)) {
-            const q = decodeURIComponent(src.replace(/^(\.\.\/)+/, '').split(/[?#]/)[0]);
+            let q = decodeURIComponent(src.replace(/^(\.\.\/)+/, '').split(/[?#]/)[0]);
+            if (sites) q = sites.srcPath(q, lp?.src ?? cur.label);
             if (isFile(q)) { p = q; stats.relativeFallback++; }
           }
           if (!isFile(p) && tree.view && lp && !/^[/a-z]+:|^\//i.test(src)) {
@@ -622,6 +652,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
   const varPattern = new RegExp(`${reEsc(delims.start)}\\s*([A-Za-z_][\\w.]*)\\s*${reEsc(delims.end)}`, 'g');
   const jinjaTag = /\{%-?\s*(if|elif|else|endif|for|endfor|set|include|macro|endmacro|block|endblock|extends|import)\b/;
   const extraKeys = new Set(Object.keys(homeTree.mk.config.extra ?? {}));
+  const includeMarkdown = (homeTree.mk.config.plugins ?? []).some((p) => p === 'include-markdown' || (p && typeof p === 'object' && 'include-markdown' in p));
   // md_in_html: a <div markdown="1"> line only wraps Markdown (a styling
   // hook, such as cards); the wrapper and its closing </div> go, and the
   // Markdown inside converts like any other. Other <div>s nest as HTML.
@@ -786,7 +817,23 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
   // against the page rendered for that Edition alone; if the markers don't
   // hold, rendered again with block-level variants only.
   const convertPageBody = (page, cur) => {
-    if (!config.jinja) return convertBody(preprocess(frontMatter(homeTree, page.src).content, cur), cur);
+    if (!config.jinja) {
+      let text = frontMatter(homeTree, page.src).content;
+      // mkdocs-include-markdown-plugin: {% include "x.md" %} is the file,
+      // relative to the including page, inlined where it stands.
+      if (includeMarkdown) {
+        const file = path.join(homeTree.docsDir, page.src);
+        text = expandIncludes(text, file, path.dirname(file), {
+          read: homeTree.read,
+          onInclude: () => { stats.includesExpanded++; },
+          onFrontMatter: (f) => {
+            stats.includeFrontMatter++;
+            cur.reports.push(['include-front-matter', `${path.relative(sourceRoot, f)} starts with front matter, which the legacy site printed as text; dropped`]);
+          },
+        });
+      }
+      return convertBody(preprocess(text, cur), cur);
+    }
     let attempt;
     for (const flatOnly of [false, true]) {
       cur.regions = new Regions(contexts, page.ctxIds);
@@ -961,6 +1008,16 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       title = homeTree.mk.config.site_name?.replace(/ Documentation$/, '') ?? title;
       titleVaries = false;
     }
+    // A combined site's own home (template-drawn) is its audience group's
+    // home: the site's cards from the config, under the group's label.
+    const siteHome = config.sites?.find((s) => s.homeCards && page.target === `${s.folder}/index`);
+    if (siteHome) {
+      bodyText = `${siteHome.homeIntro ? `${siteHome.homeIntro}\n\n` : ''}${homePageBody(homeTree.mk, pageOf, homeTreeId, file, siteHome.homeCards)}`;
+      front.layout = 'overview';
+      stats.overviewPages = (stats.overviewPages ?? 0) + 1;
+      title = siteHome.label;
+      titleVaries = false;
+    }
     if (page.target === 'index' && config.parts?.length) {
       // A family-level Doc space's overview lists its Cloud parts; links into
       // a part are docs:<part>/cloud/ links (URLs, `latest` and canonicals).
@@ -972,7 +1029,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       // variable (filled per build) and the H1 stays in the body.
       stats.titlesVarying++;
       front.title = title;
-    } else front.title = multi ? tokenText(title, page.ctxIds[0]) : title;
+    } else front.title = tokenText(title, page.ctxIds[0]);
     // Edition variables read as this branch's own Edition (or the page's first).
     const descCtx = page.ctxIds.find((c) => ctxById.get(c).tree === homeTreeId) ?? page.ctxIds[0];
     // (The front-matter standard's limit is 160 characters; a longer one is generated.)
@@ -982,7 +1039,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       front[KEPT_DESCRIPTION] = true;
       stats.keptDescriptions = (stats.keptDescriptions ?? 0) + 1;
     } else {
-      front.description = generatedDescription(multi ? bodyText.replace(/\{edition\.(\w+)\}/g, (m, n) => editionValue(descCtx, n) ?? m) : bodyText, title);
+      front.description = generatedDescription(bodyText.replace(/\{edition\.(\w+)\}/g, (m, n) => editionValue(descCtx, n) ?? m), title);
       stats.generatedDescriptions++;
     }
     // The page type: an explicit override, else the legacy page's own
@@ -1305,10 +1362,11 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
   const legacy = [];
   // A view's main line (a Cloud part) also maps its legacy URLs: the Cloud
   // sub-section's and the hidden next/ folder's.
-  const homeEdition = multi ? homeTreeId : legacyVersion ?? (homeTree.view ? edition : null);
+  const homeEdition = multi ? homeTreeId : legacyVersion ?? (homeTree.view || sites ? edition : null);
   if (homeEdition) {
     const bases = homeTree.legacyBases;
-    const homePages = [...pages.values()].filter((p) => p.written && p.srcs.has(homeTreeId));
+    // (A combined sites' home had no legacy page: oldUrl null.)
+    const homePages = [...pages.values()].filter((p) => p.written && p.srcs.has(homeTreeId) && p.srcs.get(homeTreeId).oldUrl != null);
     for (const page of homePages.sort((a, b) => a.srcs.get(homeTreeId).oldUrl.localeCompare(b.srcs.get(homeTreeId).oldUrl))) {
       for (const base of bases) legacy.push({ from: `${base}${page.srcs.get(homeTreeId).oldUrl}`, to: page.url.replace(/\/$/, '') });
     }
@@ -1320,10 +1378,10 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
       if (pageOf.has(`${homeTreeId}\0${fromSrc}`)) continue; // a real page now lives at the old path
       let t = r.to.replace('{{SITE_URL}}', '');
       if (thisVersion) t = t.replace(thisVersion, '/');
-      for (const base of bases) if (t.startsWith(base)) t = `/${t.slice(base.length)}`;
+      for (const base of [...bases, ...linkBases]) if (t.startsWith(base)) t = `/${t.slice(base.length)}`;
       if (/^https?:\/\//i.test(t)) {
         // The legacy site sent these off-site (e.g. to the Developer Platform docs).
-        for (const base of bases) legacy.push({ from: `${base}${mkdocsUrl(fromSrc)}`, to: t });
+        for (const base of bases) legacy.push({ from: `${base}${legacyUrlOf(fromSrc)}`, to: t });
         external++;
         continue;
       }
@@ -1340,7 +1398,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
           stats.legacyRedirectsElsewhere = (stats.legacyRedirectsElsewhere ?? 0) + 1;
           continue;
         }
-        for (const base of bases) legacy.push({ from: `${base}${mkdocsUrl(fromSrc)}`, to: out.href });
+        for (const base of bases) legacy.push({ from: `${base}${legacyUrlOf(fromSrc)}`, to: out.href });
         external++;
         continue;
       } else {
@@ -1355,7 +1413,7 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
         unresolved++;
         report.add('redirect', null, `legacy redirect ${r.from} → ${r.to} has no target page in ${homeEdition}; sent to ${to ? `/${to}/` : 'the Edition home'}`);
       }
-      for (const base of bases) legacy.push({ from: `${base}${mkdocsUrl(fromSrc)}`, to });
+      for (const base of bases) legacy.push({ from: `${base}${legacyUrlOf(fromSrc)}`, to });
     }
     stats.legacyRedirectsExternal = external;
     stats.legacyRedirectsUnresolved = unresolved;
@@ -1363,12 +1421,12 @@ export async function convertProduct({ config, sourceRoot, outDir, edition, lega
     // those URLs to the first page that includes them.
     for (const [src, p] of partials) {
       const page = pageOf.get(`${homeTreeId}\0${p.firstIncluder}`);
-      if (page) for (const base of bases) legacy.push({ from: `${base}${mkdocsUrl(src)}`, to: page.url.replace(/\/$/, '') });
+      if (page) for (const base of bases) legacy.push({ from: `${base}${legacyUrlOf(src)}`, to: page.url.replace(/\/$/, '') });
     }
-    for (const src of config.redirectToHome ?? []) for (const base of bases) legacy.push({ from: `${base}${mkdocsUrl(src)}`, to: '' });
+    for (const src of config.redirectToHome ?? []) for (const base of bases) legacy.push({ from: `${base}${legacyUrlOf(src)}`, to: '' });
     for (const src of homeTree.files) {
       if ((config.fragments ?? []).some((f) => src.startsWith(f)) && !partials.has(src)) {
-        for (const base of bases) legacy.push({ from: `${base}${mkdocsUrl(src)}`, to: '' });
+        for (const base of bases) legacy.push({ from: `${base}${legacyUrlOf(src)}`, to: '' });
         report.add('redirect', src, 'include that no page uses; its legacy URL goes to the Edition home');
       }
     }
@@ -1503,7 +1561,8 @@ function homePageBody(mk, pageOf, treeId, file, homeCards = null) {
     for (const section of block.section ?? []) {
       out.push(`## ${section.title}`, '');
       for (const item of section.list_items ?? []) {
-        const src = labelToSrc.get(String(item.url).toLowerCase());
+        // url: the nav path of the page (labels joined by |), or its source file.
+        const src = labelToSrc.get(String(item.url).toLowerCase()) ?? (pageOf.has(`${treeId}\0${item.url}`) ? String(item.url) : null);
         const page = src && pageOf.get(`${treeId}\0${src.trim().replace(/^\.?\//, '')}`);
         if (page) out.push(`- [${item.title}](${relLink(file, `docs/${page.target}.mdx`)})`);
         else if (/^https?:\/\//.test(String(item.url))) out.push(`- [${item.title}](${item.url})`);

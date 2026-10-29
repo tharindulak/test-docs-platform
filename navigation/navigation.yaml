@@ -48,6 +48,7 @@ environments: [staging, production]
 # (owned through CODEOWNERS), and the family or group it belongs to.
 sections:
   - { id: agent-platform, in: agent-platform }
+  - { id: engineering-platform, in: engineering-platform }
   - { id: api-platform, in: api-platform }
   - { id: identity-platform, in: identity-platform }
   - { id: integration-platform, in: integration-platform }
@@ -64,6 +65,7 @@ contentRepos:
   - repo: tharindulak/docs-agent-platform
   - repo: tharindulak/docs-updates
   - repo: tharindulak/docs-open-banking
+  - repo: tharindulak/docs-choreo-dev
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards
@@ -119,12 +121,6 @@ notYetOnWso2Docs:
     in: integration-platform
     model: links-out
     legacyUrl: https://ballerina.io/learn/
-  engineering-platform:
-    displayName: Engineering Platform Cloud
-    in: engineering-platform
-    model: cloud-only
-    formerNames: [Choreo]
-    legacyUrl: https://wso2.com/engineering-platform/developer-platform/docs/
   openchoreo:
     displayName: OpenChoreo
     in: engineering-platform

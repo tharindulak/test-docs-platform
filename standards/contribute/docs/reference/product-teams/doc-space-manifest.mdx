@@ -29,6 +29,7 @@ This page lists every field of `<doc space>/docspace.yaml`. The schema is `schem
 | `notices` | list of notices | none | Banners shown at runtime. See [Notices](#notices). |
 | `owners.team` | string | required | The owning team, alerted when compose fails because of this file |
 | `repo` | `owner/name` | required | The Content repository this Doc space lives in |
+| `audienceGroups` | list of slugs | none | Audience groups, at least two: the only top-level folders of `docs/`, each holding the skeleton folders. Labels and order come from each folder's `_category_.yml`. |
 | `editLinks` | boolean | `true` | `false` hides "Edit this page" |
 | `issues.repo` | `owner/name` | none | Where "Report an issue" opens |
 | `issues.template` | string | none | The issue template to open |

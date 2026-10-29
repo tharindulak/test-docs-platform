@@ -17,7 +17,7 @@ Teams never ship React code, Docusaurus plugins or CSS in a Content repository. 
 | Cards that link to products or sections | `layout: overview` in the page's front matter | Identity Platform Cloud's home page |
 | A searchable grid of items | `layout: catalog`, with a `data:` file next to the page | Identity Server's connectors page and `connectors.yaml` |
 | An API reference | `layout: api-reference`, with `spec:` | API Manager's REST APIs |
-| Audience groups | Top-level folders in `docs/` | "For developers" and "For platform engineers" |
+| Audience groups | `audienceGroups` in the Doc space manifest: top-level folders in `docs/`, each holding the skeleton folders | "For developers" and "For platform engineers" |
 | A banner for some Editions | `notices` in the Doc space manifest | A retirement notice |
 | A link out of WSO2 Docs in the menu | A link entry in the Docs section manifest | Ballerina's own site, shown with ↗ |
 | An older version still on its old site | `legacyVersions` in the Doc space manifest | Identity Server 7.1.0 |

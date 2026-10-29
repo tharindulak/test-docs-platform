@@ -112,7 +112,8 @@ export function listMarkdown(docsDir) {
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
-      if (e.isDirectory()) walk(p);
+      // A linked folder is walked too (combined sites link each site's docs/).
+      if (e.isDirectory() || (e.isSymbolicLink() && fs.statSync(p).isDirectory())) walk(p);
       else if (e.name.endsWith('.md')) out.push(path.relative(docsDir, p).split(path.sep).join('/'));
     }
   };

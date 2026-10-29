@@ -210,6 +210,12 @@ node migration/sync.mjs financial-services --source <docs-open-banking checkout,
 node migration/sync.mjs financial-services --source <docs-open-banking checkout, 3.0.0> --repo <docs-open-banking> --branch release/3.0.0
 ```
 
+**Several MkDocs sites of one product** (`sites` in the product config, `lib/sites.mjs`; first Engineering Platform Cloud from `wso2/docs-choreo-dev`'s `PE`, `products/engineering-platform.mjs`) become one Doc space with an audience group per site: each site's pages under its group folder, with the skeleton inside, and each site's legacy URLs under its own place (`legacyPath`) below the legacy base. The sites are not Edition contexts: pages with the same path stay one per group. Paths in the override list are under the combined root (`docs/<group>/…`).
+
+```bash
+node migration/sync.mjs engineering-platform --source <docs-choreo-dev checkout, PE> --repo <docs-choreo-dev> --branch main
+```
+
 The converter is re-runnable: it regenerates the Doc space directory (and, on `main`, the root files), so fixes go into its rules or the product config, never into its output. Anything it cannot convert is listed in `.migration/report.md`, never dropped silently.
 
 **Override-patch list.** Fixes to the legacy source live in `migration/products/<product>.overrides.yaml` (`lib/overrides.mjs`) and are applied on every run:

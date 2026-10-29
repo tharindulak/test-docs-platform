@@ -43,7 +43,7 @@ How readers find a product: the products menu, Docs sections, Doc spaces, family
 - **A Cloud part is declared on both sides**: the platform's Cloud Edition lists it in `parts`, and the part sets `cloud: { in: <platform> }`. A part belongs to one platform, has no Cloud of its own, and lives in the platform's own Content repo, so the whole Cloud tree builds from one commit. Compose blocks any break in these. [N02] [N14] [N17]
 - **A Cloud part's content is the component's main line.** [N07]
 - **Inside a Cloud part, the header acts for the component**: the products button and version selector are the component's. [N04]
-- **A family Cloud's skeleton** is Overview (an overview layout, one card per product) · Get started · one group per Cloud part · Guides · Concepts · Reference · Release notes. A product's skeleton is Get started · Guides · Concepts · Reference · Deploy & operate · Release notes. [N12]
+- **A family Cloud's skeleton** is Overview (an overview layout, one card per product) · Get started · one group per Cloud part · Guides · Concepts · Reference · Release notes. A product's skeleton is Get started · Guides · Concepts · Reference · Deploy & operate · Release notes. A Doc space with audience groups keeps its home at the top and applies the skeleton inside each group (see [extension-points.md](extension-points.md#audience-groups)). [N11] [N12]
 
 ## Unlisted Doc spaces
 
@@ -66,6 +66,7 @@ Product teams still have to answer the questions in [open-items.md](open-items.m
 [N05]: ../.scratch/wso2-docs-navigation/issues/05-urls-and-latest.md
 [N06]: ../.scratch/wso2-docs-navigation/issues/06-product-mapping.md
 [N07]: ../.scratch/wso2-docs-navigation/issues/07-repo-structure.md
+[N11]: ../.scratch/wso2-docs-navigation/issues/11-extension-points.md
 [N12]: ../.scratch/wso2-docs-navigation/issues/12-platform-walkthroughs.md
 [N14]: ../.scratch/wso2-docs-navigation/issues/14-manifests-and-compose.md
 [N17]: ../.scratch/wso2-docs-navigation/issues/17-release-pipeline.md

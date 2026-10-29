@@ -1,6 +1,9 @@
 # The common sidebar skeleton (WSO2 Docs information architecture, item 10).
 # Top-level docs/ folders must be one of these; products add sections below
 # the top level but don't rename these. Each folder sets the default page type.
+# A Doc space that declares audience groups (audienceGroups in docspace.yaml)
+# has only those groups at the top of docs/, and these folders one level down,
+# inside each group.
 folders:
   - id: get-started
     label: Get started

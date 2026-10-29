@@ -63,6 +63,13 @@
       }
     },
     "repo": { "$ref": "#/$defs/repo", "description": "The Content repo this Doc space lives in." },
+    "audienceGroups": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "allOf": [{ "$ref": "#/$defs/slug" }, { "not": { "enum": ["get-started", "guides", "concepts", "reference", "deploy-and-operate", "release-notes"] } }] },
+      "description": "Audience groups, such as developers and platform-engineers: the only top-level folders of docs/, each holding the skeleton folders. Labels and order come from each folder's _category_.yml. There is no role switch."
+    },
     "editLinks": { "type": "boolean", "description": "false hides \"Edit this page\"." },
     "issues": {
       "type": "object",

@@ -1,6 +1,6 @@
 # Extension points
 
-Last checked against code: 2026-10-26
+Last checked against code: 2026-10-29
 
 What a product team may add beyond plain pages, and through which sanctioned hook.
 
@@ -15,7 +15,7 @@ What a product team may add beyond plain pages, and through which sanctioned hoo
 | Cards linking to products or sections | `layout: overview` |
 | A searchable grid | `layout: catalog`, with a `data:` file next to the page |
 | An API reference | `layout: api-reference`, with `spec:` |
-| Audience groups | Top-level folders in `docs/` (no role switch) |
+| Audience groups | `audienceGroups` in the Doc space manifest: top-level folders in `docs/`, each holding the skeleton (no role switch) |
 | A banner for some Editions | `notices` in the Doc space manifest |
 | A link out of WSO2 Docs | A link entry in the Docs section manifest |
 | An older version on its old site | `legacyVersions` in the Doc space manifest |
@@ -23,6 +23,11 @@ What a product team may add beyond plain pages, and through which sanctioned hoo
 | Anything else | An extension proposal |
 
 [N11] [N19]
+
+## Audience groups
+
+- **A Doc space whose readers split into audiences declares them as `audienceGroups`** in its manifest, such as Engineering Platform Cloud's `developers` and `platform-engineers`. Each group is a top-level folder of `docs/`, labelled and ordered by its `_category_.yml` ("For developers", "For platform engineers"); the home page stays at `docs/index`. There is no role switch: both groups are in one sidebar. [N11]
+- **With audience groups, only the groups sit at the top of `docs/`, and the skeleton applies one level down**, inside each group (`developers/guides/`, `platform-engineers/concepts/`). The blocking `skeleton` check enforces both levels, a page's default `type` comes from the skeleton folder inside its group, and `wso2-docs new` takes the group in `--folder`. A group is never a skeleton folder's name. Decided 2026-10-29 (user): the check that allowed only the skeleton at the top was the bug. [N11]
 
 ## Components
 

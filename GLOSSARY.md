@@ -72,6 +72,10 @@ _Avoid_: Content type, doc type, template
 How a page is drawn, chosen independently of its Page type: the default layout, an overview of cards, a catalog fed by data, or an API reference.
 _Avoid_: Template, theme, page style
 
+**Audience group**:
+A top-level part of one Doc space's sidebar for one kind of reader (e.g. Engineering Platform Cloud's "For developers" and "For platform engineers"), declared in the Doc space manifest and holding the common skeleton below it. Readers see every group; there is no role switch.
+_Avoid_: Perspective, view, persona, role
+
 **Platform chrome**:
 The parts every Docs deployment shows alike: header, product switcher, Edition dropdown, search box, version notices and footer, as distinct from a Doc space's own sidebar and pages.
 _Avoid_: Shell, frame, global nav

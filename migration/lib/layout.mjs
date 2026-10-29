@@ -167,7 +167,7 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
     }
   };
 
-  config.skeleton.forEach((s, i) => categories.set(s.folder, { label: s.label, position: i + 1, navLabel: null, skeleton: true }));
+  config.skeleton.forEach((s, i) => categories.set(s.folder, { label: s.label, position: s.position ?? i + 1, navLabel: null, skeleton: true }));
 
   for (const node of nav) {
     const top = config.topLevel[node.label];

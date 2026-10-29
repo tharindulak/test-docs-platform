@@ -1,0 +1,26 @@
+# Docs section manifest: Engineering Platform. Kept by the section's team
+# (.github/CODEOWNERS). It sets the products-menu entries and the menu's order
+# and version-in only; names come from the Doc space manifests.
+# Schema: schemas/section.schema.json.
+schemaVersion: 1
+id: engineering-platform
+title: Engineering Platform Documentation
+owners:
+  team: engineering-platform-docs
+
+# The products menu, labelled as wso2.com's header lists Engineering Platform.
+# The Developer Platform's docs are the family Cloud's (Engineering Platform
+# Cloud, second name WSO2 Developer Platform); the compose report warns that
+# the label differs from the Doc space's name, as intended. OpenChoreo is a
+# link out, listed in the Platform navigation file's notYetOnWso2Docs.
+products:
+  - label: Developer Platform
+    opens: { docSpace: engineering-platform }
+
+# The one shape: the family Cloud first (no Cloud parts, no products on WSO2
+# Docs yet), then the link out.
+menu:
+  - docSpace: engineering-platform   # Cloud only, with two audience groups: its version is chosen in the header
+    version-in: header
+  - label: OpenChoreo
+    url: https://openchoreo.dev/docs/

@@ -14,6 +14,9 @@ import { runCheck, formatText, formatAnnotations } from '../lib/check/index.mjs'
 import { findVale } from '../lib/check/lint.mjs';
 import { scaffoldPage } from '../lib/scaffold.mjs';
 import { routeFor } from '../lib/check/content.mjs';
+import { checkSkeleton, skeletonFolderOf } from '../lib/check/source.mjs';
+import { loadStandards } from '../lib/standards.mjs';
+import { validate } from '../lib/schemas.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = path.join(root, 'fixtures', 'stub-repo', 'identity-server');
@@ -303,4 +306,48 @@ test('routes follow Docusaurus: index pages, number prefixes and slugs', () => {
   assert.equal(routeFor('01-guides/02-mfa.mdx'), 'guides/mfa/');
   assert.equal(routeFor('guides/a.mdx', { slug: '/elsewhere/b' }), 'elsewhere/b/');
   assert.equal(routeFor('guides/a.mdx', { slug: 'b' }), 'guides/b/');
+});
+
+test('audience groups: declared top-level folders, each with the skeleton one level down', () => {
+  const S = loadStandards();
+  const dir = fs.mkdtempSync(path.join(tmp, 'audience-'));
+  const page = (rel) => {
+    fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    fs.writeFileSync(path.join(dir, rel), '---\ntitle: X\ndescription: X page.\n---\n\nText.\n');
+  };
+  const manifest = {
+    schemaVersion: 1, slug: 'engineering-platform', displayName: 'Engineering Platform Cloud', model: 'cloud-only', home: 'engineering-platform',
+    owners: { team: 't' }, repo: 'wso2/docs-x', audienceGroups: ['developers', 'platform-engineers'],
+  };
+  assert.deepEqual(validate('docspace', manifest), []);
+  assert.notDeepEqual(validate('docspace', { ...manifest, audienceGroups: ['Developers'] }), [], 'a group is a folder slug');
+  assert.notDeepEqual(validate('docspace', { ...manifest, audienceGroups: ['guides', 'developers'] }), [], 'a skeleton folder is no group');
+  fs.writeFileSync(path.join(dir, 'docspace.yaml'), JSON.stringify(manifest));
+  page('docs/index.mdx');
+  page('docs/developers/index.mdx');
+  page('docs/developers/guides/deploy.mdx');
+  page('docs/platform-engineers/concepts/data-planes.mdx');
+  const ctx = () => ({ root: dir, repo: loadContentRepo(dir) });
+  assert.deepEqual(checkSkeleton(ctx(), S), []);
+
+  // The skeleton applies inside each group, and only groups sit at the top.
+  page('docs/developers/tutorials/first.mdx');
+  page('docs/guides/shared.mdx');
+  page('docs/operators/guides/x.mdx');
+  const found = checkSkeleton(ctx(), S).map((x) => x.file).sort();
+  assert.deepEqual(found, ['docs/developers/tutorials', 'docs/guides', 'docs/operators']);
+
+  // The page type defaults from the skeleton folder inside the group.
+  const groups = manifest.audienceGroups;
+  assert.equal(skeletonFolderOf('developers/guides/deploy.mdx', groups), 'guides');
+  assert.equal(skeletonFolderOf('developers/index.mdx', groups), null);
+  assert.equal(skeletonFolderOf('guides/deploy.mdx', []), 'guides');
+  assert.equal(skeletonFolderOf('guides/deploy.mdx', undefined), 'guides');
+
+  // new: the folder names the group; without one, it asks for it.
+  const repo = loadContentRepo(dir);
+  assert.equal(scaffoldPage(repo, { type: 'how-to', title: 'Scale a component', folder: 'developers/guides' }).file, 'docs/developers/guides/scale-a-component.mdx');
+  assert.ok(fs.existsSync(path.join(dir, 'docs/developers/guides/_category_.yml')));
+  assert.throws(() => scaffoldPage(repo, { type: 'how-to', title: 'Y' }), /audience group/);
+  assert.throws(() => scaffoldPage(repo, { type: 'how-to', title: 'Y', folder: 'developers/tutorials' }), /skeleton/);
 });

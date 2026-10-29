@@ -25,7 +25,7 @@ Where every product on wso2.com, and on wso2.com/documentation's Solutions and O
 | Integration Platform | Connectors (`connectors`) | Product, catalog layout | unversioned | | | `docs-integrator` | No |
 | Identity Platform | Identity Platform Cloud (`identity-platform`, formerly Asgardeo); Cloud parts: Identity Server, Agent ID | Family Cloud | Cloud | | header | `docs-identity-platform` | Yes, with Identity Server as its only part |
 | Identity Platform | Identity Server (`identity-server`) | Product | 7.3.0, 7.2.0 (Cloud is its part) | 7.1.0, 7.0.0, 6.1.0, 6.0.0 on the old site; 5.x stays unlisted | menu | `docs-identity-platform` | Yes |
-| Engineering Platform | Engineering Platform Cloud (`engineering-platform`, second name WSO2 Developer Platform, formerly Choreo): two top-level groups, For developers and For platform engineers | Family Cloud | Cloud | | header | to be confirmed (probably `wso2/docs-choreo-dev`) | No |
+| Engineering Platform | Engineering Platform Cloud (`engineering-platform`, second name WSO2 Developer Platform, formerly Choreo): two audience groups (`audienceGroups`), For developers and For platform engineers | Family Cloud | Cloud | | header | to be confirmed (probably `wso2/docs-choreo-dev`) | No |
 | Solutions | Accelerator for Healthcare (`healthcare`) | Product | unversioned | | | `open-healthcare-docs` | No |
 | Solutions | Accelerator for Financial Services (`financial-services`) | Product | 4.0.0, 3.0.0 | older on Confluence | menu | `docs-open-banking` | No |
 | Other | Updates (`updates`) | Product | unversioned | | | `docs-updates` | No |

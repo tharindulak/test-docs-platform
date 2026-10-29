@@ -1,0 +1,22 @@
+# Override list for wso2/docs-choreo-dev, engineering-platform/ (lib/overrides.mjs): fixes to the
+# legacy source and legacy-broken links the converter accepts, each with its reason. Paths are
+# under the combined sites' root (lib/sites.mjs): docs/developers/ is en/developer-docs/docs/ and
+# docs/platform-engineers/ is en/pe-docs/docs/.
+patches:
+  - file: docs/developers/manage-message-brokers/create-choreo-managed-kafka-services.md
+    find: "=== \"Producer\"\n\n\n            package main"
+    replace: "=== \"Producer\"\n\n    ```go\n            package main"
+    why: the Go samples in the two content tabs are indented code 8 spaces into the tab, which the converter reads as text (and import ( as an MDX import); a fence keeps them code
+  - file: docs/developers/manage-message-brokers/create-choreo-managed-kafka-services.md
+    find: "                sendMessages(producer, 100)\n            }\n"
+    replace: "                sendMessages(producer, 100)\n            }\n    ```\n"
+    why: closes the Producer sample's fence
+  - file: docs/developers/manage-message-brokers/create-choreo-managed-kafka-services.md
+    find: "=== \"Consumer\"\n\n\n            package main"
+    replace: "=== \"Consumer\"\n\n    ```go\n            package main"
+    why: the Consumer sample, as the Producer one
+  - file: docs/developers/manage-message-brokers/create-choreo-managed-kafka-services.md
+    find: "                consumeMessages(consumer)\n            }\n"
+    replace: "                consumeMessages(consumer)\n            }\n    ```\n"
+    why: closes the Consumer sample's fence
+accepted: []

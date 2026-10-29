@@ -8,7 +8,7 @@ Configuration is by composition: each team keeps its own manifest, and the Platf
 
 | Manifest | File | Kept by | Holds |
 |---|---|---|---|
-| Doc space manifest | `<slug>/docspace.yaml` on the Content repo's `main` | The Doc space's team | Names (`displayName`, `formerNames`, `brand`, `editionNames`), Editions in display order with optional `branch`, `pin` and `status`, Cloud `parts` or `cloud.in`, `legacyVersions`, `latest`, `home` or `listed: false` (plus `indexed`), `notices`, owners, `repo`, `issues`, `editLinks`, `environments` |
+| Doc space manifest | `<slug>/docspace.yaml` on the Content repo's `main` | The Doc space's team | Names (`displayName`, `formerNames`, `brand`, `editionNames`), Editions in display order with optional `branch`, `pin` and `status`, Cloud `parts` or `cloud.in`, `legacyVersions`, `latest`, `home` or `listed: false` (plus `indexed`), `notices`, `audienceGroups`, owners, `repo`, `issues`, `editLinks`, `environments` |
 | Docs section manifest | `navigation/sections/<id>.yaml` in the Platform | The section's team, through `.github/CODEOWNERS` | `title`, `products` (a `label` and an `opens` target: Doc space, optional Edition or page), `menu` (Doc space entries with `version-in`, or link entries `{label, url}`) |
 | Platform navigation file | `navigation/navigation.yaml` in the Platform | The Platform team | Families and groups in order with descriptions, environments, the list of sections, the Content repos to read, products not on WSO2 Docs yet (`notYetOnWso2Docs`) |
 
