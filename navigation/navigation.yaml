@@ -61,6 +61,7 @@ contentRepos:
   - repo: tharindulak/docs-integrator
   - repo: tharindulak/docs-security
   - repo: tharindulak/docs-agent-platform
+  - repo: tharindulak/docs-updates
   # The Platform's own Doc space: Contribute, at standards/contribute/.
   - repo: wso2/docs-platform
     path: standards

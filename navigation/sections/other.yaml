@@ -10,6 +10,9 @@ owners:
 products:
   - label: Platform Security
     opens: { docSpace: platform-security }
+  - label: Updates
+    opens: { docSpace: updates }
 
 menu:
   - docSpace: platform-security
+  - docSpace: updates
