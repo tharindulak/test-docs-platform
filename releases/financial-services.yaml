@@ -1,0 +1,19 @@
+# The intake record of financial-services: the Docs bundles intake accepted, per Edition, newest
+# first, the last 5 kept (spec/releases-and-deployments.md, Intake). Written by intake.yml;
+# a change to anything but the release entries needs the Doc space's owners.
+schemaVersion: 1
+docSpace: financial-services
+repo: tharindulak/docs-open-banking
+editions:
+  4.0.0:
+    - tag: 4.0.0-docs.1
+      asset: financial-services-4.0.0-docs.1.docs.zip
+      sha256: e2e9b2f0a9166dadeaa3827f2fb2b76f42651674315d10b36050306478519014
+      sourceCommit: 32259c055828ed4e3908a28bce2f42b34b253610
+      acceptedAt: "2026-10-29T06:05:35.809Z"
+  3.0.0:
+    - tag: 3.0.0-docs.1
+      asset: financial-services-3.0.0-docs.1.docs.zip
+      sha256: 173ea9f1fe3e7bfb7d6f8e58675a0c05995d0a34d0b0ae0c1401e1237c199284
+      sourceCommit: f00e15ac82896cbbae7f1c4a1792f6ab9cc38eb8
+      acceptedAt: "2026-10-29T06:05:35.809Z"
