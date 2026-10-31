@@ -14,7 +14,7 @@ import Typesense from 'typesense';
 import { loadPolicy, publicManifest } from '../lib/manifest.mjs';
 import { FsStorage } from '../lib/storage.mjs';
 import { flip, publishRelease } from '../lib/release.mjs';
-import { analyticsSetup, collectionSchema, editionFilter, editionRank, staleFilter, toSearchDocuments } from '../lib/search/schema.mjs';
+import { MCP_STOPWORDS, MCP_STOPWORDS_ID, analyticsSetup, collectionSchema, editionFilter, editionRank, staleFilter, toSearchDocuments } from '../lib/search/schema.mjs';
 import {
   buildFilter, chipOptions, contextFromView, deploymentContext, editionLabel, hitTarget, oneEdition, opensEdition, parseSearchPageUrl, readRemembered, rememberKey,
   scopeLabel, scopesFor, searchPageUrl, searchParameters,
@@ -66,7 +66,7 @@ test('records map to the collection schema', () => {
 
 test('/latest/ twins, legacy versions and unknown Doc spaces are never indexed', () => {
   assert.throws(() => toSearchDocuments([], meta('7.3.0', { asLatest: true, baseUrl: '/identity-server/latest/' }), policy, { release: 'r' }), /never indexed/);
-  assert.throws(() => toSearchDocuments([], meta('7.1.0'), policy, { release: 'r' }), /legacy/);
+  assert.throws(() => toSearchDocuments([], meta('7.0.0'), policy, { release: 'r' }), /legacy/);
   assert.throws(() => toSearchDocuments([], { ...meta('1.0.0'), docSpace: 'nope' }, policy, { release: 'r' }), /not in the manifest/);
   assert.throws(() => toSearchDocuments([], { ...meta('1.0.0'), docSpace: 'ballerina', baseUrl: '/ballerina/1.0.0/' }, policy, { release: 'r' }), /legacy/, 'a Doc space not on WSO2 Docs yet');
 });
@@ -183,13 +183,13 @@ test('This Edition filters to the Edition being read, end of life included', () 
 });
 
 test('All Editions: live Editions only (no legacy, no end of life), the Cloud part first, narrowed by Edition chips', () => {
-  assert.equal(buildFilter({ scope: 'docspace', ctx: ctx720, manifest }), '(docSpace:=`identity-server` && edition:=[`cloud`,`7.3.0`,`7.2.0`])');
-  assert.equal(buildFilter({ scope: 'docspace', ctx: isPart, manifest }), '(docSpace:=`identity-server` && edition:=[`cloud`,`7.3.0`,`7.2.0`])');
-  assert.equal(buildFilter({ scope: 'docspace', ctx: apim, manifest }), '(docSpace:=`api-manager` && edition:=[`4.7.0`,`4.6.0`])', 'no Cloud: no Cloud Edition');
+  assert.equal(buildFilter({ scope: 'docspace', ctx: ctx720, manifest }), '(docSpace:=`identity-server` && edition:=[`cloud`,`7.3.0`,`7.2.0`,`7.1.0`])');
+  assert.equal(buildFilter({ scope: 'docspace', ctx: isPart, manifest }), '(docSpace:=`identity-server` && edition:=[`cloud`,`7.3.0`,`7.2.0`,`7.1.0`])');
+  assert.equal(buildFilter({ scope: 'docspace', ctx: apim, manifest }), '(docSpace:=`api-manager` && edition:=[`4.7.0`,`4.6.0`,`4.5.0`])', 'no Cloud: no Cloud Edition');
   const eol = withStatus(manifest, 'identity-server', '7.2.0', 'end-of-life');
-  assert.equal(buildFilter({ scope: 'docspace', ctx: ctx720, manifest: eol }), '(docSpace:=`identity-server` && edition:=[`cloud`,`7.3.0`])');
+  assert.equal(buildFilter({ scope: 'docspace', ctx: ctx720, manifest: eol }), '(docSpace:=`identity-server` && edition:=[`cloud`,`7.3.0`,`7.1.0`])');
   assert.equal(buildFilter({ scope: 'docspace', ctx: ctx720, manifest, chips: { editions: ['7.2.0'] } }), '(docSpace:=`identity-server` && edition:=`7.2.0`)');
-  assert.deepEqual(chipOptions('docspace', ctx720, eol).editions, ['cloud', '7.3.0']);
+  assert.deepEqual(chipOptions('docspace', ctx720, eol).editions, ['cloud', '7.3.0', '7.1.0']);
 });
 
 const clause = (s, e) => (e === '_' ? `docSpace:=\`${s}\`` : `(docSpace:=\`${s}\` && edition:=\`${e}\`)`);
@@ -252,7 +252,7 @@ test('All of WSO2 Docs: the section as it is, widened by one Edition of every ot
   // A remembered Edition that went end of life, or a legacy one, falls back to where the selector opens.
   const eol = withStatus(manifest, 'identity-server', '7.2.0', 'end-of-life');
   assert.equal(oneEdition(eol, 'identity-server', '7.2.0'), 'cloud');
-  assert.equal(oneEdition(manifest, 'identity-server', '7.1.0'), 'cloud');
+  assert.equal(oneEdition(manifest, 'identity-server', '7.0.0'), 'cloud');
   assert.equal(oneEdition(manifest, 'api-manager', '4.6.0'), '4.6.0');
   assert.equal(oneEdition(manifest, 'api-manager', null), '4.7.0');
   // Chips narrow the Doc spaces; product family chips only on the landing page.
@@ -409,6 +409,7 @@ function fakeTypesense({ failImport = false } = {}) {
     createCollection: async () => ({}),
     updateCollection: async () => ({}),
     upsertAnalyticsRule: async () => ({}),
+    upsertStopwords: async () => ({}),
     async importDocuments(_c, list) {
       calls.push(['import', list.length]);
       if (failImport) throw new Error('1 of 2 documents failed to import');
@@ -689,11 +690,14 @@ test('Contribute (Edition "_", a token separator in the index) is searched by Do
   assert.equal(hitTarget(hit, deploymentContext({ landing: true }), manifest).href, '/contribute/reference/checks/#vale');
 });
 
-// A stand-in Typesense over HTTP: collections, analytics rules and the keys
-// API (GET/POST /keys, DELETE /keys/<id>), enough for search-setup.
+// A stand-in Typesense over HTTP: collections (with PATCH), analytics rules,
+// stop-word sets and the keys API (GET/POST /keys, DELETE /keys/<id>),
+// enough for search-setup.
 async function fakeTypesenseServer() {
   const http = await import('node:http');
   const collections = new Map();
+  const patches = [];
+  const stopwords = new Map();
   const keys = [];
   let nextId = 0;
   const server = http.createServer(async (req, res) => {
@@ -705,6 +709,17 @@ async function fakeTypesenseServer() {
     if (req.headers['x-typesense-api-key'] !== 'admin') return send(401, { message: 'Forbidden' });
     if (a === 'collections' && req.method === 'GET') return collections.has(b) ? send(200, collections.get(b)) : send(404, { message: 'Not found.' });
     if (a === 'collections' && req.method === 'POST') { const c = JSON.parse(body); collections.set(c.name, c); return send(201, c); }
+    if (a === 'collections' && req.method === 'PATCH') {
+      const { fields } = JSON.parse(body);
+      patches.push({ collection: b, fields });
+      const c = collections.get(b);
+      for (const f of fields) {
+        c.fields = c.fields.filter((x) => x.name !== f.name);
+        if (!f.drop) c.fields.push(f);
+      }
+      return send(200, { fields });
+    }
+    if (a === 'stopwords' && req.method === 'PUT') { stopwords.set(b, JSON.parse(body)); return send(200, { id: b, ...JSON.parse(body) }); }
     if (a === 'analytics') return send(200, {});
     if (a === 'keys' && req.method === 'GET') return send(200, { keys: keys.map(({ value, ...k }) => ({ ...k, value_prefix: value.slice(0, 4) })) });
     if (a === 'keys' && req.method === 'POST') {
@@ -723,7 +738,7 @@ async function fakeTypesenseServer() {
     return send(404, { message: `no ${req.method} ${u.pathname}` });
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  return { url: `http://127.0.0.1:${server.address().port}`, keys, close: () => new Promise((r) => server.close(r)) };
+  return { url: `http://127.0.0.1:${server.address().port}`, collections, patches, stopwords, keys, close: () => new Promise((r) => server.close(r)) };
 }
 
 test('search-setup reuses its search-only parent key; search-keys lists keys and search-key-delete deletes one', async (t) => {
@@ -772,6 +787,82 @@ test('search-setup reuses its search-only parent key; search-keys lists keys and
   assert.equal((await cli('search-key-delete', '--env', 'staging')).code, 1, '--id is required');
   // With the old parent gone, setup reuses the newer one.
   assert.match((await cli('search-setup', '--env', 'staging')).stdout, new RegExp(`Reusing search-only parent key ${ts.keys[0].id} `));
+});
+
+test('search-setup brings an older collection up to the schema and makes the MCP stop-word set', async (t) => {
+  const { execFile } = await import('node:child_process');
+  const ts = await fakeTypesenseServer();
+  t.after(ts.close);
+  const cli = (...args) => new Promise((resolve) => {
+    execFile(process.execPath, [path.join(root, 'bin', 'wso2-release.mjs'), ...args], { env: { ...process.env, TYPESENSE_URL: ts.url, TYPESENSE_ADMIN_KEY: 'admin' }, encoding: 'utf8' },
+      (err, stdout, stderr) => resolve({ code: err ? err.code : 0, stdout, stderr }));
+  });
+  // A collection from before page was a facet and before selfHosted.
+  const old = collectionSchema('wso2docs-staging');
+  old.fields = old.fields.filter((f) => f.name !== 'selfHosted').map((f) => (f.name === 'page' ? { name: 'page', type: 'string', facet: false, optional: false } : f));
+  ts.collections.set(old.name, old);
+  const r = await cli('search-setup', '--env', 'staging');
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stdout, /wso2docs-staging: exists, added selfHosted, re-added page; analytics rules and stop words in place/);
+  assert.deepEqual(ts.patches, [{ collection: 'wso2docs-staging', fields: [
+    { name: 'selfHosted', type: 'bool', optional: true },
+    { name: 'page', drop: true },
+    { name: 'page', type: 'string', facet: true, optional: false },
+  ] }], 'one PATCH: new fields optional, a changed field dropped and re-added as it was required');
+  assert.deepEqual(ts.stopwords.get(MCP_STOPWORDS_ID), { stopwords: MCP_STOPWORDS, locale: 'en' });
+  assert.ok(MCP_STOPWORDS.includes('how') && !MCP_STOPWORDS.includes('mfa'));
+  for (const name of ['is', 'it', 'in', 'on']) assert.ok(!MCP_STOPWORDS.includes(name), `"${name}" is also a name (IS, single sign-on)`);
+  const again = await cli('search-setup', '--env', 'staging');
+  assert.match(again.stdout, /wso2docs-staging: exists; analytics rules and stop words in place/);
+  assert.equal(ts.patches.length, 1, 'an up-to-date collection is left as it is');
+});
+
+// A collection whose page field isn't a facet yet, and a client that records what changes it.
+function staleCollection({ updateCollection, schemaChanges = async () => null } = {}) {
+  const old = collectionSchema('c');
+  old.fields = old.fields.map((f) => (f.name === 'page' ? { ...f, facet: false } : f));
+  const state = { schema: old, updates: [] };
+  const client = {
+    getCollection: async (n) => (n === 'c' ? state.schema : {}),
+    updateCollection: updateCollection ?? (async (n, patch) => { state.updates.push(patch); state.schema = collectionSchema('c'); }),
+    schemaChanges,
+    upsertAnalyticsRule: async () => ({}),
+    upsertStopwords: async () => ({}),
+  };
+  return { state, client };
+}
+
+test('a schema change that outlasts its request is followed until Typesense finishes it', async () => {
+  const { ensureCollection } = await import('../lib/search/indexing.mjs');
+  const timeout = () => Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+  let polls = 0;
+  const { state, client } = staleCollection({
+    // Typesense goes on after the request gives up, and finishes after two polls.
+    updateCollection: async () => { setTimeout(() => { state.schema = collectionSchema('c'); }, 0); throw timeout(); },
+    schemaChanges: async () => (++polls < 3 ? [{ collection: 'c', validated_docs: 10, altered_docs: 5 }] : null),
+  });
+  assert.deepEqual((await ensureCollection(client, 'c', { pollMs: 1 })).changed, ['page']);
+  assert.equal(polls, 3);
+
+  const stuck = staleCollection({ updateCollection: async () => { throw timeout(); }, schemaChanges: async () => [{ collection: 'c' }] });
+  await assert.rejects(ensureCollection(stuck.client, 'c', { waitMs: 5, pollMs: 1 }), /still running after/);
+  const lost = staleCollection({ updateCollection: async () => { throw timeout(); } });
+  await assert.rejects(ensureCollection(lost.client, 'c', { pollMs: 1 }), /did not finish \(page\)/, 'the schema is checked once Typesense is done');
+  const refused = staleCollection({ updateCollection: async () => { throw new Error('Typesense 400: bad field'); } });
+  await assert.rejects(ensureCollection(refused.client, 'c'), /bad field/, 'any other error is an error');
+});
+
+test('indexing never changes a schema: only search-setup does, and indexing warns', async () => {
+  const { ensureCollection } = await import('../lib/search/indexing.mjs');
+  const { state, client } = staleCollection();
+  const log = [];
+  const r = await indexReleases(client, new FsStorage(tmp()), { collection: 'c', policy, deployments: [], log: (m) => log.push(m) });
+  assert.deepEqual([state.updates, r.failures], [[], []]);
+  assert.deepEqual(log, ['search: c lacks page of the schema; run search-setup']);
+  assert.deepEqual(await ensureCollection(client, 'c', { update: false }), { created: false, added: [], changed: [], behind: ['page'] });
+  await ensureCollection(client, 'c');
+  assert.equal(state.updates.length, 1);
+  assert.deepEqual((await ensureCollection(client, 'c', { update: false })).behind, []);
 });
 
 test('the local preview\'s fixed search-only key is made once and then reused', async (t) => {

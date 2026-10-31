@@ -1,0 +1,41 @@
+/* Code block syntax colours, by Prism's token classes, so the HTML carries
+   no colour and a theme change reaches every deployment without a rebuild.
+   The colours are theme.css's --wso2-code-* (Oceanic Next, the code theme
+   prism-react-renderer ships, each at least 4.5:1 on the code background:
+   test/contrast.test.mjs).
+
+   A token can have several types (Prism nests them, e.g. "string variable"
+   for $VAR in a bash string). prism-react-renderer gave such a token the
+   colour of its last type that has one; the rules below do the same: first
+   by type, then, later and so winning, by the type the class list ends with. */
+
+.theme-code-block pre,
+.theme-code-block .token-line { color: var(--wso2-code-fg); }
+.theme-code-block pre { background-color: var(--wso2-code-bg); }
+
+.theme-code-block .token:is(.comment, .block-comment, .prolog, .doctype, .cdata, .shebang) { color: var(--wso2-code-comment); }
+.theme-code-block .token:is(.tag) { color: var(--wso2-code-tag); }
+.theme-code-block .token:is(.selector, .char, .builtin, .inserted) { color: var(--wso2-code-builtin); }
+.theme-code-block .token:is(.keyword, .attr-name) { color: var(--wso2-code-keyword); }
+.theme-code-block .token:is(.atrule, .class-name) { color: var(--wso2-code-class-name); }
+.theme-code-block .token:is(.property, .number, .function-name, .constant, .symbol, .deleted) { color: var(--wso2-code-number); }
+.theme-code-block .token:is(.boolean) { color: var(--wso2-code-boolean); }
+.theme-code-block .token:is(.operator, .entity, .url, .variable) { color: var(--wso2-code-variable); }
+.theme-code-block .token:is(.function) { color: var(--wso2-code-function); }
+.theme-code-block .token:is(.string, .attr-value, .punctuation) { color: var(--wso2-code-string); }
+
+.theme-code-block .token:is([class$=' comment'], [class$=' block-comment'], [class$=' prolog'], [class$=' doctype'], [class$=' cdata'], [class$=' shebang']) { color: var(--wso2-code-comment); }
+.theme-code-block .token:is([class$=' tag']) { color: var(--wso2-code-tag); }
+.theme-code-block .token:is([class$=' selector'], [class$=' char'], [class$=' builtin'], [class$=' inserted']) { color: var(--wso2-code-builtin); }
+.theme-code-block .token:is([class$=' keyword'], [class$=' attr-name']) { color: var(--wso2-code-keyword); }
+.theme-code-block .token:is([class$=' atrule'], [class$=' class-name']) { color: var(--wso2-code-class-name); }
+.theme-code-block .token:is([class$=' property'], [class$=' number'], [class$=' function-name'], [class$=' constant'], [class$=' symbol'], [class$=' deleted']) { color: var(--wso2-code-number); }
+.theme-code-block .token:is([class$=' boolean']) { color: var(--wso2-code-boolean); }
+.theme-code-block .token:is([class$=' operator'], [class$=' entity'], [class$=' url'], [class$=' variable']) { color: var(--wso2-code-variable); }
+.theme-code-block .token:is([class$=' function']) { color: var(--wso2-code-function); }
+.theme-code-block .token:is([class$=' string'], [class$=' attr-value'], [class$=' punctuation']) { color: var(--wso2-code-string); }
+
+.theme-code-block .token.important { font-weight: 400; }
+.theme-code-block .token.bold { font-weight: bold; }
+.theme-code-block .token.italic { font-style: italic; }
+.theme-code-block .token.namespace { opacity: 0.7; }

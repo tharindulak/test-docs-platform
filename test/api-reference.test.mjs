@@ -204,35 +204,22 @@ test('api validate exits non-zero on errors', () => {
   assert.equal(runApiCommand(['validate', path.join(root, 'fixtures/stub-repo/identity-server')], () => {}, () => {}), 0);
 });
 
-// WCAG 2.2 AA for the method badges and the download button, in both themes.
-function tokens() {
-  const css = fs.readFileSync(path.join(root, 'site/src/css/oxygen-tokens.css'), 'utf8');
-  const block = (re) => Object.fromEntries([...re.exec(css)[1].matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
-  return { light: block(/:root, \[data-theme="light"\] \{([\s\S]*?)\n\}/), dark: block(/\[data-theme="dark"\] \{([\s\S]*?)\n\}/) };
-}
-function luminance(color) {
-  const m = /^#([0-9a-f]{6})/i.exec(color);
-  const rgb = m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(color).slice(1).map(Number);
-  const [r, g, b] = rgb.map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-
-test('method badges and the download button meet WCAG 2.2 AA in both themes', () => {
-  const t = tokens();
-  const css = fs.readFileSync(path.join(root, 'site/src/css/api-reference.css'), 'utf8');
-  for (const [theme, re] of [['light', /:root, \[data-theme='light'\] \{([\s\S]*?)\}/], ['dark', /\[data-theme='dark'\] \{([\s\S]*?)\}/]]) {
-    const vars = Object.fromEntries([...re.exec(css)[1].matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
-    const value = (v) => (v.startsWith('var(') ? t[theme][/var\((--[\w-]+)\)/.exec(v)[1]] : v);
-    const bg = t[theme]['--oxygen-palette-background-default'];
+// WCAG 2.2 AA for the method badges and the download button, in both themes
+// (the colours are theme.css's; the button is Infima's primary).
+test('method badges and the download button meet WCAG 2.2 AA in both themes', async () => {
+  const { themeVariables, tokenContrast } = await import('../lib/contrast.mjs');
+  const files = [path.join(root, 'site/wso2-theme/css/theme.css')];
+  for (const theme of ['light', 'dark']) {
+    const vars = themeVariables(files, theme);
     for (const m of ['get', 'post', 'put', 'delete', 'other']) {
-      const fg = value(vars[`--wso2-api-${m}`]);
-      assert.ok(contrast(fg, bg) >= 4.5, `${theme} ${m}: ${fg} on ${bg} is ${contrast(fg, bg).toFixed(2)}:1`);
+      const ratio = tokenContrast(vars, `--wso2-api-${m}`, '--wso2-bg');
+      assert.ok(ratio >= 4.5, `${theme} ${m}: ${ratio.toFixed(2)}:1 on the page`);
     }
-    const primary = t[theme][theme === 'light' ? '--oxygen-palette-primary-dark' : '--oxygen-palette-primary-light'];
-    const on = vars['--wso2-api-on-primary'];
-    assert.ok(contrast(on, primary) >= 4.5, `${theme} download button: ${on} on ${primary} is ${contrast(on, primary).toFixed(2)}:1`);
+    const ratio = tokenContrast(vars, '--wso2-api-on-primary', '--ifm-color-primary');
+    assert.ok(ratio >= 4.5, `${theme} download button: ${ratio.toFixed(2)}:1`);
   }
+  const css = fs.readFileSync(path.join(root, 'site/wso2-theme/css/api-reference.css'), 'utf8');
+  assert.match(css, /\.wso2-api__download, \.wso2-api__download:hover \{ color: var\(--wso2-api-on-primary\); \}/);
 });
 
 test('spec sync workflow is a valid reusable workflow', () => {
@@ -268,6 +255,12 @@ test('the remark step blocks invalid specs and incomplete splits, and anchors ev
   const walk = (n) => { if (n.type === 'heading') headings.push(n.data.hProperties.id); (n.children ?? []).forEach(walk); };
   walk(run(page));
   assert.deepEqual(headings, ['api-title', 'tag-a', 'op-one', 'tag-b', 'op-two']);
+  // Wide tables scroll sideways on a phone, so a keyboard can reach them (WCAG 2.1.1; axe scrollable-region-focusable).
+  const tables = [];
+  const find = (n) => { if (n.name === 'table') tables.push(n); (n.children ?? []).forEach(find); };
+  find(run({ ...page, server: undefined }));
+  assert.ok(tables.length);
+  for (const t of tables) assert.ok(t.attributes.some((a) => a.name === 'tabIndex' && a.value === '0'), 'each table is focusable');
   assert.throws(() => run({ ...page, server: '{edition.nope}' }), /unknown variable \{edition\.nope\}/);
   // A Self-hosted-only API page shown in Cloud: its server from the newest release's variables.
   const additions = { newestRelease: '7.3.0', vars: { host: 'https://localhost:9443' } };

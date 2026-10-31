@@ -113,7 +113,7 @@ test('docs: links resolve against the manifest', () => {
   assert.equal(resolveDocsLink('docs:ai-gateway/latest/', policy, host), `${host}/ai-gateway/latest/`);
   assert.throws(() => resolveDocsLink('docs:nope/latest/x', policy, host), /unknown Doc space/);
   assert.throws(() => resolveDocsLink('docs:identity-server/9.9.9/x', policy, host), /no edition "9.9.9"/);
-  assert.throws(() => resolveDocsLink('docs:identity-server/7.1.0/x', policy, host), /not on WSO2 Docs yet/);
+  assert.throws(() => resolveDocsLink('docs:identity-server/7.0.0/x', policy, host), /not on WSO2 Docs yet/);
   assert.throws(() => resolveDocsLink('docs:api-manager/cloud/x', policy, host), /no edition "cloud"/, 'no Cloud and no Cloud part');
 });
 

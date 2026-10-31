@@ -2,10 +2,12 @@
 // nav's top level is re-filed into the sidebar skeleton (product config);
 // below it each nav section becomes a folder, named after the source folder
 // its pages share, so the folder-generated sidebar reproduces the old nav.
-// Nav order becomes sidebar_position.
+// Nav order becomes sidebar_position. Each page and folder keeps the nav
+// entry it came from (`nav`: its title and level), for the sidebar icons.
 import path from 'node:path/posix';
 import { fileSlug, sentenceCase } from './slug.mjs';
 import { mkdocsUrl } from './mkdocs.mjs';
+import { isIndexSrc } from './nav-icons.mjs';
 
 const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
 const baseOf = (p) => p.slice(p.lastIndexOf('/') + 1).replace(/\.md$/, '');
@@ -79,7 +81,7 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
     for (let i = 1; i <= segs.length; i++) taken(segs.slice(0, i - 1).join('/')).add(segs[i - 1]);
   };
 
-  const addPage = (src, target, { navLabel, position, inNav, kind = 'page', navPath = [] }) => {
+  const addPage = (src, target, { navLabel, position, inNav, kind = 'page', navPath = [], hiddenIndex = false }) => {
     const url = docUrl(target);
     if (urls.has(url)) {
       issues.push({ kind: 'layout', src, message: `would share the route /${url} with ${urls.get(url)}; renamed` });
@@ -89,10 +91,13 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
     pages.set(src, {
       src, target, url: docUrl(target), oldUrl: mkdocsUrl(src),
       navLabel: navLabel ?? null, sidebarLabel: label(navLabel), position, inNav, kind, navPath,
+      // The nav entry: its level (1 for the top), and whether Material folds
+      // it into its section (the section's first index page, never drawn).
+      nav: inNav ? { level: navPath.length, hiddenIndex } : null,
     });
   };
 
-  const placePage = (node, folder, position, navPath) => {
+  const placePage = (node, folder, position, navPath, hiddenIndex = false) => {
     const src = normalizeSrc(node.src);
     if (pages.has(src)) {
       issues.push({ kind: 'nav', src, message: `listed in the nav more than once; only the first entry (${pages.get(src).navPath.join(' > ')}) is kept` });
@@ -106,7 +111,7 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
       const target = config.pageOverrides[src];
       ensureFolders(dirOf(target));
       taken(dirOf(target)).add(baseOf(target));
-      addPage(src, target, { navLabel: node.label, position: nextPos(dirOf(target)), inNav: true, navPath });
+      addPage(src, target, { navLabel: node.label, position: nextPos(dirOf(target)), inNav: true, navPath, hiddenIndex });
       return;
     }
     if (isApiPage(src)) {
@@ -116,16 +121,22 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
       const name = claim(folder, slug);
       const pos = nextPos(folder);
       categories.set(`${folder}/${name}`, { label: label(node.label), position: pos, navLabel: node.label, api: true });
-      addPage(src, `${folder}/${name}/index`, { navLabel: node.label, position: pos, inNav: true, kind: 'api', navPath });
+      addPage(src, `${folder}/${name}/index`, { navLabel: node.label, position: pos, inNav: true, kind: 'api', navPath, hiddenIndex });
       return;
     }
     const name = claim(folder, fileSlugKeep(baseOf(src)), fileSlugKeep(`${baseOf(dirOf(src))}-${baseOf(src)}`));
-    addPage(src, folder ? `${folder}/${name}` : name, { navLabel: node.label, position, inNav: true, navPath });
+    addPage(src, folder ? `${folder}/${name}` : name, { navLabel: node.label, position, inNav: true, navPath, hiddenIndex });
   };
 
   const sectionSources = new Map(); // folder → source dir it stands for
 
+  // A section's nav entry, on the folder that stands for it; a section with
+  // no folder of its own (the docs root, or API pages side by side) is listed
+  // in `sections` with its folder (or null) and its index page.
+  const sections = [];
+  const firstIndex = (section) => section.children.find((c) => c.kind === 'page' && isIndexSrc(c.src)) ?? null;
   const placeSection = (section, folder, srcDir, navPath) => {
+    const index = firstIndex(section);
     for (const child of section.children) {
       const childPath = [...navPath, child.label ?? ''];
       if (child.kind === 'link') {
@@ -135,7 +146,7 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
       if (child.kind === 'page') {
         // A nav entry for a missing file is reported by placePage; only real files can be API pages.
         const src = normalizeSrc(child.src);
-        placePage(child, folder, fileSet.has(src) && isApiPage(src) ? null : nextPos(folder), childPath);
+        placePage(child, folder, fileSet.has(src) && isApiPage(src) ? null : nextPos(folder), childPath, child === index);
         continue;
       }
       const srcs = pagesUnder(child).filter((s) => fileSet.has(s));
@@ -146,6 +157,7 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
       // A section holding only API pages adds no folder: the APIs sit in the
       // API folder side by side.
       if (srcs.every((s) => isApiPage(s))) {
+        sections.push({ title: child.label, level: childPath.length, folder: null, index: firstIndex(child) && normalizeSrc(firstIndex(child).src) });
         placeSection(child, folder, srcDir, childPath);
         continue;
       }
@@ -162,6 +174,7 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
       }
       // A section re-filed into a skeleton folder keeps the skeleton's label and place.
       if (!categories.get(childFolder)?.skeleton) categories.set(childFolder, { label: label(child.label), position: nextPos(folder), navLabel: child.label });
+      categories.get(childFolder).nav ??= { title: child.label, level: childPath.length };
       sectionSources.set(childFolder, inside ? c : srcDir);
       placeSection(child, childFolder, inside ? c : srcDir, childPath);
     }
@@ -193,6 +206,8 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
       // A re-filed section inside a skeleton folder (guides/api-security).
       categories.set(top.folder, { label: label(node.label), position: nextPos(parent), navLabel: node.label });
     }
+    if (categories.has(top.folder)) categories.get(top.folder).nav ??= { title: node.label, level: 1 };
+    else sections.push({ title: node.label, level: 1, folder: top.folder, index: firstIndex(node) && normalizeSrc(firstIndex(node).src) });
     if (top.folder) sectionSources.set(top.folder, c); // the root (Home) holds no unlisted pages
     placeSection(node, top.folder, c, [node.label]);
   }
@@ -228,7 +243,7 @@ export function planLayout({ nav, files, config, isApiPage = () => false, apiSlu
     addPage(src, `${targetDir}/${name}`, { navLabel: null, position: null, inNav: false, navPath: ['(not in nav)'] });
   }
   // Sentence case is only applied to labels; record which changed.
-  return { pages, categories, issues };
+  return { pages, categories, sections, issues };
 }
 
 // Keep a source file name when it is already a valid kebab-case slug, so

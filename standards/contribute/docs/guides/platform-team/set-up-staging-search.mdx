@@ -67,13 +67,14 @@ Staging's pages are on Cloudflare; its search runs on the 141 VM, apart from wso
    gh secret set DOCS_SEARCH_GATE_KEY --env staging --repo "$REPO" < docs-platform-keys/search-gate
    ```
 
-3. Make the browser key with the gate, and set it for builds and the Edge Worker:
+3. Make the browser key with the gate, and set it for builds:
 
    ```bash
    ssh -i docs-platform-keys/search-gate -o IdentitiesOnly=yes docs-platform@141.148.145.173 search-key > search-key.txt
    gh variable set SEARCH_KEY_STAGING --repo "$REPO" < search-key.txt
-   npx wrangler secret put TYPESENSE_SEARCH_KEY -c worker/wrangler.jsonc --env staging < search-key.txt
    ```
+
+   Then give the Edge Worker a key of its own, for the MCP endpoint: see [Make the Edge Worker's key](run-the-search-index.mdx#make-the-edge-workers-key).
 
 4. Delete the two private keys from your computer.
 5. Rebuild every staging Docs deployment, so pages carry the key, then select **Actions** > **Search consistency** > **Run workflow** with **fix** on, to index them.
@@ -83,6 +84,7 @@ Staging's pages are on Cloudflare; its search runs on the 141 VM, apart from wso
 1. `https://141-148-145-173.sslip.io/_typesense/health` answers `{"ok":true}`, and `https://141-148-145-173.sslip.io/_typesense/keys` answers 404.
 2. The **Search consistency** run's summary for staging shows `"ok": true`.
 3. The search box on `https://wso2-docs-site.tharinduj.workers.dev/` finds pages.
+4. The MCP endpoint's `search_docs` finds pages: see [Make the Edge Worker's key](run-the-search-index.mdx#make-the-edge-workers-key).
 
 ## Troubleshooting
 

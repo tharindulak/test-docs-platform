@@ -74,7 +74,9 @@ Run WSO2 Docs on your computer to rehearse any process on these pages before you
 
 ## Release a Docs deployment to it
 
-Run the commands of [Follow and run a Docs release](run-a-docs-release.mdx#run-a-release-by-hand) with `--storage s3://docs-staging`, and these two changes:
+Run the commands of [Follow and run a Docs release](run-a-docs-release.mdx#run-a-release-by-hand) with `--storage s3://docs-staging`, and these changes:
+
+- compose reads your copy of the navigation, `--navigation ~/wso2-docs-local/navigation`, as in [Make a world to release](#make-a-world-to-release);
 
 - the redirect table goes to the local edge's KV endpoint:
 
@@ -98,6 +100,8 @@ To see a Content repository's working copy with the local edge's menus, preview 
 npx @wso2/docs preview agent-manager --published http://127.0.0.1:4720/manifest.json --port 3720
 ```
 
+`check` and `build` take the same `--published`. Or set `WSO2_DOCS_PUBLISHED_MANIFEST=http://127.0.0.1:4720/manifest.json` once for all three, and give `check` `--routes http://127.0.0.1:4720` for its `docs:` links. The pull request's compose check takes it as `compose --pr --published http://127.0.0.1:4720/manifest.json --repo-dir <checkout>`.
+
 ## Stop it
 
 1. Stop the edge with Ctrl+C in its terminal, or end its process ID with `kill`.
@@ -110,7 +114,7 @@ npx @wso2/docs preview agent-manager --published http://127.0.0.1:4720/manifest.
 |---|---|
 | `no checkout of wso2/<repo> to read its Doc space manifests from` (`missing-repo`) | Clone every repository in `contentRepos` into the folder you pass with `--content` |
 | `s3://docs-staging has no _platform/composed.json yet` | Run `compose --storage s3://docs-staging` first |
-| Old output after a Platform change | Build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, or delete `node_modules/.cache/webpack` |
+| Old output after a Platform change | Build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, or delete `site/node_modules/.cache/webpack` |
 | The crawl gate fails on links to `/`, `/contribute/` or another Doc space | Those aren't deployed on your edge. Release them too, or read the failures as expected. |
 | A port is in use | Pick others with `--port` and `--admin-port` (default: the edge's port plus one) |
 

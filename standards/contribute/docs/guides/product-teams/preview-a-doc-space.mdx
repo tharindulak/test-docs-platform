@@ -44,7 +44,7 @@ The branch sets the Edition:
 | `main` | Self-hosted versions only, such as `api-manager` | `next`, the coming version, which is never published |
 | `ai-gateway/release/1.2.0` | `ai-gateway` | 1.2.0 |
 
-To see a Self-hosted version as it will publish, switch to its branch. `--edition` only changes which markers apply to the files you have. See [Preview your changes](../preview-locally.mdx) for `--only`, `--exact` and the other options.
+A branch of your own previews as the branch it left: `main`, or a release branch once that has commits of its own. To see a Self-hosted version as it will publish, switch to its branch. `--edition` only changes which markers apply to the files you have. See [Preview your changes](../preview-locally.mdx) for `--only`, `--exact` and the other options.
 
 ## Check before you push
 
@@ -80,7 +80,7 @@ node bin/wso2-docs.mjs preview standards/contribute
 node bin/wso2-docs.mjs preview ~/wso2-docs/docs-api-platform/ai-gateway
 ```
 
-- Local builds keep a webpack cache in `node_modules/.cache/webpack`. A change to the Platform's plugins doesn't clear it. Delete that folder after such a change, or build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, which also saves disk space.
+- Local builds keep a webpack cache in the Platform, in `site/node_modules/.cache/webpack`, never in your Content repository. A change to the Platform's plugins doesn't clear it. Delete that folder after such a change, or build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, which also saves disk space.
 - Builds from one Platform checkout share `site/.docusaurus`, so run one at a time.
 
 A Platform release is a new package, so CI never uses a stale cache.
@@ -97,7 +97,7 @@ Edit a page and save it. The browser updates in about two seconds.
 | `<slug> does not compose` | Your `docspace.yaml` has a schema error. Fix the field the message names. |
 | `missing-repo` | `WSO2_DOCS_CONTENT_REPOS` is set, but a repository isn't in that folder. Clone it there, or unset the variable. |
 | `Missing …/docspace.yaml` | You ran the command in the repository's root. Name the Doc space's directory, such as `ai-gateway`. |
-| Old output after a Platform change | Delete `node_modules/.cache/webpack`, or set `DOCUSAURUS_NO_PERSISTENT_CACHE=1`. |
+| Old output after a Platform change | Delete `site/node_modules/.cache/webpack` in the Platform, or set `DOCUSAURUS_NO_PERSISTENT_CACHE=1`. |
 
 ## Next steps
 

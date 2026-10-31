@@ -24,7 +24,7 @@ The normative spec for WSO2 Docs and the Platform that builds it. Each rule is w
 | [releases-and-deployments.md](releases-and-deployments.md) | Docs releases, the release pipeline, storage and pointers, rollbacks, rebuilds and Platform releases |
 | [chrome-and-version-switching.md](chrome-and-version-switching.md) | The Platform chrome, both version selectors, switching, notices, theme, page furniture, analytics and the Landing page |
 | [search.md](search.md) | The search engine, records, indexing, Search scopes and keys |
-| [extension-points.md](extension-points.md) | Components, Page layouts (overview, catalog, API reference), notices, link entries, generated content and proposals |
+| [extension-points.md](extension-points.md) | Components, Page layouts (overview, catalog, API reference), sidebar icons, notices, link entries, generated content and proposals |
 | [build-and-quality-checks.md](build-and-quality-checks.md) | The build, the checks and where each runs, overrides, lint and AI review |
 | [edge-and-hosting.md](edge-and-hosting.md) | The Edge Worker, storage, environments, caching and the hosting target |
 | [authoring-and-preview.md](authoring-and-preview.md) | The writer's two paths, preview, `init` and `new`, author skills, the Sandbox, documentation standards and Contribute |

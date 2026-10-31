@@ -19,6 +19,7 @@ What a product team may add beyond plain pages, and through which sanctioned hoo
 | A banner for some Editions | `notices` in the Doc space manifest |
 | A link out of WSO2 Docs | A link entry in the Docs section manifest |
 | An older version on its old site | `legacyVersions` in the Doc space manifest |
+| An icon before a sidebar entry | `sidebar_custom_props: { icon }` in a page's front matter, `customProps: { icon }` in a folder's `_category_.yml` |
 | Content generated from a product repo | A data file, synced by a bot pull request |
 | Anything else | An extension proposal |
 
@@ -41,6 +42,16 @@ What a product team may add beyond plain pages, and through which sanctioned hoo
 - **Layouts are drawn before Docusaurus's own remark plugins** (and in the twin pipeline), so the TOC, anchors, link checks, server rendering, search records and twins all see them. [N19]
 - **`overview`**: every section of a page's own Markdown that holds only text and links becomes a card, keeping its heading and anchor. The page stays plain Markdown, and its twin is that Markdown. A product card is an H3 with its Cloud and Self-hosted links. [N19]
 - **`catalog`**: the page's text, then a searchable, filterable grid of the items in its `data:` file, filtered to the Edition. Every item is in the server-rendered HTML; the controls are labelled and announced. [N19]
+
+## Sidebar icons
+
+- **A sidebar entry may show an icon before its label, set where Docusaurus sets an entry's props**: a page's front matter `sidebar_custom_props: { icon: <name> }`, or a folder's `_category_.yml` `customProps: { icon: <name> }`. An entry without one looks as it does without the feature. An icon shows at any level of the sidebar it is set on, and a Cloud part's entries keep theirs in the family Cloud tree. [User decision 2026-10-28]
+- **Names come from the Platform's allow-list (`lib/nav-icons.mjs`), in the MkDocs Material form `wso2/docs-is` used**: `octicons/<name>-16`, every 16px Octicon of the pinned `@primer/octicons` 18.0.0 (MIT); `fontawesome/brands/<name>` for `react`, `vuejs`, `angular`, `js`, `node-js` and `fontawesome/solid/user-shield`, copied from Font Awesome Free 6.3.0 (CC BY 4.0) into `icons/fontawesome/`; and `wso2/<name>` for `nextjs`, `nuxt`, `dotnet`, `expressjs`, `spring-boot`, `mcp`, copied from `wso2/docs-is` (Apache-2.0) into `icons/wso2/`. Attribution is in `THIRD-PARTY-NOTICES.md`, which ships in the package with the icons. A new icon comes through an extension proposal. [User decision 2026-10-28]
+- **An unknown name is rejected with a fix**: the blocking `nav-icons` check (in `standards/checks.yaml`) names the file and line and suggests a close name, and a strict build fails on it; a build that only warns on broken links (a preview) warns and draws the entry without its icon. [User decision 2026-10-28]
+- **The build inlines the SVG; nothing loads in the browser.** `plugins/nav-icons.mjs` hands the SVG of the icons the sidebars use to the existing `DocSidebarItems` wrap as global data, so only used icons reach readers and no icon font loads. Each icon is fitted into 16px keeping its shape (a narrow Font Awesome glyph is 14×16), filled `--wso2-nav-icon-color: #848484` in light and dark mode, 8px before the label, and the entries under an entry with an icon are indented 20px more, as on the Identity Platform docs (`site/wso2-theme/css/nav-icons.css`, part of the shared theme, so its look changes without a rebuild; which icons exist and the SVG stay in each build). It does not change on hover or for the active entry; only the label does. It is decorative (`aria-hidden`), so an entry's accessible name stays its label, and Markdown twins and `llms.txt` leave it out. [User decision 2026-10-28] [user decision 2026-10-28 (theme without rebuilding)]
+- **The converter carries `docs-is`'s `extra.nav_icons` over** for Identity Server and Identity Platform Cloud: an entry gets the icon its legacy template drew, matched on the nav title and level (a level, a list of levels, or any), never on a section's index page (Material folds it into the section), and never on an "Overview" page whose URL names connectors or organization management. A section with no folder of its own that stands for the docs root (Home) puts its icon on the root index page, and the family overview takes the legacy home's. A folder laid out from another tree's nav takes that nav's icon only for content the branch's own nav lacks. A legacy icon outside the allow-list (the Sift and Onfido logos) is reported and left out. [User decision 2026-10-28]
+
+Reason for the section: user decision 2026-10-28 (theme from the WSO2 product docs sites).
 
 ## API reference
 

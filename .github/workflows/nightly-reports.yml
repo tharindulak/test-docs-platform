@@ -96,7 +96,7 @@ jobs:
           sample=20
           [ "$(date -u +%u)" = "7" ] && sample=0
           node bin/wso2-reports.mjs a11y-urls --sitemap "$SITEMAP" --sample "$sample" > pa11y.json
-          npx --yes pa11y-ci@3.1.0 --config pa11y.json --json > a11y.json || true
+          npx --yes pa11y-ci@5.0.0 --config pa11y.json --json > a11y.json || true
           {
             echo "## Accessibility of ${{ matrix.space }}/${{ matrix.segment }}"
             echo

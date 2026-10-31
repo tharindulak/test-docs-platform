@@ -36,9 +36,11 @@ test('every workflow parses and has triggers and jobs', () => {
 test('release.yml: starts from the intake records or a rebuild dispatch, one matrix job per deployment, the release sequence, production off', () => {
   const w = wf('release.yml');
   assert.deepEqual(w.on.push, { branches: ['main'], paths: ['releases/*.yaml'] }, 'a merged intake record change starts the release');
-  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['repo', 'tag', 'scope', 'space']);
+  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['repo', 'tag', 'scope', 'space', 'a11y']);
+  assert.deepEqual({ type: w.on.workflow_dispatch.inputs.a11y.type, default: w.on.workflow_dispatch.inputs.a11y.default }, { type: 'boolean', default: false }, 'axe on the theme runs only when asked');
   assert.equal(w.on.release, undefined, 'a Platform release dispatches the rebuild (platform-release.yml)');
-  assert.deepEqual(Object.keys(w.jobs), ['plan', 'store', 'build-latest', 'build', 'publish', 'finalize-staging', 'promote']);
+  assert.deepEqual(Object.keys(w.jobs), ['plan', 'store', 'build-latest', 'build', 'publish', 'finalize-staging', 'promote', 'theme', 'theme-promote']);
+  assert.equal(w.jobs.plan.if, "inputs.scope != 'theme'", 'a theme-only release builds nothing');
   for (const job of ['build-latest', 'build']) {
     assert.equal(w.jobs[job].uses, './.github/workflows/build-deployment.yml');
     assert.match(w.jobs[job].strategy.matrix, /fromJSON\(needs\.plan\.outputs\.(latest|others)\)/);
@@ -170,15 +172,17 @@ test('intake.yml: polls on a schedule or by hand, proposes with an App token in 
 
 test('platform-release.yml: a v<major>.<minor>.<patch> tag publishes @wso2/docs with trusted publishing, moves the major tag and rebuilds that major', () => {
   const w = wf('platform-release.yml');
-  assert.deepEqual(Object.keys(w.on), ['push']);
+  assert.deepEqual(Object.keys(w.on), ['push', 'workflow_dispatch']);
   assert.deepEqual(w.on.push, { tags: ['v[0-9]+.[0-9]+.[0-9]+'] }, 'release tags only: the moving v1 tag starts nothing');
+  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['a11y'], 'by hand at a release tag, only to pass a11y on');
+  assert.equal(w.on.workflow_dispatch.inputs.a11y.default, false);
   const job = w.jobs.release;
   assert.equal(job.environment, 'npm', 'the environment npm\'s trusted publisher names');
   assert.deepEqual(job.permissions, { contents: 'write', 'id-token': 'write', actions: 'write' });
   const text = fs.readFileSync(path.join(platformDir, 'platform-release.yml'), 'utf8');
   assert.doesNotMatch(text, /NPM_TOKEN|NODE_AUTH_TOKEN|secrets\./, 'trusted publishing: no npm token');
   const steps = job.steps.map((s) => s.name ?? s.uses ?? s.run);
-  const order = ['Check the tag (version, main line, CI)', 'Publish @wso2/docs to npm', 'Move the major tag', 'GitHub release', 'Rebuild the Docs deployments pinned to this major'];
+  const order = ['Check the tag (version, main line, CI)', 'Publish @wso2/docs to npm', 'Move the major tag', 'GitHub release', 'Publish the theme and rebuild the Docs deployments pinned to this major'];
   assert.deepEqual(steps.filter((s) => order.includes(s)), order);
   const step = (name) => job.steps.find((s) => s.name === name);
   assert.match(job.steps.find((s) => s.run?.startsWith('npm install -g npm@')).run, /npm@\^11\.5\.1/, 'trusted publishing needs npm 11.5.1');
@@ -192,9 +196,14 @@ test('platform-release.yml: a v<major>.<minor>.<patch> tag publishes @wso2/docs 
   assert.match(move.run, /git tag -f "\$MAJOR_TAG" "\$GITHUB_SHA"/);
   assert.match(move.run, /git push -f origin "refs\/tags\/\$MAJOR_TAG"/);
   assert.doesNotMatch(text, /refs\/heads/);
-  const rebuild = step('Rebuild the Docs deployments pinned to this major');
-  assert.equal(rebuild.if, "steps.check.outputs.move-major == 'true'", 'an older patch never rebuilds over a newer release');
-  assert.match(rebuild.run, /gh workflow run release\.yml --ref "\$TAG" -f scope=all/);
+  const rebuild = step('Publish the theme and rebuild the Docs deployments pinned to this major');
+  assert.equal(rebuild.if, "steps.check.outputs.move-major == 'true'", 'an older patch never rebuilds over a newer release, nor publishes its theme');
+  // A theme-only release (every change in site/wso2-theme/ or unbuilt) publishes the theme alone.
+  assert.match(step('Check the tag (version, main line, CI)').run, /echo "rebuild=\$\(jq -r \.rebuild /);
+  assert.equal(rebuild.env.REBUILD, '${{ steps.check.outputs.rebuild }}');
+  assert.match(rebuild.run, /scope=all\n\[ "\$REBUILD" = "false" \] && scope=theme\ngh workflow run release\.yml --ref "\$TAG" -f scope="\$scope" -f a11y="\$A11Y"/);
+  assert.equal(rebuild.env.A11Y, "${{ inputs.a11y || vars.THEME_A11Y == 'true' }}", 'a pushed tag has no inputs: the THEME_A11Y variable turns axe on');
+  assert.equal(job.steps.find((s) => s.uses === 'actions/checkout@v4').with['fetch-depth'], 0, 'the diff since the previous release needs its tag');
 });
 
 test('platform-deployments.yml: a change on main releases Contribute and, for navigation/, the Landing deployment', async () => {
@@ -212,7 +221,7 @@ test('platform-deployments.yml: a change on main releases Contribute and, for na
   assert.match(w.jobs.landing.steps.at(-1).run, /gh workflow run release\.yml .*-f scope=landing/);
 
   const r = wf('release.yml');
-  assert.deepEqual(r.on.workflow_dispatch.inputs.scope.options, ['tag', 'docspace', 'all', 'landing']);
+  assert.deepEqual(r.on.workflow_dispatch.inputs.scope.options, ['tag', 'docspace', 'all', 'landing', 'theme']);
   assert.match(r.concurrency.group, /inputs\.scope/, 'a Landing release has its own group, not the Platform rebuild\'s');
   const b = wf('build-deployment.yml').jobs.build;
   assert.equal(b.steps.find((s) => s.name === 'Check out the Platform\'s own Doc space at the tag').if, "inputs.space != '_landing' && inputs.asset == ''");
@@ -246,9 +255,57 @@ test('manifests.yml composes on a push or by hand; production republishes what s
   assert.match(prod, /manifest --storage s3:\/\/docs-prod --env production --policy composed\.json/);
 });
 
+test('release.yml: the theme is published to staging, checked on every live deployment, then promoted as a Docs release is', () => {
+  const w = wf('release.yml');
+  const theme = w.jobs.theme;
+  assert.equal(theme.if, "inputs.scope == 'theme' || inputs.scope == 'all'", 'a Platform rebuild publishes the theme too');
+  assert.equal(theme.environment, 'staging');
+  assert.equal(theme.concurrency, undefined, 'the pointer move queues on the state lock');
+  const names = theme.steps.map((s) => s.name ?? s.uses ?? s.run);
+  const order = [
+    'Upload the theme to staging', 'The theme checks\' pages', 'axe with the live theme (the baseline)', 'Point staging\'s theme at the new one',
+    'Wait until the staging edge serves the new theme', 'Contrast check of the theme\'s colour pairs',
+    'axe with the new theme (light and dark, desktop and 375 px, screenshots)', 'Block only on violations the new theme introduces', 'actions/upload-artifact@v4', 'Summary',
+  ];
+  assert.deepEqual(names.filter((n) => order.includes(n)), order);
+  const step = (name) => theme.steps.find((s) => s.name === name);
+  assert.match(step('Upload the theme to staging').run, /theme publish --storage "\$STAGING_STORAGE" --env staging --run-id "\$GITHUB_RUN_ID" --upload-only --github-output "\$GITHUB_OUTPUT"/);
+  assert.match(step('The theme checks\' pages').run, /theme check-pages --storage "\$STAGING_STORAGE" --host "\$STAGING_HOST" --major "\$MAJOR" --content "\$RUNNER_TEMP\/content" --screenshots screenshots --out pa11y\.json --baseline-out pa11y-live\.json --github-output "\$GITHUB_OUTPUT"/);
+  // The baseline runs before the pointer moves, so pages still load the live theme.
+  const baseline = step('axe with the live theme (the baseline)');
+  assert.match(baseline.if, /steps\.pages\.outputs\.live != ''/, 'the major\'s first theme has no baseline');
+  assert.match(baseline.run, /pa11y-ci@5\.0\.0 --config pa11y-live\.json --json > a11y-live\.json/, 'the nightly reports\' axe runner');
+  assert.match(step('Point staging\'s theme at the new one').run, /theme publish --storage "\$STAGING_STORAGE" --env staging --release "\$RELEASE" --major "\$MAJOR"$/);
+  assert.match(step('axe with the new theme (light and dark, desktop and 375 px, screenshots)').run, /pa11y-ci@5\.0\.0 --config pa11y\.json --json > a11y\.json/);
+  const gate = step('Block only on violations the new theme introduces');
+  assert.equal(gate.id, 'axe');
+  assert.match(gate.run, /args=\(theme compare --new a11y\.json --summary axe-summary\.md\)\n\[ -n "\$LIVE" \] && args\+=\(--old a11y-live\.json\)/);
+  assert.match(step('Summary').run, /cat axe-summary\.md/, 'both counts in the run summary');
+  assert.match(theme.steps.find((s) => s.uses === 'actions/upload-artifact@v4').with.path, /screenshots\/[\s\S]*a11y-live\.json/);
+  assert.doesNotMatch(JSON.stringify(theme), /wso2-docs\.mjs build|crawl/, 'no build, no crawl gate');
+  // axe, its pages, the Content checkouts and the screenshots only with a11y; the contrast check always.
+  for (const name of ['Check out the Content repos\' main lines (each one\'s pinned Platform major)', 'The theme checks\' pages',
+    'axe with the new theme (light and dark, desktop and 375 px, screenshots)', 'Block only on violations the new theme introduces']) {
+    assert.equal(step(name).if, 'inputs.a11y', name);
+  }
+  assert.equal(baseline.if, "inputs.a11y && steps.pages.outputs.live != ''");
+  assert.equal(theme.steps.find((s) => s.uses === 'actions/upload-artifact@v4').if, 'always() && inputs.a11y', 'screenshots only when axe runs');
+  assert.equal(step('Contrast check of the theme\'s colour pairs').if, undefined, 'the contrast check always runs');
+  assert.match(step('Summary').run, /axe: \*\*skipped\*\*[\s\S]*gh workflow run release\.yml --ref \$GITHUB_REF_NAME -f scope=theme -f a11y=true/, 'the summary says axe was skipped and how to run it');
+  assert.equal(theme.outputs['checks-passed'], "${{ steps.contrast.outcome == 'success' && (steps.axe.outcome == 'success' || !inputs.a11y) }}", 'promotion gates on contrast, and on axe when it runs');
+
+  const promote = w.jobs['theme-promote'];
+  assert.deepEqual(promote.needs, 'theme');
+  assert.match(promote.if, /needs\.theme\.outputs\.checks-passed == 'true'/);
+  assert.match(promote.if, /vars\.DOCS_PRODUCTION_ENABLED == 'true'/);
+  assert.equal(promote.environment, 'production');
+  assert.match(promote.steps.at(-1).run, /theme publish --storage "\$PRODUCTION_STORAGE" --from "\$STAGING_STORAGE" --env production --policy composed\.json --release "\$RELEASE" --major "\$MAJOR"/, 'the tested folder, copied');
+});
+
 test('rollback.yml points deployments back with no build, then the redirect table and the search index', () => {
   const w = wf('rollback.yml');
-  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['deployments', 'to', 'environment']);
+  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs), ['deployments', 'to', 'environment', 'target', 'major']);
+  assert.deepEqual(w.on.workflow_dispatch.inputs.target.options, ['deployments', 'theme']);
   assert.deepEqual(w.on.workflow_dispatch.inputs.environment.options, ['staging', 'production']);
   const job = w.jobs.rollback;
   assert.equal(job.concurrency, undefined, 'it waits its turn on the state lock with releases');
@@ -260,6 +317,18 @@ test('rollback.yml points deployments back with no build, then the redirect tabl
   assert.doesNotMatch(runs, /wso2-docs\.mjs build/, 'no build');
   assert.match(job.env.STORAGE, /docs-prod.*docs-staging/);
   assert.match(job.if, /vars\.DOCS_PRODUCTION_ENABLED == 'true'/, 'production stays off');
+  assert.match(job.if, /inputs\.target != 'theme'/);
+
+  // Target theme: the major's theme pointer back, with no build, redirects or search.
+  const theme = w.jobs['rollback-theme'];
+  assert.match(theme.if, /inputs\.target == 'theme'/);
+  assert.match(theme.if, /vars\.DOCS_PRODUCTION_ENABLED == 'true'/);
+  assert.equal(theme.concurrency, undefined);
+  const themeRuns = theme.steps.map((s) => s.run ?? '').join('\n');
+  assert.match(themeRuns, /args=\(theme rollback --storage "\$STORAGE" --env "\$ENV_NAME" --policy composed\.json\)/);
+  assert.match(themeRuns, /--major "\$MAJOR"/);
+  assert.match(themeRuns, /--to "\$TO"/);
+  assert.doesNotMatch(themeRuns, /redirects|search-check|wso2-docs\.mjs build/);
 });
 
 test('no workflow guards the published state with a concurrency group: it would cancel a waiting writer', () => {

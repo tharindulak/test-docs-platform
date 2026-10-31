@@ -37,8 +37,9 @@ const heading = (depth, id, children) => ({ type: 'heading', depth, children, da
 const codeBlock = (lang, value, title) => el('ApiCode', { lang, title, code: value });
 const list = (items) => ({ type: 'list', ordered: false, spread: false, children: items.map((c) => ({ type: 'listItem', spread: false, children: Array.isArray(c) ? c : [c] })) });
 
+// Focusable: a wide table scrolls sideways (on a phone), and a keyboard must reach it.
 function table(head, rows, className) {
-  return el('table', { className }, [
+  return el('table', { className, tabIndex: '0' }, [
     el('thead', {}, [el('tr', {}, head.map((h) => el('th', {}, [text(h)])))]),
     el('tbody', {}, rows.map((r) => el('tr', {}, r.map((cell) => el('td', {}, cell))))),
   ]);

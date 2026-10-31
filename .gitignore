@@ -1,7 +1,12 @@
 node_modules/
 .docusaurus/
 build/
+# The build tests, not a build output.
+!/test/build/
 .cache/
 .wrangler/
 .claude/worktrees/
 edge.pid
+
+# Rules for one machine; see AGENTS.md
+/AGENTS.local.md

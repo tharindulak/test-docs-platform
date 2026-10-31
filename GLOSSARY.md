@@ -8,6 +8,10 @@ The unified documentation experience for all WSO2 products, served at docs.wso2.
 The single reader-facing documentation experience for all WSO2 products: one domain, one landing page, one global navigation and search, one look. Says nothing about how many builds or repos sit behind it.
 _Avoid_: Doc site, portal, docs hub
 
+**Product**:
+Something WSO2 offers, as wso2.com lists it, whether delivered as Cloud, Self-hosted or both (e.g. Identity Server, API Manager), or a Product family's Cloud (e.g. Identity Platform Cloud). Each product's documentation is one Doc space, so wherever a reader or an agent picks a product, it is named by its Doc space's slug.
+_Avoid_: Offering, SKU
+
 **Doc space**:
 One product's documentation within WSO2 Docs, or a Product family's Cloud documentation: its Editions (Cloud, if any, plus every Self-hosted version). The reader chooses an Edition from the version selector next to the product; a Docs section may also give a Doc space its own version dropdown in the menu.
 _Avoid_: Product site, product docs
@@ -107,8 +111,12 @@ The Platform's record of the Docs bundles it has accepted for one Doc space, per
 _Avoid_: Lock, lock file, pins
 
 **Platform release**:
-A versioned release of the Platform. Shipping it rebuilds every live Docs deployment pinned to its major version, with no new Docs release needed.
+A versioned release of the Platform. Shipping it rebuilds every live Docs deployment pinned to its major version, with no new Docs release needed, unless it changes only the Shared theme, which goes live without a rebuild.
 _Avoid_: Theme release, site release
+
+**Shared theme**:
+The stylesheets, fonts and images every Docs deployment of one Platform major loads from the edge; changing it needs no rebuild.
+_Avoid_: Theme release, skin, global stylesheet
 
 **Deployment manifest**:
 The published record of all of WSO2 Docs' navigation: the products menu, every Docs section's menu, and every Doc space's live Editions, Legacy versions, `latest` and end-of-life status. It is composed from the teams' Doc space manifests, Docs section manifests and the Platform's own navigation. Readers' menus and version selectors follow it, so changing it needs no rebuild.

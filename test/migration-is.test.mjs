@@ -22,6 +22,10 @@ import { checkEditions } from '../migration/lib/pagecheck.mjs';
 import { convertProduct } from '../migration/lib/run.mjs';
 import { validateSpec } from '../lib/openapi.mjs';
 import ip from '../migration/products/identity-server.mjs';
+import family from '../migration/products/identity-platform.mjs';
+import { isIndexSrc, legacyNavIcon, platformIconName } from '../migration/lib/nav-icons.mjs';
+import { planLayout } from '../migration/lib/layout.mjs';
+import { convertFamily } from '../migration/lib/family.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = path.join(here, '..', 'fixtures', 'mkdocs-is-mini', 'en');
@@ -262,6 +266,20 @@ test('end to end: two trees and shared includes become one Content repo branch',
   // The home page's cards: the overview layout.
   assert.match(read('docs/index.mdx'), /^layout: overview$/m);
 
+  // Sidebar icons from base.yml's nav_icons, matched on the 7.3.0 nav as its template did.
+  const icon = (rel) => yaml.load(read(rel).split('---')[rel.endsWith('.yml') ? 0 : 1])?.[rel.endsWith('.yml') ? 'customProps' : 'sidebar_custom_props']?.icon;
+  assert.equal(icon('docs/index.mdx'), 'octicons/home-16', 'the Home section stands on the root index page');
+  assert.equal(icon('docs/guides/_category_.yml'), 'octicons/book-16', 'a top-level section re-filed into a skeleton folder');
+  assert.equal(icon('docs/guides/mfa.mdx'), 'wso2/mcp', 'no level: any level; a theme SVG becomes wso2/<name>');
+  assert.equal(icon('docs/deploy-and-operate/_category_.yml'), 'octicons/gear-16');
+  assert.equal(icon('docs/deploy-and-operate/install.mdx'), undefined, 'Install is at level 2, not 1');
+  assert.equal(icon('docs/guides/connectors/_category_.yml'), 'octicons/beaker-16');
+  assert.equal(icon('docs/guides/connectors/index.mdx'), undefined, 'a section\'s index page is folded into it');
+  assert.equal(icon('docs/guides/connectors/sift/_category_.yml'), undefined, 'a legacy icon the Platform does not have');
+  assert.ok(report.items.some((i) => i.kind === 'nav-icon' && i.file === 'docs/guides/connectors/sift/_category_.yml' && /assets\/images\/sift-logo\.svg is not a Platform sidebar icon/.test(i.message)));
+  assert.equal(icon('docs/guides/connectors/sift/overview.mdx'), undefined, 'a connector\'s Overview has none');
+  assert.equal(summary.stats.navIcons, 5);
+
   const api = read('docs/reference/apis/users/index.mdx');
   assert.match(api, /^layout: api-reference$/m);
   assert.ok(fs.existsSync(path.join(out, 'docs/reference/apis/users/openapi.cloud.yaml')));
@@ -296,5 +314,74 @@ test('end to end on main: Cloud plus next, with the IS 7.3.0 tree telling new co
   } finally {
     fs.rmSync(next, { recursive: true, force: true });
     fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// --- Sidebar icons from docs-is's extra.nav_icons (Extension points) -------------
+
+test('the converter reads docs-is\'s nav_icons as its template does: title, level, the Overview exception', () => {
+  const icons = {
+    Guides: { icon: 'octicons/book-16', level: [1, 2, 3, 4] },
+    Home: { icon: 'octicons/home-16', level: 1 },
+    Overview: { icon: 'octicons/file-16', level: 3 },
+    'Spring Boot': { icon: 'assets/libs/custom-icons/spring-boot.svg' },
+    Sift: { icon: 'assets/images/sift-logo.svg', level: 2 },
+  };
+  const at = (title, level, url = '') => legacyNavIcon(icons, { title, level, url }, ip.navIcons);
+  assert.equal(at('Home', 1), 'octicons/home-16');
+  assert.equal(at('Home', 2), null, 'another level');
+  assert.equal(at('Guides', 3), 'octicons/book-16', 'one of a list of levels');
+  assert.equal(at('Guides', 5), null);
+  assert.equal(at('Spring Boot', 7), 'assets/libs/custom-icons/spring-boot.svg', 'no level: any level');
+  assert.equal(at('guides', 1), null, 'titles match exactly');
+  assert.equal(at('Overview', 3, 'sdks/react/overview/'), 'octicons/file-16');
+  assert.equal(at('Overview', 3, 'connectors/sift/overview/'), null, 'a connector\'s Overview has none');
+  assert.equal(at('Overview', 3, 'guides/organization-management/overview/'), null, 'nor organization management\'s');
+  assert.equal(at('constructor', 1), null);
+  assert.equal(family.navIcons, ip.navIcons, 'the family overview reads them as its part does');
+
+  assert.deepEqual(platformIconName('octicons/book-16', ip.navIcons), { name: 'octicons/book-16' });
+  assert.deepEqual(platformIconName('fontawesome/solid/user-shield', ip.navIcons), { name: 'fontawesome/solid/user-shield' });
+  assert.deepEqual(platformIconName('assets/libs/custom-icons/spring-boot.svg', ip.navIcons), { name: 'wso2/spring-boot' });
+  assert.match(platformIconName('assets/images/sift-logo.svg', ip.navIcons).problem, /the legacy icon assets\/images\/sift-logo\.svg is not a Platform sidebar icon/);
+  assert.ok(isIndexSrc('guides/index.md') && isIndexSrc('README.md') && !isIndexSrc('guides/overview.md'));
+});
+
+test('the layout keeps each entry\'s nav level, the folded index pages and the root section', () => {
+  const nav = [
+    { kind: 'section', label: 'Home', children: [{ kind: 'page', label: 'Home', src: 'index.md' }] },
+    { kind: 'section', label: 'Guides', children: [
+      { kind: 'page', label: 'Guides', src: 'guides/index.md' },
+      { kind: 'page', label: 'Add MFA', src: 'guides/mfa.md' },
+      { kind: 'section', label: 'Connectors', children: [{ kind: 'page', label: 'Overview', src: 'guides/connectors/overview.md' }] },
+    ] },
+  ];
+  const files = ['index.md', 'guides/index.md', 'guides/mfa.md', 'guides/connectors/overview.md'];
+  const config = {
+    topLevel: { Home: { folder: '' }, Guides: { folder: 'guides' } },
+    skeleton: [{ folder: 'guides', label: 'Guides' }],
+  };
+  const l = planLayout({ nav, files, config });
+  assert.deepEqual(l.pages.get('guides/mfa.md').nav, { level: 2, hiddenIndex: false });
+  assert.deepEqual(l.pages.get('guides/index.md').nav, { level: 2, hiddenIndex: true }, 'Material folds a section\'s index page into it');
+  assert.deepEqual(l.pages.get('guides/connectors/overview.md').nav, { level: 3, hiddenIndex: false });
+  assert.deepEqual(l.categories.get('guides').nav, { title: 'Guides', level: 1 }, 'a section re-filed into a skeleton folder');
+  assert.deepEqual(l.categories.get('guides/connectors').nav, { title: 'Connectors', level: 2 });
+  assert.deepEqual(l.sections, [{ title: 'Home', level: 1, folder: '', index: 'index.md' }], 'the root section stands on its index page');
+});
+
+test('the family overview takes the legacy home\'s icon', async () => {
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-nav-icons-family-'));
+  try {
+    fs.mkdirSync(path.join(repoDir, 'identity-server'));
+    fs.writeFileSync(path.join(repoDir, 'identity-server', 'redirects.yaml'), 'moves: []\nlegacy: []\n');
+    const sourceRoot = fixture;
+    await convertFamily({ config: family, sourceRoot, repoDir, sourceRef: 'wso2/docs-is@test', compile: false });
+    const text = fs.readFileSync(path.join(repoDir, 'identity-platform', 'docs', 'index.mdx'), 'utf8');
+    const fm = yaml.load(text.split('---')[1]);
+    assert.equal(fm.sidebar_label, 'Overview');
+    assert.deepEqual(fm.sidebar_custom_props, { icon: 'octicons/home-16' }, 'the legacy "Home" section, level 1');
+  } finally {
+    fs.rmSync(repoDir, { recursive: true, force: true });
   }
 });

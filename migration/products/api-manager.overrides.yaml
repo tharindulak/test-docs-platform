@@ -10,6 +10,18 @@ patches:
   find: "`<APIM_HOME>/repository/conf/deployment.toml        \n` file"
   replace: '`<APIM_HOME>/repository/conf/deployment.toml` file'
   why: the code span around the file path closes on the next line, so <APIM_HOME> reads as an HTML tag
+- file: docs/consume/manage-subscription/subscribe-to-an-api.md
+  find: '     ![[API overview]({{base_path}}/assets/img/learn/select-api-dev-portal-with-business-info.png)]'
+  replace: '     [![API overview]({{base_path}}/assets/img/learn/select-api-dev-portal-with-business-info.png)]'
+  why: an image nested inside another image's alt text (4.5.0's path for the fix above); the linked thumbnail every other step uses was meant
+  editions:
+  - 4.5.0
+- file: docs/administer/managing-users-and-roles/managing-user-stores/configure-primary-user-store/configuring-a-read-only-ldap-user-store.md
+  find: "`<APIM_HOME>/repository/conf/deployment.toml        \n` file"
+  replace: '`<APIM_HOME>/repository/conf/deployment.toml` file'
+  why: the code span around the file path closes on the next line, so <APIM_HOME> reads as an HTML tag (4.5.0's path for the fix above)
+  editions:
+  - 4.5.0
 - file: docs/administer/logging-and-monitoring/logging/managing-log-growth.md
   find: ']({{base_path}}/administer/logging-and-monitoring/logging/configuring-logging/#configuring-carbon-logs)'
   replace: ']({{base_path}}/monitoring/observability/configuring-logging/#configuring-carbon-logs)'

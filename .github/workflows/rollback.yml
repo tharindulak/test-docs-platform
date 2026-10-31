@@ -6,20 +6,24 @@
 # Platform team (Actions > Roll back docs > Run workflow); the Doc space's team
 # then pins the Edition in its docspace.yaml so the next release doesn't undo
 # it. An Edition that feeds /latest/ has two deployments: roll back both.
+# A release built before the shared theme shows its old built-in look; the
+# rollback's output says so. Target theme points a Platform major's shared
+# theme back instead (`wso2-release theme rollback`): no build, no redirects,
+# no search; readers get it within the live theme's 5-minute cache.
 # PENDING INFRA: the same secrets and variables as release.yml (the DOCS_SEARCH_*
 # secrets for the search host's gate).
 name: Roll back docs
-run-name: "Roll back docs: ${{ inputs.deployments }} on ${{ inputs.environment }}"
+run-name: "Roll back docs: ${{ inputs.target == 'theme' && 'the theme' || inputs.deployments }} on ${{ inputs.environment }}"
 
 on:
   workflow_dispatch:
     inputs:
       deployments:
-        description: "Docs deployments, space-separated: <doc space>/<edition|latest>, such as ai-gateway/latest ai-gateway/1.2.0"
+        description: "Docs deployments, space-separated: <doc space>/<edition|latest>, such as ai-gateway/latest ai-gateway/1.2.0 (target deployments)"
         type: string
-        required: true
+        required: false
       to:
-        description: The release to go back to, such as 1.2.0-docs.2 (default each deployment's previous release)
+        description: The release to go back to, such as 1.2.0-docs.2, or the theme id, such as 1.4.0.r123456 (default the previous one)
         type: string
         required: false
       environment:
@@ -27,6 +31,15 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      target:
+        description: What to roll back
+        type: choice
+        options: [deployments, theme]
+        default: deployments
+      major:
+        description: The Platform major whose theme to roll back (target theme; default this ref's major)
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -34,7 +47,7 @@ permissions:
 jobs:
   rollback:
     # Production is OFF for the Pilot, as in release.yml.
-    if: inputs.environment == 'staging' || vars.DOCS_PRODUCTION_ENABLED == 'true'
+    if: inputs.target != 'theme' && (inputs.environment == 'staging' || vars.DOCS_PRODUCTION_ENABLED == 'true')
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     # No concurrency group: GitHub keeps one waiting run per group and cancels
@@ -62,6 +75,7 @@ jobs:
         run: node bin/wso2-release.mjs composed --storage s3://wso2-docs-site --out composed.json
       - name: Point each deployment back
         run: |
+          [ -n "$DEPLOYMENTS" ] || { echo "::error::name the deployments to roll back"; exit 1; }
           for d in $DEPLOYMENTS; do
             [[ "$d" =~ ^[a-z0-9][a-z0-9-]*/[A-Za-z0-9._-]+$ ]] || { echo "::error::bad deployment $d"; exit 1; }
             args=(rollback --storage "$STORAGE" --env "$ENV_NAME" --policy composed.json --deployment "$d")
@@ -92,4 +106,50 @@ jobs:
             echo '```'
             echo
             echo "Hold it: pin each Edition in its docspace.yaml (pin: <tag>), or the next Docs release moves it forward again."
+            if grep -q '^note: .*before the shared theme' rollback.txt 2>/dev/null; then
+              echo
+              echo "A release built before the shared theme shows its old built-in look, and theme changes don't reach it (the notes above)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # The shared theme of one Platform major: its pointer back to the previous
+  # (or the named) published theme, under the state lock.
+  rollback-theme:
+    if: inputs.target == 'theme' && (inputs.environment == 'staging' || vars.DOCS_PRODUCTION_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      ENV_NAME: ${{ inputs.environment }}
+      STORAGE: ${{ inputs.environment == 'production' && 's3://docs-prod' || 's3://wso2-docs-site' }}
+      TO: ${{ inputs.to }}
+      MAJOR: ${{ inputs.major }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The stored composed manifest
+        run: node bin/wso2-release.mjs composed --storage s3://wso2-docs-site --out composed.json
+      - name: Point the theme back
+        run: |
+          args=(theme rollback --storage "$STORAGE" --env "$ENV_NAME" --policy composed.json)
+          [ -n "$MAJOR" ] && args+=(--major "$MAJOR")
+          [ -n "$TO" ] && args+=(--to "$TO")
+          node bin/wso2-release.mjs "${args[@]}" | tee rollback.txt
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Theme rollback on $ENV_NAME"
+            echo
+            echo '```text'
+            cat rollback.txt 2>/dev/null || true
+            echo '```'
+            echo
+            echo "\`wso2-release theme list --storage $STORAGE\` shows every published theme. The next Platform release publishes a new one."
           } >> "$GITHUB_STEP_SUMMARY"

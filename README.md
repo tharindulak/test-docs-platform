@@ -38,7 +38,7 @@ An API reference page is `docs/reference/apis/<api>/index.mdx` with `layout: api
 
 Preview, check and build need no other checkout: they compose the repo's own Doc space manifests into the published `manifest.json` (staging's, or `--published <url|file>` / `WSO2_DOCS_PUBLISHED_MANIFEST`; a copy is cached for offline use), as `lib/published.mjs` does. `WSO2_DOCS_CONTENT_REPOS` composes from a folder of Content repo checkouts instead, for testing changes across repos.
 
-A Content repo holds one directory per Doc space (`<slug>/`), so pass it: `npx @wso2/docs preview identity-server`. The Edition comes from the git branch: on `main` it is `cloud` (or `next` in Doc spaces with versions only and no Cloud part), and on `<slug>/release/<version>` (or `release/<version>` in a repo with one Doc space) it is that version. On a release branch `check` also blocks changes outside the Doc space's directory (`release-scope`). `npx @wso2/docs spaces --branch <base> --base <ref>` prints the Doc spaces a change touches, as the repo's one path-filtered workflow (`templates/content-repo/`) runs them. `npx @wso2/docs init --root-files` brings a repo's Platform-managed root files (workflows, branch ruleset, editor settings) up to date after a Platform release. `preview` shows Edition markers and adds a toolbar for switching Editions. Add `--exact` to see the page exactly as it will be published.
+A Content repo holds one directory per Doc space (`<slug>/`), so pass it: `npx @wso2/docs preview identity-server`. The Edition comes from the git branch: on `main` it is `cloud` (or `next` in Doc spaces with versions only and no Cloud part), and on `<slug>/release/<version>` (or `release/<version>` in a repo with one Doc space) it is that version, and on a branch of your own it is that of the line the branch left. On a release branch `check` also blocks changes outside the Doc space's directory (`release-scope`). `npx @wso2/docs spaces --branch <base> --base <ref>` prints the Doc spaces a change touches, as the repo's one path-filtered workflow (`templates/content-repo/`) runs them. `npx @wso2/docs init --root-files` brings a repo's Platform-managed root files (workflows, branch ruleset, editor settings) up to date after a Platform release. `preview` shows Edition markers and adds a toolbar for switching Editions. Add `--exact` to see the page exactly as it will be published.
 
 ## What's here
 
@@ -70,13 +70,14 @@ A Content repo holds one directory per Doc space (`<slug>/`), so pass it: `npx @
 | `lib/compose.mjs`, `lib/compose-command.mjs` | The compose step (`wso2-release compose`): validates and merges the team manifests into the Deployment manifest, keeps the last good copy when main breaks, and checks PRs against the latest merged manifest |
 | Content repo checkouts | `wso2-release compose` reads each `contentRepos` main line's `<slug>/docspace.yaml`: `--content <dir>` or `WSO2_DOCS_CONTENT_REPOS` (one checkout per repo, named as the repo), else the directory the Platform checkout sits in. CI clones them with `scripts/clone-content-repos.mjs`. `wso2-docs preview`/`check`/`build` use them only when `WSO2_DOCS_CONTENT_REPOS` is set |
 | `fixtures/content-repos/`, `fixtures/pilot-target/` | Test copies of the Pilot's Doc space manifests as the repos hold them (the suite's default world, `test/setup.mjs`), and the target layout |
-| `chrome/chrome.json` | Runtime chrome content: header links, footer, announcement, feedback endpoint (schema in `lib/chrome.mjs`) |
-| `chrome/landing.yaml` | Landing page hero and start paths |
+| `chrome/chrome.json` | Runtime chrome content: the wso2.com bar, footer, announcement, feedback endpoint (schema in `lib/chrome.mjs`) |
+| `chrome/landing.yaml` | Landing page hero, popular links and Learn and Community columns |
 | `lib/switching.mjs` | Edition dropdown, page mapping, remembered-Edition banner, not-latest and end-of-life notes, team notices (`teamNotices`, read from the published manifest at runtime only), section menus with link entries (`sectionMenu`), catalog |
 | `lib/page-links.mjs`, `lib/analytics.mjs` | "Edit this page", "Report an issue", feedback events; GTM + CookiePro head script and the fixed `dataLayer` events |
-| `lib/contrast.mjs` | WCAG contrast of theme token pairs (`test/contrast.test.mjs`) |
+| `site/wso2-theme/` | The shared theme, style only: `css/theme.css` (every colour, type, radius, shadow and spacing variable, per colour mode, with Infima mapped onto them; the other stylesheets read only these), the Platform's component stylesheets (chrome, API reference, page layouts), the doc-page, sidebar-icon and code-colour stylesheets, `fonts/` and `img/` (logo, favicons). Every page links it at `/_platform/theme/v<major>/`, so a theme change needs no rebuild |
+| `lib/theme-bundle.mjs`, `plugins/theme.mjs` | The theme as one bundle (`theme.css`, `fonts/`, `img/`), and its links on every page; builds write it to `_platform/theme/v<major>/` and preview serves it there |
+| `lib/contrast.mjs` | WCAG contrast of the theme's colour pairs and code colours (`test/contrast.test.mjs`) |
 | `site/src/components/chrome/` | Platform chrome: header widgets, search slot, notices, feedback, footer, Landing |
-| `scripts/build-tokens.mjs` | Generates `site/src/css/oxygen-tokens.css` from the pinned `@wso2/oxygen-ui` |
 | `search/docker-compose.yml` | Local Typesense for `preview --search` (`docker-compose.staging.yml`: the Pilot's staging container) |
 | `lib/search/` | Search: Typesense schema and record mapping, indexing (upsert, then delete stale), the consistency check, scoped keys, and the query-time scope rules |
 | `site/src/components/search/` | The search box, its Ctrl/⌘K pop-up and the full results page (`SearchPage`, for the Landing deployment's `/search/`) |
@@ -106,9 +107,10 @@ A Content repo holds one directory per Doc space (`<slug>/`), so pass it: `npx @
 ## Develop
 
 ```bash
-npm install
-npm test          # unit tests plus end-to-end builds of the stub Content repo
-npm run tokens    # regenerate the Oxygen tokens after bumping @wso2/oxygen-ui
+npm install                          # also points git at .githooks/ (pre-commit: npm run test:fast)
+npm run test:fast                    # test/: everything but the builds, under a minute
+npm test                             # test/ and test/build/: plus end-to-end builds of the stub Content repo
+npm test -- test/compose.test.mjs    # only the files named
 ```
 
 ## Release path
@@ -129,11 +131,11 @@ node bin/wso2-release.mjs flip --storage s3://docs-staging --env staging --deplo
 node bin/wso2-release.mjs redirects --storage s3://docs-staging --kv local:http://127.0.0.1:4181   # into the local edge's KV
 ```
 
-`test/edge-e2e.test.mjs` does this for the stub Content repo. **Pending infra** (Confirm docs hosting facts with WSO2 infra): the Cloudflare account, the R2 buckets and their credentials, the KV namespace IDs in `worker/wrangler.jsonc`, the `docs-staging.wso2.com` route and the GitHub App that lets Content repos dispatch releases. Nothing has been deployed.
+`test/build/edge-e2e.test.mjs` does this for the stub Content repo. **Pending infra** (Confirm docs hosting facts with WSO2 infra): the Cloudflare account, the R2 buckets and their credentials, the KV namespace IDs in `worker/wrangler.jsonc`, the `docs-staging.wso2.com` route and the GitHub App that lets Content repos dispatch releases. Nothing has been deployed.
 
 ## Platform chrome
 
-Code and look are baked into each build and server-rendered; content comes at runtime from `/manifest.json` and `/chrome.json`, with the copies baked in at build time as the fallback. Only safe swizzles are used: custom navbar item types (`NavbarItem/ComponentTypes`), `SearchBar`, `Footer` (ejected, all marked safe), and wraps of `MDXContent` (Edition notices before the page, feedback and page actions after it) and `NotFound` (404 event). The header and hero search slot, `site/src/components/chrome/SearchBox.js`, renders the Platform search component (see Search).
+Code is baked into each build and server-rendered, the look is the shared theme; content comes at runtime from `/manifest.json` and `/chrome.json`, with the copies baked in at build time as the fallback. Only safe swizzles are used: custom navbar item types (`NavbarItem/ComponentTypes`), `SearchBar`, `Footer` (ejected, all marked safe), and wraps of `MDXContent` (Edition notices before the page, feedback and page actions after it) and `NotFound` (404 event). The header and hero search slot, `site/src/components/chrome/SearchBox.js`, renders the Platform search component (see Search). The wso2.com bar above the header is rendered by the `Root` wrapper. The look is the WSO2 Docs designs', the shared theme in `site/wso2-theme/` with every variable in one hand-written file, `css/theme.css`; pages link it at `/_platform/theme/v<major>/`, so a theme change reaches every deployment without a rebuild (spec: Theme and accessibility).
 
 ## Search
 
@@ -245,7 +247,7 @@ The release step adds the root `docs.wso2.com/llms.txt` from the manifest. The E
 
 ## Known limits
 
-- Builds on one machine share `site/.docusaurus`, so run them one at a time. CI runs one job per deployment.
+- Builds from one Platform checkout share `site/.docusaurus`, so run them one at a time. CI runs one job per deployment.
 - Vale is a Go binary, not an npm package: `check` skips style lint when it isn't installed (CI installs it).
 - Markdown twins exist only in builds, so the "Copy page" menu can't copy in `preview`.
 - In preview, switching Editions with the toolbar doesn't update the table of contents. Use `--edition` to get a correct TOC.

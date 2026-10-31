@@ -56,7 +56,30 @@ The sections below are the same commands off the VM: production, or your own Typ
 
 2. Set it as the Platform repository's `SEARCH_KEY_STAGING` variable, or `SEARCH_KEY_PRODUCTION`. Builds bake both in.
 3. Rebuild every Docs deployment, so pages carry the new key: see [Rebuild Docs deployments](run-a-docs-release.mdx#rebuild-docs-deployments).
-4. For the MCP endpoint, set the Edge Worker's `TYPESENSE_SEARCH_KEY` secret to a search-only key, with `npx wrangler secret put TYPESENSE_SEARCH_KEY -c worker/wrangler.jsonc --env staging`.
+
+## Make the Edge Worker's key
+
+The MCP endpoint's `search_docs` calls Typesense from the Edge Worker, not from the browser, so the key baked into builds does not reach it. Without the Worker's `TYPESENSE_SEARCH_KEY` secret, `search_docs` answers "Search is not configured on this host yet"; `get_page` and `list_editions` still work.
+
+Give the Worker a key of its own, not the browser key, so that each can be changed without the other. You need the `staging` environment's gate key and host, and `wrangler` signed in to the Cloudflare account of the `wso2-docs-site` Worker.
+
+1. From the root of `docs-platform`, make the key with the gate, with an expiry, and store it as the Worker's secret:
+
+   ```bash
+   ssh -i <gate private key> -o IdentitiesOnly=yes docs-platform@<search host> search-key --expires 2027-10-31 \
+     | npx wrangler secret put TYPESENSE_SEARCH_KEY -c worker/wrangler.jsonc --env staging
+   ```
+
+   The key goes straight into the secret and is never shown or written to a file. The secret takes effect without a Worker deploy. Set an expiry: a scoped key cannot be revoked on its own, only by deleting its parent, which stops the browser key too.
+
+2. Check that `search_docs` finds Identity Server Cloud pages, and does not answer "Search is not configured" (`edition` needs `docSpace`):
+
+   ```bash
+   curl -s https://wso2-docs-site.tharinduj.workers.dev/mcp -H 'content-type: application/json' \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_docs","arguments":{"query":"MFA","docSpace":"identity-server","edition":"cloud","limit":3}}}'
+   ```
+
+Before the expiry date, run step 1 again. Keep the key only in the Worker secret: not in `wrangler.jsonc` vars, git or CI logs. For production, do the same with `--env production` and the production gate, once `MCP_ENABLED` is on there.
 
 ## Index Docs deployments by hand
 
@@ -96,7 +119,7 @@ The sections below are the same commands off the VM: production, or your own Typ
    node bin/wso2-release.mjs search-setup --env staging --new-key
    ```
 
-2. Set the new browser key in `SEARCH_KEY_STAGING` or `SEARCH_KEY_PRODUCTION`, and rebuild everything.
+2. Set the new browser key in `SEARCH_KEY_STAGING` or `SEARCH_KEY_PRODUCTION`, and rebuild everything. Make a new Edge Worker key too: see [Make the Edge Worker's key](#make-the-edge-workers-key).
 3. Once every Docs deployment carries the new key, find the old parent key and delete it. Browser keys scoped from it stop working.
 
    ```bash

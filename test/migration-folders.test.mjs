@@ -261,7 +261,7 @@ test('sync: API Platform Cloud and AI Gateway in one Content repo; main, a date-
     assert.ok(git(repo, 'diff', '--name-only', 'main', b).split('\n').every((f) => f.startsWith(`${slug}/`)), b);
     assert.deepEqual(files(b).filter((f) => f.startsWith(`${slug}/docs/`) && f.endsWith('.mdx')), [only], b);
   }
-  assert.match(show('main', 'README.md'), /\| `ai-gateway\/` \| AI Gateway \| 1\.2\.0 on `ai-gateway\/release\/1\.2\.0`; 2026\.09\.24 on `ai-gateway\/release\/2026\.09\.24`; its Cloud part of api-platform on `main` \|/);
+  assert.match(show('main', 'README.md'), /\| `ai-gateway\/` \| AI Gateway \| 1\.2\.0 on `ai-gateway\/release\/1\.2\.0`; 2026\.09\.24 on `ai-gateway\/release\/2026\.09\.24`; 1\.1\.0 on `ai-gateway\/release\/1\.1\.0`; its Cloud part of api-platform on `main` \|/);
 
   // The date-versioned release branch: its folder only; only ai-gateway/ changed.
   const rel = 'ai-gateway/release/2026.09.24';

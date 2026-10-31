@@ -1,26 +1,21 @@
-// The standards source and what it generates: the Vale package, the
-// Contribute Doc space (an unversioned build at /contribute/), lint links into
-// the guide, the author skills, the Content repo templates, the PR and report
-// workflows and the weekly digest.
+// The standards source and what it generates: the Vale package, the author
+// skills, the Content repo templates, the PR and report workflows and the
+// weekly digest. The Contribute Doc space's build (an unversioned build at
+// /contribute/) and lint links into it are in test/build/standards.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { loadContentRepo } from '../lib/content.mjs';
-import { inferEditionId } from '../lib/edition.mjs';
 import { loadPolicy, publicManifest } from '../lib/manifest.mjs';
-import { CONTRIBUTE_DIR, VALE_DIR, loadStandards } from '../lib/standards.mjs';
-import { runCheck, formatText } from '../lib/check/index.mjs';
+import { VALE_DIR, loadStandards } from '../lib/standards.mjs';
 import { collectDigest, renderDigest } from '../lib/digest.mjs';
 import { lintCounts, liveSpaces, sampleUrls } from '../lib/reports.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-docs-contribute-'));
 const wf = (name) => yaml.load(fs.readFileSync(path.join(root, '.github', 'workflows', name), 'utf8'));
 const tpl = (rel) => fs.readFileSync(path.join(root, 'templates', 'content-repo', rel), 'utf8');
 
@@ -40,38 +35,6 @@ test('the Vale package comes from the terminology file, product names at error l
   assert.equal(rule('PreferredTerms').swap['\\blog in\\b'], 'sign in');
   assert.deepEqual(S.lint.blockingRules, [], 'nothing blocks before cutover');
   for (const f of fs.readdirSync(path.join(VALE_DIR, 'WSO2'))) assert.match(rule(f.replace('.yml', '')).link, /^https:\/\/docs\.wso2\.com\/contribute\//, f);
-});
-
-test('Contribute builds as an unversioned space at /contribute/, and every lint link lands on a heading', { timeout: 600_000 }, () => {
-  assert.equal(inferEditionId('any-branch', 'unversioned'), '_');
-  execFileSync(process.execPath, [path.join(root, 'bin', 'wso2-docs.mjs'), 'build', CONTRIBUTE_DIR, '--out', out], { stdio: 'pipe' });
-  const meta = JSON.parse(fs.readFileSync(path.join(out, '_platform', 'edition.json'), 'utf8'));
-  assert.equal(meta.baseUrl, '/contribute/');
-  assert.equal(meta.edition, '_');
-  const pages = JSON.parse(fs.readFileSync(path.join(out, '_platform', 'pages.json'), 'utf8'));
-  for (const p of ['', 'get-started/start-here/', 'get-started/cheat-sheet/', 'reference/style-guide/', 'reference/checks/', 'concepts/page-types/', 'get-started/product-teams/', 'guides/product-teams/start-a-doc-space/', 'reference/product-teams/doc-space-manifest/', 'get-started/platform-team/', 'guides/platform-team/run-a-docs-release/', 'reference/platform-team/workflows/']) {
-    assert.ok(pages.some((x) => x.path === p), `page ${p}`);
-  }
-  const html = fs.readFileSync(path.join(out, 'get-started', 'start-here', 'index.html'), 'utf8');
-  assert.match(html, /<link[^>]*rel="canonical"[^>]*href="https:\/\/docs\.wso2\.com\/contribute\/get-started\/start-here\/"/);
-  assert.match(fs.readFileSync(path.join(out, 'get-started', 'cheat-sheet', 'index.html'), 'utf8'), /\{edition\.productName\}/, '{edition.*} in code is shown as written');
-
-  // Every link the checks and Vale rules print resolves to a page and anchor.
-  const S = loadStandards();
-  const links = [...S.checks.map((c) => `${S.guideBase}reference/checks/#${c.id}`)];
-  for (const f of fs.readdirSync(path.join(VALE_DIR, 'WSO2'))) links.push(yaml.load(fs.readFileSync(path.join(VALE_DIR, 'WSO2', f), 'utf8')).link);
-  for (const t of S.pageTypes) links.push(`${S.guideBase}concepts/page-types/#${t.id}`);
-  for (const link of links) {
-    const [p, anchor] = link.slice(S.guideBase.length).split('#');
-    const page = pages.find((x) => x.path === p);
-    assert.ok(page, `${link}: no page`);
-    assert.ok(page.anchors.includes(anchor), `${link}: no anchor (has ${page.anchors.join(', ')})`);
-  }
-});
-
-test('Contribute passes its own checks', { timeout: 120_000 }, async () => {
-  const r = await runCheck({ repo: loadContentRepo(CONTRIBUTE_DIR), buildDir: out, lint: false, routes: path.join(out, '..') });
-  assert.equal(r.result, 'pass', formatText(r));
 });
 
 test('the author skills are SKILL.md files with their generated references', () => {
@@ -174,18 +137,4 @@ test('report helpers: lint counts and a stable accessibility sample', () => {
   assert.deepEqual(sampleUrls(urls, 5, '2026-10-21'), sampleUrls(urls, 5, '2026-10-21'));
   assert.equal(new Set(sampleUrls(urls, 5, 'a')).size, 5);
   assert.equal(sampleUrls(urls, 0, 'a').length, 100);
-});
-
-// The local docs-sandbox Content repo (not part of this repo): set
-// WSO2_DOCS_SANDBOX to its path to check both of its Editions.
-test('docs-sandbox passes the checks on main and release/1.0.0', { skip: !process.env.WSO2_DOCS_SANDBOX && 'set WSO2_DOCS_SANDBOX', timeout: 900_000 }, async () => {
-  const dir = process.env.WSO2_DOCS_SANDBOX;
-  const routes = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-docs-routes-'));
-  fs.mkdirSync(path.join(routes, 'contribute'));
-  fs.copyFileSync(path.join(out, '_platform', 'pages.json'), path.join(routes, 'contribute', 'pages.json'));
-  for (const edition of ['cloud', '1.0.0']) {
-    const r = await runCheck({ repo: loadContentRepo(dir), edition, base: 'main', routes, requireRoutes: true });
-    assert.equal(r.result, 'pass', formatText(r));
-    assert.equal(r.checks.find((c) => c.id === 'preview-build').status, 'pass');
-  }
 });

@@ -100,6 +100,17 @@ caddy_snippet() {   # $1 host, $2 CORS origin
 # docs-platform search (hosting/vm/setup.sh; imported once from $CADDYFILE). Generated: edit setup.sh, not this file.
 # Only Typesense's search endpoints on 127.0.0.1:$PORT, at https://$1/_typesense/, with CORS for $2.
 $1/_typesense/* {
+	# Access log to journald, for request counts: no request headers, client IPs masked.
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>remote_ip ip_mask 16 32
+				request>client_ip ip_mask 16 32
+			}
+		}
+	}
 	request_body {
 		max_size 64KB
 	}
@@ -127,7 +138,7 @@ $1/_typesense/* {
 	}
 	handle @preflight {
 		header Access-Control-Allow-Methods "GET, POST, OPTIONS"
-		header Access-Control-Allow-Headers "Content-Type, X-TYPESENSE-API-KEY"
+		header Access-Control-Allow-Headers "Content-Type, X-TYPESENSE-API-KEY, X-TYPESENSE-USER-ID"
 		header Access-Control-Max-Age "86400"
 		respond 204
 	}

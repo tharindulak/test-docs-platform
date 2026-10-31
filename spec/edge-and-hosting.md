@@ -1,6 +1,6 @@
 # Edge and hosting
 
-Last checked against code: 2026-10-27
+Last checked against code: 2026-10-28
 
 What serves WSO2 Docs: the hosting target, the Edge Worker, storage, environments and caching.
 
@@ -33,12 +33,20 @@ What serves WSO2 Docs: the hosting target, the Edge Worker, storage, environment
 | Old Confluence paths | Today's 301s ([urls-and-redirects.md](urls-and-redirects.md#legacy-redirects)) |
 | `X-Robots-Tag` | The rules in [indexing-and-seo.md](indexing-and-seo.md#noindex) |
 | Runtime files | `manifest.json`, `chrome.json`, the sitemap index, the root `llms.txt`, `robots.txt` |
+| Shared theme | `/_platform/theme/v<major>/...`, the live published theme of each Platform major, or one by theme id ([below](#the-shared-theme-route)) |
 | Markdown twins | `<page>.md` |
 | 404 | One per Doc space, counted in Analytics Engine |
 | Feedback | `POST /api/feedback`, same-origin only, counted cookie-free |
 | MCP | The read-only server at `/mcp` |
 
-[F11] [F22] [F25] [F32] [F35] [N17]
+[F11] [F22] [F25] [F32] [F35] [N17] [user decision 2026-10-28 (theme without rebuilding)]
+
+## The shared theme route
+
+- **`/_platform/theme/v<major>/<rest>` serves the shared theme** that every page links ([releases-and-deployments.md](releases-and-deployments.md#the-shared-theme)). When the first segment of `<rest>` is a theme id (`<Platform version>.r<run id>`, a shape no theme file or folder has), the file comes from that published theme's immutable folder, `_releases/_theme/v<major>/<theme id>/`, live or not; an id with no such file is a 404, never the live theme. Otherwise `<rest>` resolves against the live theme of that major, which `manifest.json` names (`theme.v<major>.release`), so a pointer move or rollback reaches the edge within the Worker's 30 s manifest copy. [user decision 2026-10-28 (theme without rebuilding)]
+- **The live theme has its own cache: 5 minutes in browsers, then up to a day of `stale-while-revalidate`**, so a publish or rollback reaches readers within 5 minutes and a returning reader's first page may show the previous theme once while the new one loads. A file by theme id never changes and is cached a year. `manifest.json` keeps its own 60 s. [user decision 2026-10-28 (theme without rebuilding)]
+- **The Worker still stays out of page rendering**: pages link the theme and are served as built; no HTML is rewritten. [user decision 2026-10-28 (theme without rebuilding)]
+- **Theme files may be loaded from any origin** (`Access-Control-Allow-Origin: *`, which fonts need), so a local preview can use the staging theme. Each response names what it served (`x-docs-theme: v<major>/<theme id>`); a miss (no live theme for the major, or no such file) is a 404 counted in Analytics Engine under `_theme`. [user decision 2026-10-28 (theme without rebuilding)]
 
 ## VM search
 
@@ -62,14 +70,16 @@ The 141 VM runs only search for staging; pages, redirects and state stay on Clou
 |---|---|
 | Pages and other files | `HTML_MAX_AGE`: 60 s on staging, 300 s on production |
 | Content-hashed assets | A year |
+| The shared theme by theme id (`/_platform/theme/v<major>/<theme id>/...`) | A year, `immutable` |
+| The live shared theme (`/_platform/theme/v<major>/theme.css`, `img/...`) | 5 minutes, then `stale-while-revalidate` for a day: a theme publish or rollback reaches readers within 5 minutes, and a returning reader's first page may show the previous theme once while the new one loads |
 | Runtime files (`manifest.json`, `chrome.json`, sitemap, `llms.txt`) | 60 s in browsers; the Worker's own manifest copy 30 s |
 | Redirects | KV reads 60 s; a 301 in browsers an hour |
 
-[F11] [N23]
+[F11] [N23] [user decision 2026-10-28 (theme without rebuilding)]
 
 ## Running it locally
 
-- **The local edge (`npm run edge:local`) runs the Worker in Miniflare with its own port and data folder**, with local R2 and KV and a local KV endpoint for `wso2-release redirects --kv local:<url>`. Every Platform process can be rehearsed on it. [F25] [N23]
+- **The local edge (`npm run edge:local`) runs the Worker in Miniflare with its own port and data folder**, with local R2 and KV and a local KV endpoint for `wso2-release redirects --kv local:<url>`. Every Platform process can be rehearsed on it, the shared theme route included (`wso2-release theme publish --storage s3://docs-staging` after `source <data>/edge.env`). [F25] [N23] [user decision 2026-10-28 (theme without rebuilding)]
 
 [F05]: ../.scratch/wso2-doc-space/issues/05-hosting-and-routing.md
 [F11]: ../.scratch/wso2-doc-space/issues/11-platform-build-pipeline.md

@@ -445,6 +445,38 @@ test('unversioned: a nav-listed 404 page is left out; the config\'s cards replac
   fs.rmSync(out, { recursive: true, force: true });
 });
 
+test('home cards replace a home page drawn with Jinja tags, which are then never converted', async () => {
+  // API Manager 4.5.0's index.md builds its tiles with {% set %} and {% for %}.
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-jinja-home-src-'));
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-jinja-home-out-'));
+  const w = (p, s) => {
+    fs.mkdirSync(path.dirname(path.join(src, p)), { recursive: true });
+    fs.writeFileSync(path.join(src, p), s);
+  };
+  w('mkdocs.yml', 'site_name: Am Documentation\nnav:\n  - Documentation: index.md\n  - Manage APIs:\n    - Design: manage/design.md\n');
+  w('docs/index.md', '---\ntemplate: templates/single-column.html\n---\n\n{% set tiles = [[{"title": "Design", "links": [{"name": "Design", "url": "manage/design/"}]}]] %}\n{% for column in tiles %}<div>{{ column }}</div>{% endfor %}\n');
+  w('docs/manage/design.md', '# Design\n\nText.\n');
+  const config = {
+    ...apim,
+    slug: 'am', sourceRepo: 'wso2/docs-am', legacyBase: (v) => `https://am.docs.wso2.com/en/${v}/`, legacyHosts: ['am.docs.wso2.com'],
+    docspace: { schemaVersion: 1, slug: 'am', displayName: 'Am', owners: { team: 't' }, repo: 'wso2/docs-am', editions: [{ id: '4.5.0', branch: 'release/4.5.0' }] },
+    editions: { 'self-hosted': { displayName: 'Am {version}' } },
+    topLevel: { Documentation: { page: 'index' }, 'Manage APIs': { folder: 'guides' } },
+    sectionFolders: {}, skeleton: [{ folder: 'guides', label: 'Guides' }],
+    pageOverrides: {}, placeholders: {}, typeOverrides: { index: 'concept' }, overrides: null, redirectsPlugin: false, variables: {},
+    excluded: [], redirectToHome: [],
+    homeCards: (edition) => (edition === '4.5.0' ? [{ section: [{ title: 'Manage', list_items: [{ title: 'Design', url: 'Manage APIs|Design' }] }] }] : null),
+  };
+  const { summary, report } = await convertProduct({ config, sourceRoot: src, outDir: out, edition: '4.5.0', legacyVersion: '4.5.0', sourceRef: 'wso2/docs-am@test' });
+  assert.equal(summary.compileFailures, 0, JSON.stringify(report.items.filter((i) => i.kind === 'compile')));
+  const home = fs.readFileSync(path.join(out, 'docs/index.mdx'), 'utf8');
+  assert.match(home, /^layout: overview$/m);
+  assert.match(home, /- \[Design\]\(\.\/guides\/design\.mdx\)/);
+  assert.doesNotMatch(home, /tiles|column|\{%/, 'the Jinja-drawn tiles are replaced');
+  fs.rmSync(src, { recursive: true, force: true });
+  fs.rmSync(out, { recursive: true, force: true });
+});
+
 test('home cards per Edition: a config function gives each version the cards its own nav has', async () => {
   // docs-open-banking's versions hard-code different cards (3.0.0 has a Data
   // Publishing card 4.0.0 dropped), under navs that differ.

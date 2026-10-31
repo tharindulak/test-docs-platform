@@ -8,6 +8,9 @@
 // llms.txt, and the read-only MCP endpoint at /mcp (staging only for the Pilot).
 // Old Confluence paths (/display/, /pages/viewpage.action, /download/attachments/)
 // get the 301s Cloudflare sends today; their targets are in confluence.mjs.
+// The shared theme every page links, /_platform/theme/v<major>/..., comes from
+// the live published theme of that major, or by theme id from its immutable
+// folder (routing.mjs themeRoute). No page is rewritten: pages link it.
 //
 // Bindings (worker/wrangler.jsonc):
 //   DOCS        R2 bucket: docs-staging or docs-prod (lib/release.mjs layout)
@@ -19,7 +22,7 @@
 //   LEGACY_HOSTS (comma-separated; only at cutover), MANIFEST_TTL_SECONDS, HTML_MAX_AGE,
 //   AI_CRAWLERS ("allow" or "disallow"), MCP_ENABLED, TYPESENSE_HOST, TYPESENSE_COLLECTION;
 //   secret TYPESENSE_SEARCH_KEY (search-only key).
-import { REASONS, cacheControl, feedbackTarget, route } from './routing.mjs';
+import { REASONS, THEME_PREFIX, THEME_SPACE, cacheControl, feedbackTarget, route, themeRoute } from './routing.mjs';
 import { confluenceRedirect } from './confluence.mjs';
 import { handleMcp } from './mcp.mjs';
 import { robotsTxt } from './robots.mjs';
@@ -72,7 +75,7 @@ function count(dataset, point) {
   }
 }
 
-async function serveObject(request, env, bucket, key, { status = 200, maxAge, extra = {} } = {}) {
+async function serveObject(request, env, bucket, key, { status = 200, maxAge, cache, extra = {} } = {}) {
   const obj = await bucket.get(key, status === 200 ? { onlyIf: request.headers } : undefined);
   if (!obj) return null;
   const headers = baseHeaders(env, extra);
@@ -84,7 +87,7 @@ async function serveObject(request, env, bucket, key, { status = 200, maxAge, ex
   if (known) headers.set('content-type', known);
   else if (!headers.get('content-type') || /^(application|binary)\/octet-stream$/.test(headers.get('content-type'))) headers.set('content-type', typeOf(key));
   headers.set('etag', obj.httpEtag);
-  headers.set('cache-control', status === 200 ? cacheControl(key, maxAge) : 'no-store');
+  headers.set('cache-control', status === 200 ? (cache ?? cacheControl(key, maxAge)) : 'no-store');
   if (!('body' in obj)) return new Response(null, { status: 304, headers });
   return new Response(request.method === 'HEAD' ? null : obj.body, { status, headers });
 }
@@ -167,6 +170,26 @@ async function preview(request, env, url) {
     ?? text(env, 404, 'No such preview.\n');
 }
 
+// /_platform/theme/v<major>/<file>: the live theme, cached 5 minutes (with
+// stale-while-revalidate); /_platform/theme/v<major>/<theme id>/<file>: that
+// published theme's file, cached a year. Any origin may load it (fonts need
+// CORS), so a local preview can use the staging theme. A miss is counted.
+async function theme(request, env, url) {
+  const r = themeRoute(await loadManifest(env), url.pathname);
+  if (r.type === 'bad') return text(env, 400, 'Malformed URL.\n');
+  const cors = { 'access-control-allow-origin': '*' };
+  if (r.type === 'object') {
+    const res = await serveObject(request, env, env.DOCS, r.key, { cache: r.cache, extra: { ...cors, 'x-docs-theme': `v${r.major}/${r.release}` } });
+    if (res) return res;
+  }
+  count(env.NOT_FOUND, {
+    indexes: [THEME_SPACE],
+    blobs: [THEME_SPACE, r.major ? `v${r.major}` : '', url.pathname.slice(0, 512), refererHost(request), env.ENVIRONMENT ?? ''],
+    doubles: [1],
+  });
+  return text(env, 404, 'No such theme file on WSO2 Docs.\n', cors);
+}
+
 // /mcp: the read-only MCP server (worker/src/mcp.mjs), reading the same
 // manifest and release folders as the pages.
 function mcp(request, env, url) {
@@ -201,10 +224,13 @@ export async function handle(request, env) {
   if (url.pathname === '/mcp') return mcp(request, env, url);
   if (request.method !== 'GET' && request.method !== 'HEAD') return text(env, 405, 'Method not allowed.\n', { allow: 'GET, HEAD' });
 
+  if (url.pathname.startsWith(THEME_PREFIX)) return theme(request, env, url);
   if (url.pathname === '/robots.txt') return text(env, 200, robotsTxt(env), { 'cache-control': 'public, max-age=300' });
   if (RUNTIME_FILES[url.pathname]) {
     // The local preview reads the staging manifest from another origin.
-    const r = await serveObject(request, env, env.DOCS, RUNTIME_FILES[url.pathname], { maxAge: 60, extra: { 'access-control-allow-origin': '*' } });
+    // The root llms.txt, like every llms.txt, is for AI tools: search engines index the pages.
+    const ai = url.pathname === '/llms.txt' && !truthy(env.NOINDEX_ALL) ? { 'x-robots-tag': 'noindex' } : {};
+    const r = await serveObject(request, env, env.DOCS, RUNTIME_FILES[url.pathname], { maxAge: 60, extra: { 'access-control-allow-origin': '*', ...ai } });
     if (r) return r;
   }
   if (url.pathname.startsWith('/_preview/')) {

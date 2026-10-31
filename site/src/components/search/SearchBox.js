@@ -38,7 +38,7 @@ export default function SearchBox({ variant = 'header', landing }) {
   return (
     <>
       <button type="button" className={`wso2-search wso2-search--${variant}`} data-wso2-search={variant} data-wso2-search-slot={variant}
-        aria-keyshortcuts="Control+K Meta+K" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+        aria-label={label} aria-keyshortcuts="Control+K Meta+K" aria-haspopup="dialog" onClick={() => setOpen(true)}>
         <svg className="wso2-search__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path fill="currentColor" d="M10 2a8 8 0 0 1 6.32 12.9l5.39 5.4-1.41 1.4-5.4-5.39A8 8 0 1 1 10 2Zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z" />
         </svg>

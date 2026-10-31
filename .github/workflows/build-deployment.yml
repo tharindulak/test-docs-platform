@@ -144,12 +144,14 @@ jobs:
         with:
           path: |
             site/.docusaurus
+            site/node_modules/.cache
             node_modules/.cache
           key: docusaurus-${{ inputs.space }}-${{ inputs.segment }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}-${{ inputs.tag }}
           restore-keys: docusaurus-${{ inputs.space }}-${{ inputs.segment }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}-
 
-      # Canonicals of older versions need the latest twin's page list: from this
-      # run when it rebuilt latest, else from what staging serves now.
+      # Canonicals of older versions need the latest twin's page list and its
+      # redirects.json (page moves), side by side: from this run when it rebuilt
+      # latest, else from what staging serves now.
       - name: Latest page list from this run
         if: ${{ !inputs.as-latest && inputs.space != '_landing' }}
         continue-on-error: true
@@ -203,7 +205,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: latest-pages-${{ inputs.space }}
-          path: build/_platform/pages.json
+          path: |
+            build/_platform/pages.json
+            build/_platform/redirects.json
           retention-days: 1
       - name: Hand the build to the publish job
         env:

@@ -88,6 +88,12 @@ R=~/wso2-docs-local/repos
 
    A build from an unpacked bundle reads the repository path, the files on `main` (for "Edit this page") and the source commit from `bundle.json`, never from git.
 
+   When the plan has no latest twin, such as for a release of an older version, take the deployed latest twin's page list from the bucket. It writes no file when the Doc space has no latest twin yet; build without `--latest-pages` then:
+
+   ```bash
+   node bin/wso2-release.mjs latest-pages --storage s3://docs-staging --space sandbox --out latest-pages.json
+   ```
+
 4. Check each build, and upload it to its release folder. On GitHub, the upload is the **publish** job's, since the build job holds no storage credential:
 
    ```bash

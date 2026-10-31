@@ -436,19 +436,17 @@ test('products menu keeps link entries (↗) and works from an older manifest wi
   assert.deepEqual(group.entries.map((e) => [e.label, e.href, e.external]), [['Integrator', '/integrator/latest/', false], ['Ballerina', 'https://ballerina.io/', true]]);
 });
 
-test('Landing: the same groups in the same order, with each family\'s description and Cloud / Self-hosted links', () => {
+test('Landing: the same groups in the same order as the products menu, each entry one link to where the menu opens it', () => {
   const m = pilot();
   const l = landingGroups(m);
   const p = productsMenu(m);
   assert.deepEqual(l.map((x) => x.name), p.map((x) => x.name), 'one list for both');
-  l.forEach((x, i) => assert.deepEqual(x.entries.map((e) => e.label), p[i].entries.map((e) => e.label)));
-  const e = Object.fromEntries(l.flatMap((x) => x.entries).map((x) => [x.label, x.editions]));
-  assert.deepEqual(e['Identity Server'], [{ label: 'Cloud', href: '/identity-platform/cloud/identity-server/' }, { label: 'Self-hosted', href: '/identity-server/latest/' }]);
-  assert.deepEqual(e['AI Gateway'], [{ label: 'Cloud', href: '/api-platform/cloud/ai-gateway/' }, { label: 'Self-hosted', href: '/ai-gateway/latest/' }]);
-  assert.deepEqual(e['API Manager'], [{ label: 'Self-hosted', href: '/api-manager/latest/' }]);
-  assert.deepEqual(e['Identity Platform Cloud'], [{ label: 'Cloud', href: '/identity-platform/cloud/' }]);
-  assert.deepEqual(e.Monetization, []);
-  assert.ok(l.find((x) => x.id === 'identity-platform').description);
+  l.forEach((x, i) => assert.deepEqual(x.entries.map((e) => [e.label, e.href]), p[i].entries.map((e) => [e.label, e.href])));
+  const href = Object.fromEntries(l.flatMap((x) => x.entries).map((x) => [x.label, x.href]));
+  assert.equal(href['Identity Server'], '/identity-platform/cloud/identity-server/', 'Cloud first');
+  assert.equal(href['API Manager'], '/api-manager/latest/');
+  assert.equal(href['Identity Platform Cloud'], '/identity-platform/cloud/');
+  assert.ok(l.every((x) => !('description' in x) && x.entries.every((e) => !('current' in e) && !('editions' in e))));
 });
 
 test('section menu on the Pilot: the family Cloud first, products with 2+ Editions get a dropdown, in manifest order', () => {
@@ -458,9 +456,9 @@ test('section menu on the Pilot: the family Cloud first, products with 2+ Editio
   assert.equal(sm.title, 'API Platform Documentation');
   assert.deepEqual(sm.entries.map((e) => [e.name, e.open, e.active, e.dropdown?.items.map((i) => i.label) ?? null]), [
     ['API Platform Cloud', true, true, null],
-    ['API Manager', false, false, ['4.7.0', '4.6.0', ...['4.5.0', '4.4.0', '4.3.0', '4.2.0', '4.1.0', '4.0.0', '3.2.0', '3.1.0', '3.0.0', '2.6.0', '2.5.0', '2.2.0', '2.1.0', '2.0.0', '1.10.0', '1.9.1', '1.9.0'].map((v) => `${v} ↗`)]],
+    ['API Manager', false, false, ['4.7.0', '4.6.0', '4.5.0', ...['4.4.0', '4.3.0', '4.2.0', '4.1.0', '4.0.0', '3.2.0', '3.1.0', '3.0.0', '2.6.0', '2.5.0', '2.2.0', '2.1.0', '2.0.0', '1.10.0', '1.9.1', '1.9.0'].map((v) => `${v} ↗`)]],
     ['API Gateway', false, false, ['Cloud', '1.2.0', '1.1.0', '1.0.0']],
-    ['AI Gateway', false, true, ['Cloud', '1.2.0', '2026.09.24', '1.1.0 ↗', '1.0.0 ↗']],
+    ['AI Gateway', false, true, ['Cloud', '1.2.0', '2026.09.24', '1.1.0', '1.0.0 ↗']],
     ['AI Workspace', false, false, ['Cloud', '1.0.0']],
     ['API Portal & MCP Hub', false, false, ['Cloud', '1.0.0']],
   ]);

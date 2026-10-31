@@ -54,6 +54,16 @@ test('staging searches the 141 VM at https://<host>/_typesense: the browser, the
   assert.match(readme, new RegExp(`--host ${STAGING_HOST.replaceAll('.', '\\.')}`));
 });
 
+test('the Caddy preflight allows every header the browser\'s search client sends, or the browser blocks every search', () => {
+  // The Typesense adapter sends the key; client.js adds the analytics user id.
+  const client = fs.readFileSync(path.join(root, 'site/src/components/search/client.js'), 'utf8');
+  const sent = ['Content-Type', 'X-TYPESENSE-API-KEY', ...[...client.matchAll(/'(X-TYPESENSE-[A-Z-]+)'/g)].map((m) => m[1])];
+  assert.ok(sent.includes('X-TYPESENSE-USER-ID'), 'the client sends the analytics user id');
+  const snippet = execFileSync('bash', [path.join(kit, 'setup.sh'), 'snippet', '--host', 'search.example', '--cors-origin', 'https://site.example'], { encoding: 'utf8' });
+  const allowed = (snippet.match(/Access-Control-Allow-Headers "([^"]*)"/)?.[1] ?? '').split(',').map((h) => h.trim().toLowerCase());
+  for (const h of new Set(sent)) assert.ok(allowed.includes(h.toLowerCase()), `${h} is allowed by the preflight`);
+});
+
 test('the Caddy snippet publishes only Typesense\'s search endpoints, to loopback 8109', () => {
   const snippet = execFileSync('bash', [path.join(kit, 'setup.sh'), 'snippet', '--host', 'search.example', '--cors-origin', 'https://site.example'], { encoding: 'utf8' });
   const upstreams = [...snippet.matchAll(/reverse_proxy (\S+)/g)].map((m) => m[1]);

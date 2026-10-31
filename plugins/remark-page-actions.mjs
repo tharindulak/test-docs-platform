@@ -4,9 +4,15 @@
 // partials, and not on API reference pages, whose layout draws its own header.
 import path from 'node:path';
 
-export default function remarkPageActions() {
+// A partial is a file outside the Doc space's docs/ (its partials/) or with a
+// `_` segment inside docs/; only the path under docs/ counts, so a checkout
+// under a directory such as _work/ keeps its menus.
+export default function remarkPageActions({ docsDir } = {}) {
   return (tree, file) => {
-    if (file.path && path.normalize(file.path).split(path.sep).some((seg) => seg.startsWith('_'))) return;
+    if (file.path) {
+      const rel = docsDir ? path.relative(docsDir, file.path) : path.normalize(file.path);
+      if ((docsDir && (rel.startsWith('..') || path.isAbsolute(rel))) || rel.split(path.sep).some((seg) => seg.startsWith('_'))) return;
+    }
     const fm = file.data?.frontMatter ?? {};
     if (fm.layout === 'api-reference' || fm.hide_title) return;
     const node = { type: 'mdxJsxFlowElement', name: 'PageActions', attributes: [], children: [] };

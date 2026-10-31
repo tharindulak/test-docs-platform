@@ -1,5 +1,6 @@
 // Root wrapper (documented pattern, not a swizzle). It renders the site-wide
-// announcement from chrome.json above the header, sets the analytics context
+// announcement and the wso2.com bar from chrome.json above the docs bar (so
+// the bar scrolls away while the docs bar sticks), sets the analytics context
 // and tracks page views that no page tracked itself. In show-markers mode it
 // adds the dev toolbar: an Edition toggle that hides marked blocks
 // client-side, so a writer or reviewer can check every Edition from one preview.
@@ -7,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from '@docusaurus/router';
 import { editionFromId, matches, shows } from '../../../lib/edition.mjs';
 import Announcement from '@site/src/components/chrome/Announcement';
+import SiteBar from '@site/src/components/chrome/SiteBar';
 import { useManifest, usePlatform } from '@site/src/components/chrome/runtime';
 import { setAnalyticsContext, trackPageViewOnce } from '@site/src/components/chrome/analytics';
 
@@ -55,6 +57,7 @@ export default function Root({ children }) {
   return (
     <>
       <Announcement />
+      <SiteBar />
       {children}
       {f.showMarkers && <DevToolbar built={f.edition} ids={ids} />}
     </>

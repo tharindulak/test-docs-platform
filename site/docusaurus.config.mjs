@@ -4,10 +4,8 @@
 // deployment at baseUrl / instead of a Doc space Edition.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import { themes as prismThemes } from 'prism-react-renderer';
 import { editionFromId, isSelfHostedAddition, markerFromFrontMatter } from '../lib/edition.mjs';
 import {
   additionsFor, cloudCounterparts, editionVariables, excludedPages, loadContentRepo, mainBranchFiles, repoPathOf, showsCloudOnlyContent,
@@ -18,6 +16,7 @@ import { bakedManifest } from '../lib/release.mjs';
 import { validateChrome } from '../lib/chrome.mjs';
 import { analyticsHeadScript } from '../lib/analytics.mjs';
 import { editLink } from '../lib/page-links.mjs';
+import { normaliseDeployment } from '../lib/switching.mjs';
 import remarkEdition from '../plugins/remark-edition.mjs';
 import remarkDocsLinks from '../plugins/remark-docs-links.mjs';
 import { searchConfigFromEnv } from '../lib/search/environments.mjs';
@@ -28,6 +27,8 @@ import remarkThemedImage from '../plugins/remark-themed-image.mjs';
 import { layoutFrontMatter } from '../lib/layouts.mjs';
 import { apiPageFrontMatter, apiSidebarItems } from '../lib/api-layout.mjs';
 import siteSource from '../plugins/site-source.mjs';
+import { themeBase } from '../lib/theme-bundle.mjs';
+import theme from '../plugins/theme.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const platformRoot = path.join(here, '..');
@@ -68,6 +69,13 @@ const baseUrl = env.WSO2_DOCS_BASE_URL ?? (landing ? '/'
     : edition.unversioned ? `/${slug}/` : `/${slug}/${asLatest ? 'latest' : edition.id}/`);
 const latestPagesFile = env.WSO2_DOCS_LATEST_PAGES;
 const latestPages = latestPagesFile ? new Set(JSON.parse(fs.readFileSync(latestPagesFile, 'utf8')).map((p) => p.path)) : null;
+// The latest twin's page moves, from its redirects.json beside the page list
+// (wso2-release latest-pages writes both): an older version's page that latest
+// renamed takes the renamed page's canonical.
+const latestRedirectsFile = latestPagesFile && path.join(path.dirname(latestPagesFile), 'redirects.json');
+const latestRedirects = latestRedirectsFile && fs.existsSync(latestRedirectsFile)
+  ? normaliseDeployment([], JSON.parse(fs.readFileSync(latestRedirectsFile, 'utf8')), `/${slug}/latest/`).redirects
+  : null;
 const mainFiles = landing || edition.kind === 'cloud' ? null : mainBranchFiles(repo, env.WSO2_DOCS_MAIN_FILES);
 
 // Cloud's Self-hosted additions (lib/content.mjs additionsFor): per docs
@@ -85,7 +93,7 @@ const remarkFor = (r, v, routeBase = '', additions = null) => [
   [remarkApiReference, { docsDir: r.docsDir, edition, vars: v, routeBase, additions }],
   // <ThemedImage light dark>: relative paths become bundled images.
   remarkThemedImage,
-  remarkPageActions,
+  [remarkPageActions, { docsDir: r.docsDir }],
 ];
 const additions = landing ? null : additionsOf(repo, baseUrl);
 const remarkPlugins = landing ? [] : remarkFor(repo, vars, '', additions);
@@ -200,7 +208,6 @@ const navbarItems = [
   { type: 'custom-wso2ProductSwitcher', position: 'left' },
   ...(landing ? [] : [{ type: 'custom-wso2EditionDropdown', position: 'left' }]),
   { type: 'search', position: 'right' },
-  { type: 'custom-wso2SiteLinks', position: 'right' },
 ];
 
 export default {
@@ -219,9 +226,14 @@ export default {
     },
   },
   i18n: { defaultLocale: 'en', locales: ['en'] },
-  headTags: production
-    ? [{ tagName: 'script', attributes: { 'data-wso2-analytics': 'true' }, innerHTML: analyticsHeadScript({ hosts: [new URL(siteUrl).hostname] }) }]
-    : [],
+  // The theme's stylesheet, fonts, logo and favicons are the shared theme's,
+  // at a host-root address (plugins/theme.mjs); the site has no static folder.
+  staticDirectories: [],
+  headTags: [
+    ...(production
+      ? [{ tagName: 'script', attributes: { 'data-wso2-analytics': 'true' }, innerHTML: analyticsHeadScript({ hosts: [new URL(siteUrl).hostname] }) }]
+      : []),
+  ],
   presets: [
     [
       'classic',
@@ -230,23 +242,18 @@ export default {
         blog: false,
         pages: landing ? { path: path.join(here, 'src', 'landing'), routeBasePath: '/' } : false,
         sitemap: false,
-        theme: {
-          customCss: [
-            // Inter as a cached font file, not inlined in JS (Theme and shared chrome).
-            createRequire(import.meta.url).resolve('@fontsource-variable/inter'),
-            path.join(here, 'src/css/oxygen-tokens.css'),
-            path.join(here, 'src/css/custom.css'),
-            path.join(here, 'src/css/chrome.css'),
-            path.join(here, 'src/css/api-reference.css'),
-            path.join(here, 'src/css/layouts.css'),
-          ],
-        },
+        // No stylesheets listed here: the Platform's component stylesheets are
+        // in the shared theme (site/wso2-theme/, linked by plugins/theme.mjs).
       },
     ],
   ],
-  plugins: landing ? [siteSource, landingOutputs] : [
+  plugins: landing ? [siteSource, theme, landingOutputs] : [
     // site/src/ compiled where the Platform is installed from npm (under node_modules/).
     siteSource,
+    // The shared theme, linked at /_platform/theme/v<major>/.
+    theme,
+    // Sidebar icons named by pages and folders, checked and inlined as SVG.
+    [path.join(platformRoot, 'plugins', 'nav-icons.mjs'), { strict }],
     // Each Cloud part's main line as its own docs instance at <base>/<part>/.
     ...instances.slice(1).map((i) => ['@docusaurus/plugin-content-docs', { id: i.id, ...docsOptions(i) }]),
     // <doc space>/partials/: snippets the pages import, with the pages' remark plugins.
@@ -263,7 +270,7 @@ export default {
     [
       path.join(platformRoot, 'plugins', 'platform-outputs.mjs'),
       {
-        siteUrl, baseUrl, asLatest, latestPages,
+        siteUrl, baseUrl, asLatest, latestPages, latestRedirects,
         docSpace: slug, docSpaceName: repo.docspace.displayName, editionName: instances[0].editionName,
         editionId: edition.id, editionKind: edition.kind,
         latestEditionId: space?.latest ?? null,
@@ -282,7 +289,7 @@ export default {
       // Markdown twins, llms.txt and llms-full.txt (AI/LLM-friendly docs).
       path.join(platformRoot, 'plugins', 'markdown-export.mjs'),
       {
-        siteUrl, baseUrl, asLatest, latestPages, strict, edition, vars, policy, linkHost, additions,
+        siteUrl, baseUrl, asLatest, latestPages, latestRedirects, strict, edition, vars, policy, linkHost, additions,
         docsDir: repo.docsDir, docSpace: slug, docSpaceName: repo.docspace.displayName, editionName: instances[0].editionName,
         editionId: edition.id, latestEditionId: space?.latest ?? null, ...(partOf ? { cloudPartOf: partOf } : {}),
         parts: instances.slice(1).map((i) => ({
@@ -294,7 +301,9 @@ export default {
   themeConfig: {
     colorMode: { respectPrefersColorScheme: true },
     navbar: { items: navbarItems },
-    prism: { theme: prismThemes.github, darkTheme: prismThemes.dracula, additionalLanguages: ['bash', 'java', 'toml', 'properties', 'json', 'docker', 'ini', 'http', 'groovy', 'powershell', 'csharp', 'nginx', 'batch', 'hcl', 'rego', 'log', 'diff', 'scala', 'php', 'ruby', 'protobuf'] },
+    // No colours from prism-react-renderer, so the HTML carries none: the
+    // code colours are the theme's CSS (site/wso2-theme/css/code.css).
+    prism: { theme: { plain: {}, styles: [] }, darkTheme: { plain: {}, styles: [] }, additionalLanguages: ['bash', 'java', 'toml', 'properties', 'json', 'docker', 'ini', 'http', 'groovy', 'powershell', 'csharp', 'nginx', 'batch', 'hcl', 'rego', 'log', 'diff', 'scala', 'php', 'ruby', 'protobuf'] },
   },
   customFields: {
     landing,
@@ -311,6 +320,8 @@ export default {
     asLatest,
     showMarkers,
     siteUrl,
+    // The shared theme's host-root address: the logo's images (chrome/Brand).
+    themeBase: themeBase(),
     // Root-relative, so staging reads the staging copies; preview passes the
     // staging URLs explicitly.
     manifestUrl: env.WSO2_DOCS_MANIFEST_URL ?? '/manifest.json',

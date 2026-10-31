@@ -1,2 +1,4 @@
 label: Get started
 position: 1
+customProps:
+  icon: octicons/rocket-16

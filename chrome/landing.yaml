@@ -1,26 +1,30 @@
 # The Landing deployment's own content (docs.wso2.com/). The product list
 # comes from the published manifest (the same Platform navigation as the
-# products menu, navigation/navigation.yaml); this file holds the hero and the
-# start paths.
+# products menu, navigation/navigation.yaml); this file holds the hero, the
+# popular links under its search box and the Learn and Community columns.
 # Rebuilding the Landing deployment publishes a change.
 hero:
-  title: WSO2 Docs
-  text: Guides, tutorials and references for every WSO2 product, in Cloud and Self-hosted.
-startPathsTitle: Start here
-catalogTitle: All products
-startPaths:   # 4-6 task start paths
+  title: WSO2 Documentation
+  text: Welcome to the WSO2 documentation portal. Select the version of the documentation space you want to view. See documentation, sample code, tutorials, and more.
+popularTitle: Popular
+popular:   # 4-6 pages, short titles
   - title: Add sign-in to your app
-    description: Register an application and let users sign in with WSO2 Identity Platform Cloud.
     href: /identity-platform/cloud/identity-server/get-started/connect-app/react/
-  - title: Add multi-factor authentication
-    description: Require a second factor when users sign in.
+  - title: Add MFA
     href: /identity-platform/cloud/identity-server/guides/authentication/mfa/
   - title: Install Identity Server
-    description: Run WSO2 Identity Server on your own infrastructure.
     href: /identity-server/latest/deploy-and-operate/get-started/install/
   - title: Manage your APIs
-    description: Design, publish and secure APIs with WSO2 API Manager.
     href: /api-manager/latest/
-  - title: Contribute to the docs
-    description: Fix a page, add an example or write a new guide.
-    href: /contribute/
+catalogTitle: All products   # for screen readers: the catalogue has no visible heading
+columns:   # below the catalogue; only entries with a real URL
+  - title: Learn
+    links:
+      - { label: Training and certification, href: "https://wso2.com/training/" }
+      - { label: Developer events, href: "https://wso2.com/events/" }
+  - title: Community
+    links:
+      - { label: Discord, href: "https://discord.com/invite/wso2" }
+      - { label: GitHub, href: "https://github.com/wso2" }
+      - { label: Stack Overflow, href: "https://stackoverflow.com/questions/tagged/wso2" }
+      - { label: Contribute to the docs, href: /contribute/ }

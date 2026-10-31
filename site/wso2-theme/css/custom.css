@@ -1,0 +1,323 @@
+/* Doc pages on the theme (theme.css): the stock Docusaurus layout, restyled
+   to the WSO2 Docs Doc space design. Reads only theme.css's variables. Sizes
+   are the design's px on a 16px root, in rem or em. */
+
+/* ---- Layout ------------------------------------------------------------- */
+.theme-doc-sidebar-container { border-right: 1px solid var(--wso2-divider) !important; }
+
+/* Desktop: sidebar 300px, contents column 272px, the content column between
+   them up to 900px with 40px padding. The doc page's <main> and the <div>
+   around its <article> are reached through stable class names and
+   structure, never Docusaurus's CSS-module names, which change with its
+   version (test/theme-bundle.test.mjs). */
+@media (min-width: 997px) {
+  .docs-doc-page main > .container { max-width: none; margin: 0; padding: 0; }
+  .docs-doc-page main > .container > .row { margin: 0; flex-wrap: nowrap; }
+  .docs-doc-page main > .container > .row > .col { flex: 1 1 auto; min-width: 0; max-width: none !important; padding: 0; }
+  .docs-doc-page main > .container > .row > .col--3 { flex: 0 0 var(--wso2-toc-width); max-width: var(--wso2-toc-width) !important; }
+  .docs-doc-page main .row > .col > div:has(> article) {
+    max-width: var(--wso2-content-max-width); margin: 0 auto;
+    padding: 1.25rem var(--wso2-content-padding) 4rem;
+  }
+}
+/* Phones and tablets: 16px side margins. */
+@media (max-width: 996px) {
+  .docs-doc-page main > .container { padding-left: var(--wso2-phone-margin); padding-right: var(--wso2-phone-margin); }
+  .docs-doc-page main .row > .col > div:has(> article) { padding: 0 0 3rem; }
+}
+
+/* ---- Running text ------------------------------------------------------- */
+.markdown { --ifm-leading: 1rem; line-height: 1.7; }
+.markdown :is(h1, h2, h3, h4, h5, h6) { font-family: var(--wso2-font-display); font-weight: 700; color: var(--wso2-text); }
+.markdown h1,
+.markdown h1:first-child {
+  font-size: 2.75rem; line-height: 1.15; letter-spacing: -0.025em; margin: 0.25rem 0 1rem;
+}
+.markdown h2,
+.markdown > h2 { font-size: 1.875rem; line-height: 1.25; letter-spacing: -0.02em; margin: 2.75rem 0 1rem; }
+.markdown h3,
+.markdown > h3 { font-size: 1.375rem; line-height: 1.3; letter-spacing: -0.01em; margin: 2rem 0 0.75rem; }
+.markdown h4,
+.markdown > h4 { font-size: 1.125rem; line-height: 1.4; letter-spacing: -0.005em; margin: 1.5rem 0 0.5rem; }
+.markdown p,
+.markdown > p { margin: 1rem 0; }
+.markdown ul,
+.markdown ol,
+.markdown > ul { margin: 1rem 0; padding-left: 1.5rem; }
+.markdown li { margin: 0 0 0.375rem; }
+.markdown li:last-child { margin-bottom: 0; }
+.markdown li > p { margin: 0.375rem 0; }
+.markdown li > ul,
+.markdown li > ol { margin: 0.375rem 0; }
+.markdown ol ol, .markdown ul ol { list-style-type: lower-alpha; }
+.markdown ol ol ol, .markdown ul ol ol { list-style-type: lower-roman; }
+.markdown hr { border-color: var(--wso2-divider); }
+.markdown strong { font-weight: 700; }
+
+/* Links in running text: semibold, and at least 3:1 from the text around
+   them in both modes (WCAG 2.2 1.4.1, technique G183), underlined on hover
+   and focus. test/contrast.test.mjs. */
+.markdown :is(p, li, td, th, dd, blockquote) a:not([class*='wso2-']) {
+  font-weight: var(--wso2-link-weight); text-decoration: none;
+}
+.markdown :is(p, li, td, th, dd, blockquote) a:not([class*='wso2-']):is(:hover, :focus-visible) {
+  text-decoration: underline; text-underline-offset: 0.15em;
+}
+.markdown a { transition: var(--wso2-hover-transition); }
+.markdown a:hover { color: var(--wso2-link-hover); }
+
+/* Inline code */
+code {
+  border: 1px solid var(--wso2-code-inline-border); color: var(--wso2-code-inline-fg);
+  font-family: var(--wso2-font-mono); vertical-align: baseline;
+}
+a code { color: inherit; }
+
+/* Code blocks: the same dark block in both modes; syntax colours in code.css.
+   The title is the block's first <div> when a second follows. */
+div.theme-code-block {
+  --prism-background-color: var(--wso2-code-bg);
+  --prism-color: var(--wso2-code-fg);
+  border-radius: var(--wso2-radius); box-shadow: none; font-size: 1rem;
+}
+.theme-code-block code { border: 0; }
+.theme-code-block pre { font-size: 0.875rem; line-height: 1.5; }
+/* Less padding above and below the code than at its sides: --ifm-pre-padding
+   (theme.css) is the side padding, one value, so Docusaurus's calc()s with
+   it (the buttons, title, highlighted lines, line numbers) stay valid. In a
+   code block the padding is on the pre's code; a pre of its own has it. */
+pre,
+.theme-code-block pre > code { padding-block: var(--wso2-code-padding-block); }
+.theme-code-block > div:first-child:not(:last-child) { border-bottom-color: var(--wso2-code-divider); color: var(--wso2-code-fg); font-size: 0.8125rem; }
+/* The copy and wrap buttons keep Docusaurus's border (--ifm-color-emphasis-300,
+   the divider colour), as they had while the theme was bundled before
+   Docusaurus's own CSS. */
+.theme-code-block button { color: var(--wso2-code-fg); background: var(--wso2-code-bg); }
+/* The buttons in the block's top right corner, at half the padding above the
+   code (Docusaurus's half of --ifm-pre-padding would put them lower), so
+   they sit beside the first line. */
+.theme-code-block pre + div { top: calc(var(--wso2-code-padding-block) / 2); }
+
+/* Tables: a 1px frame, a tinted head row */
+.markdown table {
+  width: fit-content; max-width: 100%;
+  border: 1px solid var(--wso2-table-border); border-collapse: collapse;
+  font-size: 0.875rem; line-height: 1.6; background: var(--wso2-bg);
+}
+.markdown table thead tr { border-bottom: 0; background: var(--wso2-table-head-bg); }
+.markdown table tr { border-top: 0; background: none; }
+.markdown table th, .markdown table td { border: 0; padding: 0.625rem 0.875rem; vertical-align: top; }
+.markdown table th { font-weight: 600; text-align: left; color: var(--wso2-text); }
+.markdown table td { border-top: 1px solid var(--wso2-table-border); }
+/* Long code in a cell wraps rather than making the table scroll on a phone. */
+.markdown table :is(td, th) code { overflow-wrap: anywhere; }
+
+/* Admonitions: the design's grey card, an uppercase label with its icon in
+   the type's colour; no thick left border. The heading (icon and title) is
+   the first <div>, the content the second. */
+.theme-admonition {
+  --wso2-admonition: var(--wso2-admonition-note);
+  margin: 1.5rem 0; padding: 0.875rem 1.125rem;
+  border: 1px solid var(--wso2-admonition-border); border-radius: var(--wso2-radius);
+  background: var(--wso2-admonition-bg); color: var(--wso2-text); box-shadow: none;
+  font-size: 0.9375rem; line-height: 1.65;
+}
+.theme-admonition-tip { --wso2-admonition: var(--wso2-admonition-tip); }
+.theme-admonition-info { --wso2-admonition: var(--wso2-admonition-info); }
+.theme-admonition-warning, .theme-admonition-caution { --wso2-admonition: var(--wso2-admonition-warning); }
+.theme-admonition-danger { --wso2-admonition: var(--wso2-admonition-danger); }
+.theme-admonition > div:first-child {
+  display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.375rem;
+  font: 700 0.75rem / 1.5 var(--wso2-font-family); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--wso2-admonition);
+}
+.theme-admonition > div:first-child:last-child { margin-bottom: 0; }
+.theme-admonition > div:first-child > span:first-child { display: inline-flex; margin: 0; line-height: 0; }
+.theme-admonition > div:first-child > span:first-child svg { width: 1rem; height: 1rem; fill: var(--wso2-admonition); }
+.theme-admonition > div + div > :first-child { margin-top: 0; }
+.theme-admonition > div + div > :last-child { margin-bottom: 0; }
+.theme-admonition a { color: var(--wso2-link); }
+
+/* Collapsible details: the admonitions' grey card, an orange arrow. */
+.markdown details {
+  --ifm-alert-background-color: var(--wso2-admonition-bg);
+  --ifm-alert-background-color-highlight: var(--wso2-hover);
+  --ifm-alert-border-color: var(--wso2-admonition-border);
+  --ifm-alert-foreground-color: var(--wso2-text);
+  --docusaurus-details-decoration-color: var(--wso2-accent);
+  border: 1px solid var(--wso2-admonition-border); border-radius: var(--wso2-radius); box-shadow: none;
+}
+
+/* ---- Breadcrumbs: muted crumbs between › separators, the current one a pill */
+.theme-doc-breadcrumbs { margin-bottom: 0.75rem; }
+.theme-doc-breadcrumbs .breadcrumbs__item { display: inline-flex; align-items: center; }
+.theme-doc-breadcrumbs .breadcrumbs__item:not(:last-child)::after {
+  content: '›'; background: none; filter: none; opacity: 1; width: auto; height: auto;
+  margin: 0 0.125rem; color: var(--wso2-text-faint); font-size: 0.875rem;
+}
+.theme-doc-breadcrumbs .breadcrumbs__link {
+  padding: 0.25rem 0.625rem; border-radius: 999px; background: none; color: var(--wso2-text-muted);
+  font-size: 0.8125rem; line-height: 1.4; transition: var(--wso2-hover-transition);
+}
+.theme-doc-breadcrumbs .breadcrumbs__item--active .breadcrumbs__link {
+  background: var(--wso2-selected); color: var(--wso2-text); font-weight: 500;
+}
+.theme-doc-breadcrumbs a.breadcrumbs__link:hover { background: var(--wso2-hover); color: var(--wso2-text); }
+.theme-doc-breadcrumbs .breadcrumbs__item:first-child .breadcrumbs__link[aria-label] { padding: 0.25rem 0.375rem; }
+
+/* ---- Sidebar ------------------------------------------------------------- */
+/* Rows are 6px-radius pills: top-level entries 15px in the strong grey,
+   nested ones 14px muted; hover tints the row, the current page is the
+   orange wash. Chevrons sit on the right. The nav-icons stylesheet adds a
+   16px icon and an 8px gap before a label, inline in the link. */
+.theme-doc-sidebar-container nav.menu { padding: 1rem 0.75rem 2.5rem; }
+.menu { font-size: 0.9375rem; line-height: 1.4; font-weight: 400; }
+.menu .menu__list .menu__list { margin: 0.125rem 0 0.375rem 0.75rem; padding-left: 0.25rem; }
+.menu .menu__list-item:not(:first-child) { margin-top: 2px; }
+.menu .menu__link,
+.menu .menu__caret {
+  border-radius: var(--wso2-radius-row); color: var(--wso2-text-muted);
+  line-height: inherit; transition: var(--wso2-hover-transition);
+}
+.menu .menu__link { justify-content: flex-start; padding: 0.375rem 0.5rem 0.375rem 0.75rem; }
+.menu .menu__list .menu__list { font-size: 0.875rem; }
+/* Top-level entries */
+.theme-doc-sidebar-menu > .menu__list-item > .menu__link,
+.theme-doc-sidebar-menu > .menu__list-item > .menu__list-item-collapsible > .menu__link {
+  padding-top: 0.4375rem; padding-bottom: 0.4375rem; color: var(--wso2-text-strong); font-weight: 500;
+}
+.menu .menu__list-item-collapsible { border-radius: var(--wso2-radius-row); }
+.menu .menu__link:hover,
+.menu .menu__list-item-collapsible:hover { background: var(--wso2-hover); color: var(--wso2-text); }
+.menu .menu__list-item-collapsible:hover > .menu__link { background: none; color: var(--wso2-text); }
+.menu .menu__list-item-collapsible--active { background: none; }
+/* The category holding the page keeps its colour; only the page itself is
+   the orange wash. */
+.menu .menu__link--active:not([aria-current='page']) { background: none; }
+.theme-doc-sidebar-menu > .menu__list-item > .menu__list-item-collapsible > .menu__link--active { color: var(--wso2-text-strong); }
+.menu .menu__link[aria-current='page'],
+.menu .menu__link[aria-current='page']:hover { background: var(--wso2-active-bg); color: var(--wso2-active); font-weight: 600; }
+
+/* Chevrons: right-pointing and grey, turning to 90° when the section is open. */
+.menu .menu__caret { flex: none; padding: 0.375rem 0.5rem; background: none; }
+.menu .menu__caret:hover { background: none; }
+.menu .menu__caret::before,
+.menu .menu__link--sublist-caret::after {
+  content: ''; flex: none; width: 16px; min-width: 16px; height: 16px; margin-left: auto;
+  background: var(--wso2-text-faint); filter: none;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M8.59 16.58 13.17 12 8.59 7.41 10 6l6 6-6 6z'/></svg>") center / contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M8.59 16.58 13.17 12 8.59 7.41 10 6l6 6-6 6z'/></svg>") center / contain no-repeat;
+  transform: rotate(90deg); transition: var(--wso2-chevron-transition);
+}
+.menu .menu__list-item--collapsed .menu__caret::before,
+.menu .menu__list-item--collapsed .menu__link--sublist::after,
+.menu .menu__list-item--collapsed .menu__link--sublist-caret::after { transform: none; }
+
+/* Sections open and close at once: Docusaurus's Collapsible animates the
+   height inline; 1ms (as Docusaurus does under reduced motion) keeps the
+   transitionend it finishes on. */
+.menu .menu__list { transition-duration: 1ms !important; }
+
+/* The phone menu: the panel slides in over a fading overlay. */
+@media (max-width: 996px) {
+  .navbar-sidebar .menu { font-size: 1rem; line-height: 1.5; }
+}
+/* The drawer sits in the docs bar but is a page-coloured panel; only its
+   header band (the colour-mode toggle and close button) stays navy. */
+.navbar-sidebar {
+  background-color: var(--wso2-bg); color: var(--wso2-text);
+  opacity: 1; box-shadow: none;
+  transition: transform 0.25s var(--wso2-drawer-easing), box-shadow 0.25s, visibility 0.25s;
+}
+.navbar-sidebar--show .navbar-sidebar { box-shadow: var(--wso2-shadow-dropdown); }
+.navbar-sidebar__backdrop { background-color: var(--wso2-overlay); transition: opacity 0.25s, visibility 0.25s; }
+.navbar-sidebar__item.menu { padding: 1rem var(--wso2-phone-margin); }
+.navbar-sidebar__brand { background: var(--wso2-bar-bg); color: var(--wso2-bar-text); }
+.navbar-sidebar__back { background: none; margin-top: 0; color: var(--wso2-text-strong); }
+.navbar-sidebar .menu__link { color: var(--wso2-text-muted); }
+
+/* ---- Contents column ------------------------------------------------------ */
+/* 13px links beside a 1px line; nested entries indented 14px; the current
+   one in the link colour, semibold. */
+.theme-doc-toc-desktop { padding: 1.25rem 0.75rem 1.25rem 1rem; top: var(--ifm-navbar-height); }
+.theme-doc-toc-desktop .table-of-contents {
+  padding: 0 0 0 1rem; border-left: 1px solid var(--wso2-divider); font-size: 0.8125rem; line-height: 1.45;
+}
+.theme-doc-toc-desktop .table-of-contents li { margin: 0; }
+.theme-doc-toc-desktop .table-of-contents ul { padding-left: 0.875rem; font-size: inherit; }
+.table-of-contents__link { display: block; padding: 0.25rem 0; color: var(--wso2-text-muted); transition: var(--wso2-hover-transition); }
+.table-of-contents__link:hover,
+.table-of-contents__link:hover code { color: var(--wso2-text); }
+.table-of-contents__link--active { color: var(--wso2-link); font-weight: 600; }
+
+/* Phones: the contents column folds into a grey "On this page" box above the
+   text, and the title steps down. */
+.theme-doc-toc-mobile {
+  --ifm-menu-color-background-active: var(--wso2-admonition-bg);
+  border: 1px solid var(--wso2-admonition-border); border-radius: var(--wso2-radius); background: var(--wso2-admonition-bg);
+}
+.theme-doc-toc-mobile > button { color: var(--wso2-text); font-weight: 500; }
+@media (max-width: 996px) {
+  .markdown h1, .markdown h1:first-child { font-size: 2.125rem; }
+  .markdown h2, .markdown > h2 { font-size: 1.625rem; }
+}
+
+/* ---- Previous / next ------------------------------------------------------ */
+.pagination-nav { gap: 1rem; margin-top: 2rem; }
+.pagination-nav__link {
+  padding: 0.875rem 1rem; border: 1px solid var(--wso2-border); border-radius: var(--wso2-radius);
+  transition: var(--wso2-hover-transition);
+}
+.pagination-nav__link:hover { border-color: var(--wso2-accent-strong); }
+.pagination-nav__sublabel { margin-bottom: 0.125rem; color: var(--wso2-text-muted); font-size: 0.8125rem; font-weight: 400; }
+.pagination-nav__label { color: var(--wso2-link); font-size: 1rem; font-weight: 700; }
+
+/* ---- Self-hosted additions shown in Cloud (SelfHostedAddition) ------------ */
+/* The label is text ("Self-hosted"), never colour alone. */
+.wso2-self-hosted__tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--wso2-divider);
+  background: var(--wso2-surface);
+  color: var(--ifm-font-color-base);
+}
+.wso2-self-hosted__link { font-size: 0.85rem; }
+.wso2-self-hosted--page { margin: 0 0 1rem; }
+.wso2-self-hosted--block {
+  margin: 1.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--wso2-divider);
+  background: var(--wso2-surface);
+}
+.wso2-self-hosted__label { margin-bottom: 0.5rem; }
+
+/* ---- Show-markers mode (local preview and PR previews only) -------------- */
+.wso2-edition-marker {
+  position: relative;
+  outline: 2px dashed var(--wso2-accent);
+  outline-offset: 4px;
+  margin: 1.5rem 0;
+  padding-top: 0.25rem;
+}
+.wso2-edition-marker--inline { display: inline; margin: 0; padding: 0; outline-offset: 1px; }
+.wso2-edition-marker__label {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 0.4rem;
+  margin-right: 0.4rem;
+  border-radius: 4px;
+  background: var(--wso2-accent);
+  color: var(--wso2-on-accent);
+}
+.wso2-edition-marker[data-active='false'] { opacity: 0.35; outline-style: dotted; }
+.wso2-edition-marker--page { outline: none; padding: 0.5rem 0.75rem; background: var(--wso2-bg); border-left: 4px solid var(--wso2-accent); }
+.wso2-dev-toolbar {
+  position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 1000;
+  display: flex; gap: 0.6rem; align-items: center; padding: 0.4rem 0.8rem; border-radius: 999px;
+  background: var(--wso2-surface); color: var(--wso2-text); box-shadow: var(--wso2-shadow-dropdown); font-size: 0.85rem;
+}
+.wso2-dev-toolbar__hint { opacity: 0.7; }

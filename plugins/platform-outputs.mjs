@@ -5,24 +5,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'node-html-parser';
+import { canonicalFor } from '../lib/canonical.mjs';
+
+export { canonicalFor };
 
 const text = (el) => (el?.textContent ?? '').replace(/​/g, '').replace(/\s+/g, ' ').trim();
-
-// `selfHosted`: a Self-hosted-only page shown in Cloud (a Self-hosted
-// addition), whose canonical is the same page under its Doc space's /latest/
-// (in a family Cloud tree, the Cloud part's Doc space).
-export function canonicalFor(rel, o, { selfHosted = false } = {}) {
-  if (selfHosted && o.editionId === 'cloud') {
-    const part = o.cloudPartOf ? null : (o.parts ?? []).find((p) => rel.startsWith(p.path));
-    return `${o.siteUrl}/${part ? part.docSpace : o.docSpace}/latest/${part ? rel.slice(part.path.length) : rel}`;
-  }
-  const self = `${o.siteUrl}${o.baseUrl}${rel}`;
-  const latest = (p) => `${o.siteUrl}/${o.docSpace}/latest/${p}`;
-  if (o.asLatest || o.editionId === 'cloud' || !o.latestEditionId) return self;
-  if (o.editionId === o.latestEditionId) return latest(rel);
-  const moved = o.latestRedirects?.[rel] ?? rel;
-  return o.latestPages?.has(moved) ? latest(moved) : self;
-}
 
 // Whose page a route is: a Cloud part's pages in a family Cloud tree (or a
 // part built on its own) are the component's Cloud ("Identity Server Cloud"),

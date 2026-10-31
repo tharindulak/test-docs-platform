@@ -100,9 +100,8 @@ export default {
     editLinks: false,
     // During the Pilot, issues go to the legacy repo.
     issues: { repo: 'wso2/docs-is' },
-    editions: [{ id: '7.3.0' }, { id: '7.2.0', branch: 'identity-server/release/7.2.0' }],
+    editions: [{ id: '7.3.0' }, { id: '7.2.0', branch: 'identity-server/release/7.2.0' }, { id: '7.1.0', branch: 'identity-server/release/7.1.0' }],
     legacyVersions: [
-      { id: '7.1.0', url: 'https://is.docs.wso2.com/en/7.1.0/' },
       { id: '7.0.0', url: 'https://is.docs.wso2.com/en/7.0.0/' },
       { id: '6.1.0', url: 'https://is.docs.wso2.com/en/6.1.0/' },
       { id: '6.0.0', url: 'https://is.docs.wso2.com/en/6.0.0/' },
@@ -153,6 +152,14 @@ export default {
     'Best Practice Guides': { folder: 'guides/best-practice-guides' },
   },
   sectionFolders: {},
+  // Sidebar icons from base.yml's extra.nav_icons, as the theme's
+  // en/theme/material/partials/nav-item.html draws them: by nav title and
+  // level, but never on an "Overview" page of a connector or of organization
+  // management. Its own SVGs in assets/libs/custom-icons/ are wso2/<name>.
+  navIcons: {
+    customIcons: 'assets/libs/custom-icons/',
+    skip: ({ title, url }) => title === 'Overview' && (String(url).includes('connectors') || String(url).includes('organization-management')),
+  },
   apiFolder: 'reference/apis',
   pageOverrides: {
     'get-started/about-this-release.md': 'release-notes/about-this-release',

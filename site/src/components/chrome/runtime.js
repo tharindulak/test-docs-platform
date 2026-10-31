@@ -136,19 +136,28 @@ export function useDeployments(manifest, view) {
   const f = view ? focus(manifest, view) : null;
   const d = f ? spaceOf(manifest, f.doc) : null;
   const ids = d ? editionList(d) : [];
+  // Loaded once per set of Editions: the live manifest can list an Edition the
+  // baked snapshot lacks (a release newer than this build), so a load started
+  // from the snapshot is not reused once the live copy arrives.
+  const key = [view?.base, f?.doc, ...ids].join(',');
   const ensure = useCallback(() => {
     if (!view) return Promise.resolve({});
-    pending.current ??= Promise.all([
-      loadDeployment(view.base).then((x) => [depKey(view), x]),
-      ...ids.map((id) => toView(manifest, f.doc, id, '')).filter((v) => depKey(v) !== depKey(view))
-        .map((v) => loadDeployment(deploymentBase(manifest, v)).then((x) => [depKey(v), x])),
-    ]).then((entries) => {
-      const loaded = Object.fromEntries(entries.filter(([, x]) => x));
-      setDeployments(loaded);
-      return loaded;
-    });
-    return pending.current;
-  }, [view?.space, view?.edition, view?.base, f?.doc, ids.join(',')]);
+    if (pending.current?.key !== key) {
+      pending.current = {
+        key,
+        promise: Promise.all([
+          loadDeployment(view.base).then((x) => [depKey(view), x]),
+          ...ids.map((id) => toView(manifest, f.doc, id, '')).filter((v) => depKey(v) !== depKey(view))
+            .map((v) => loadDeployment(deploymentBase(manifest, v)).then((x) => [depKey(v), x])),
+        ]).then((entries) => {
+          const loaded = Object.fromEntries(entries.filter(([, x]) => x));
+          if (pending.current?.key === key) setDeployments(loaded);
+          return loaded;
+        }),
+      };
+    }
+    return pending.current.promise;
+  }, [view?.space, view?.edition, key]);
   return { deployments, ensure };
 }
 

@@ -1,8 +1,10 @@
-// The Landing deployment's page: a search-first hero, 4-6 start paths, and
-// every product, drawn from the same Platform navigation as the products menu
-// (lib/switching.mjs landingGroups): the families, then Solutions and Other,
-// in the same order with the same entries, adding only each group's short
-// description and each entry's Cloud and Self-hosted links.
+// The Landing deployment's page: a navy, search-first hero with popular links
+// under the search box, every product in one catalogue drawn from the same
+// Platform navigation as the products menu (lib/switching.mjs landingGroups):
+// the families, then Solutions and Other, in the same order with the same
+// entries, each one link to where the menu opens it. Then the Learn and
+// Community columns from chrome/landing.yaml. The page has the wso2.com bar
+// but no docs bar (chrome.css).
 import React, { useEffect } from 'react';
 import Layout from '@theme/Layout';
 import { landingGroups } from '../../../../lib/switching.mjs';
@@ -20,48 +22,39 @@ export default function Landing() {
     <Layout description={content.hero.text}>
       <main className="wso2-landing">
         <section className="wso2-hero">
-          <div className="container">
-            <h1 className="wso2-hero__title">{content.hero.title}</h1>
-            <p className="wso2-hero__text">{content.hero.text}</p>
-            <SearchBox variant="hero" />
-          </div>
+          <h1 className="wso2-hero__title">{content.hero.title}</h1>
+          <p className="wso2-hero__text">{content.hero.text}</p>
+          <SearchBox variant="hero" />
+          <nav className="wso2-popular" aria-labelledby="popular">
+            <span id="popular" className="wso2-popular__label">{content.popularTitle}:</span>
+            <ul>{content.popular.map((p) => <li key={p.href}><a href={p.href}>{p.title}</a></li>)}</ul>
+          </nav>
         </section>
-        <section className="container wso2-landing__section" aria-labelledby="start-paths">
-          <h2 id="start-paths">{content.startPathsTitle}</h2>
-          <ul className="wso2-start-paths">
-            {content.startPaths.map((s) => (
-              <li key={s.href}>
-                <a className="wso2-card wso2-card--link" href={s.href}>
-                  <span className="wso2-card__title">{s.title}</span>
-                  <span className="wso2-card__text">{s.description}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="container wso2-landing__section" aria-labelledby="catalog">
-          <h2 id="catalog">{content.catalogTitle}</h2>
+        <section className="wso2-catalog" aria-labelledby="catalog">
+          <h2 id="catalog" className="wso2-sr-only">{content.catalogTitle}</h2>
           {landingGroups(manifest).map((g) => (
             <section className="wso2-family" key={g.id} aria-labelledby={`family-${g.id}`} data-group={g.id}>
               <h3 className="wso2-family__title" id={`family-${g.id}`}>{g.name}</h3>
-              {g.description && <p className="wso2-family__text">{g.description}</p>}
-              <ul className="wso2-catalog">
+              <ul>
                 {g.entries.map((e) => (
-                  <li className="wso2-card" key={`${e.href}|${e.label}`} data-kind={e.kind} data-docspace={e.docSpace ?? undefined}>
-                    <a className="wso2-card__title" href={e.href} onClick={remember(e)}>
+                  <li key={`${e.href}|${e.label}`} data-kind={e.kind} data-docspace={e.docSpace ?? undefined}>
+                    <a href={e.href} onClick={remember(e)}>
                       {e.label}{e.external && <><span className="wso2-external" aria-hidden="true"> ↗</span><span className="wso2-sr-only">{e.linksOut ? ' (external site)' : ' (not on WSO2 Docs yet: its old site)'}</span></>}
                     </a>
-                    {e.editions.length > 0 && (
-                      <ul className="wso2-kinds" aria-label={`${e.label} editions`}>
-                        {e.editions.map((k) => <li key={k.label}><a className="wso2-kind" href={k.href} onClick={remember(e)}>{k.label}</a></li>)}
-                      </ul>
-                    )}
                   </li>
                 ))}
               </ul>
             </section>
           ))}
         </section>
+        <div className="wso2-landing__columns">
+          {content.columns.map((c, i) => (
+            <section className="wso2-family" key={c.title} aria-labelledby={`column-${i}`}>
+              <h2 className="wso2-family__title" id={`column-${i}`}>{c.title}</h2>
+              <ul>{c.links.map((l) => <li key={l.href}><a href={l.href}>{l.label}</a></li>)}</ul>
+            </section>
+          ))}
+        </div>
       </main>
     </Layout>
   );

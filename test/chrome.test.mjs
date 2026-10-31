@@ -20,12 +20,20 @@ const source = JSON.parse(fs.readFileSync(path.join(root, 'chrome', 'chrome.json
 test('the Platform chrome.json source is valid', () => {
   assert.equal(validateChrome(source), source);
   assert.equal(source.feedback.endpoint, '/api/feedback');
-  assert.deepEqual(source.header.links.map((l) => l.label), ['Support', 'wso2.com']);
+  assert.deepEqual(source.header.links.map((l) => l.label), ['Support', 'wso2.com'], 'kept for deployments built before the wso2.com bar');
+  const site = source.header.site;
+  assert.equal(site.home.href, 'https://wso2.com/');
+  assert.deepEqual(site.items.map((i) => [i.label, Boolean(i.groups)]), [['Agentic Enterprise', false], ['Products', true], ['Solutions', true], ['Company', true]]);
+  assert.deepEqual(site.items[1].groups.map((g) => g.title), ['Agent Platform', 'API Platform', 'Integration Platform', 'Identity Platform', 'Engineering Platform'], 'wso2.com\'s families, in its order');
+  assert.equal(site.contact.label, 'Contact');
+  assert.ok(source.footer.legal.some((l) => l.label === 'Cookie policy'), 'CookiePro\'s consent links to the cookie policy');
 });
 
 test('chrome.json validation names the broken fields', () => {
   const bad = { ...source, header: { links: [{ label: 'x', href: 'http://insecure' }] }, announcement: { id: 'a' } };
   assert.throws(() => validateChrome(bad), /header\.links\[0\].*announcement needs an id and a text/);
+  const badSite = { ...source, header: { links: [], site: { home: { label: 'WSO2', href: 'https://wso2.com/' }, items: [{ label: 'Products', groups: [{ links: [{ label: 'x', href: 'ftp://x' }] }] }] } } };
+  assert.throws(() => validateChrome(badSite), /header\.site\.items\[0\]\.groups\[0\]\.title is required.*groups\[0\]\.links\[0\] needs a label/);
 });
 
 test('runtime chrome.json replaces the snapshot section by section', () => {
@@ -35,6 +43,10 @@ test('runtime chrome.json replaces the snapshot section by section', () => {
   assert.equal(m.footer, source.footer, 'a malformed section keeps the baked-in copy');
   assert.equal(m.announcement.id, 'n1');
   assert.equal(mergeChrome(source, null), source);
+  assert.deepEqual(m.header.site, source.header.site, 'a live copy older than the wso2.com bar keeps the baked-in bar');
+  const site = { home: { label: 'WSO2', href: 'https://wso2.com/' }, items: [{ label: 'Contact', href: 'https://wso2.com/contact/' }] };
+  assert.deepEqual(mergeChrome(source, { header: { links: [], site } }).header.site, site, 'a newer bar replaces it');
+  assert.equal(mergeChrome(source, { header: { links: [], site: { items: 'broken' } } }).header, source.header, 'a malformed bar keeps the baked-in header');
 });
 
 test('announcements expire after their until date', () => {

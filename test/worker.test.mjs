@@ -1,6 +1,6 @@
 // Edge Worker rules against in-memory bindings: routing, headers, the
 // redirect table, analytics counts and feedback validation. The same Worker
-// runs in Miniflare in edge-e2e.test.mjs.
+// runs in Miniflare in test/build/edge-e2e.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../worker/src/index.mjs';
@@ -66,6 +66,7 @@ function env(vars = {}) {
       '_releases/contribute/_/c1/style/index.html': '<h1>style</h1>',
       '_releases/_landing/_/l1/index.html': '<h1>WSO2 Docs</h1>',
       '_releases/_landing/_/l1/robots.txt': 'User-agent: *\nAllow: /\n',
+      'llms.txt': '# WSO2 Docs\n',
     }),
     PREVIEWS: bucket({ 'identity-platform/pr-7/cloud/index.html': '<h1>preview</h1>' }),
     REDIRECTS: {
@@ -249,6 +250,12 @@ test('noindex: end-of-life Editions in production, everything on staging', async
   const prod = env();
   assert.equal((await call(prod, '/identity-platform/7.2.0/')).headers.get('x-robots-tag'), 'noindex, follow');
   assert.equal((await call(prod, '/identity-platform/7.3.0/')).headers.get('x-robots-tag'), null);
+  // Twins and llms.txt files, the root one too, are for AI tools: noindex in production.
+  assert.equal((await call(prod, '/identity-platform/latest/guides/mfa.md')).headers.get('x-robots-tag'), 'noindex');
+  const root = await call(prod, '/llms.txt');
+  assert.equal(root.status, 200);
+  assert.equal(root.headers.get('x-robots-tag'), 'noindex');
+  assert.equal((await call(prod, '/manifest.json')).headers.get('x-robots-tag'), null);
   const staging = env({ NOINDEX_ALL: 'true', ENVIRONMENT: 'staging' });
   for (const p of ['/identity-platform/7.3.0/', '/identity-platform/7.2.0/', '/identity-platform/', '/nope/']) {
     assert.equal((await call(staging, p)).headers.get('x-robots-tag'), 'noindex', p);

@@ -47,6 +47,12 @@ checks:
     release: true
     what: Every page has a title, a description of at most 160 characters and a page type, uses only known keys, and has valid Edition values.
     fix: Copy the front matter of the page-type template (`wso2-docs new <type>`), then fill it in.
+  - id: nav-icons
+    title: Sidebar icons
+    blocking: true
+    release: true
+    what: "Every sidebar icon a page names in its front matter (`sidebar_custom_props: { icon: <name> }`) or a folder names in its `_category_.yml` (`customProps: { icon: <name> }`) is on the Platform's list of icons. A build fails on an unknown name too; a preview warns and leaves the icon out."
+    fix: "Use a name from the list in [Add a sidebar icon](../guides/add-a-sidebar-icon.mdx#allowed-names), such as `octicons/rocket-16` or `fontawesome/brands/react`. The message suggests a close name when there is one."
   - id: data-files
     title: Data files
     blocking: true

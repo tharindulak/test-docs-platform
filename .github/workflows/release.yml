@@ -12,6 +12,9 @@
 #     deployed tag's recorded bundle; and scope tag for the Platform's own Doc
 #     space only (Contribute's Cloud tags, platform-deployments.yml). Content
 #     repos dispatch nothing: their releases reach the Platform by intake.
+#   - scope theme, which publishes the shared theme alone (a theme-only
+#     Platform release); scope all publishes it too (jobs theme and
+#     theme-promote).
 # The release sequence:
 #   0   keep a copy of each bundle     (store: to _bundles/<sha256>.zip on docs-staging,
 #                                       before any build; runs no content code)
@@ -28,6 +31,13 @@
 #   9   sitemap index and edge redirect table
 #   10  summary for the Doc space owners
 # Staging for the Pilot is the Pilot's Cloudflare account (spec/edge-and-hosting.md).
+# The theme: upload to a new immutable folder on staging, point staging's
+# theme at the new one and run the contrast check; when they pass, the same
+# folder to production. axe runs only on demand (input a11y): with staging's
+# live theme before the pointer moves, then with the new one, on one sample
+# page of every live deployment of the major (light and dark, desktop and
+# 375 px, with screenshots); only violations the new theme introduces block.
+# No build, no crawl gate: every page links the live theme at the edge.
 # PENDING INFRA (ticket 15): the staging and production environments need
 # R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / CLOUDFLARE_API_TOKEN secrets and
 # R2_ENDPOINT / CLOUDFLARE_ACCOUNT_ID / REDIRECTS_KV_ID variables. The search
@@ -52,14 +62,18 @@ on:
         type: string
         required: false
       scope:
-        description: tag = the Platform's own Doc space at a tag; docspace = every Edition of a Doc space; all = every Edition whose Content repo pins this Platform's major; landing = the Landing deployment
+        description: tag = the Platform's own Doc space at a tag; docspace = every Edition of a Doc space; all = every Edition whose Content repo pins this Platform's major, and the theme; landing = the Landing deployment; theme = the shared theme alone
         type: choice
-        options: [tag, docspace, all, landing]
+        options: [tag, docspace, all, landing, theme]
         default: tag
       space:
         description: Doc space slug, for scope "docspace"
         type: string
         required: false
+      a11y:
+        description: For scopes theme and all, also run axe on the shared theme before promoting it (one sample page of every live deployment of the major, with screenshots)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -80,6 +94,8 @@ jobs:
   # Runs no content code: compose reads the Doc space manifests, the plan
   # reads the intake records and the staging state.
   plan:
+    # Scope theme builds nothing: only the theme jobs run.
+    if: inputs.scope != 'theme'
     runs-on: ubuntu-latest
     environment: staging
     outputs:
@@ -476,3 +492,153 @@ jobs:
         run: node bin/wso2-release.mjs redirects --storage "$PRODUCTION_STORAGE" --kv "cloudflare:${{ vars.REDIRECTS_KV_ID }}"
       - name: Keep the last 5 releases
         run: node bin/wso2-release.mjs gc --storage "$PRODUCTION_STORAGE"
+
+  # The shared theme (scope theme, and with every rebuild of scope all): this
+  # checkout's site/wso2-theme/, bundled under theme id <version>.r<run id>.
+  # The contrast check always runs. axe runs only with input a11y: a theme
+  # rollback is an instant pointer move, the nightly reports sample
+  # production with axe, and the Platform pull request's axe check covers a
+  # theme change. When it runs, it runs twice on the same pages: with
+  # staging's live theme (before the pointer moves), then with the new one;
+  # only what the new theme introduces blocks. The major's first theme has
+  # nothing to compare with: every violation blocks.
+  theme:
+    if: inputs.scope == 'theme' || inputs.scope == 'all'
+    runs-on: ubuntu-latest
+    environment: staging
+    # No concurrency group: the pointer move waits its turn on the state lock.
+    outputs:
+      release: ${{ steps.publish.outputs.release }}
+      major: ${{ steps.publish.outputs.major }}
+      checks-passed: ${{ steps.contrast.outcome == 'success' && (steps.axe.outcome == 'success' || !inputs.a11y) }}
+    env:
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check out the Content repos' main lines (each one's pinned Platform major)
+        if: inputs.a11y
+        env:
+          CONTENT_READ_TOKEN: ${{ secrets.CONTENT_READ_TOKEN }}
+        run: node scripts/clone-content-repos.mjs --out "$RUNNER_TEMP/content"
+      - id: publish
+        name: Upload the theme to staging
+        run: node bin/wso2-release.mjs theme publish --storage "$STAGING_STORAGE" --env staging --run-id "$GITHUB_RUN_ID" --upload-only --github-output "$GITHUB_OUTPUT"
+      - id: pages
+        name: The theme checks' pages
+        if: inputs.a11y
+        env:
+          MAJOR: ${{ steps.publish.outputs.major }}
+        run: node bin/wso2-release.mjs theme check-pages --storage "$STAGING_STORAGE" --host "$STAGING_HOST" --major "$MAJOR" --content "$RUNNER_TEMP/content" --screenshots screenshots --out pa11y.json --baseline-out pa11y-live.json --github-output "$GITHUB_OUTPUT"
+      - name: axe with the live theme (the baseline)
+        if: inputs.a11y && steps.pages.outputs.live != ''
+        run: npx --yes pa11y-ci@5.0.0 --config pa11y-live.json --json > a11y-live.json || true
+      - name: Point staging's theme at the new one
+        env:
+          MAJOR: ${{ steps.publish.outputs.major }}
+          RELEASE: ${{ steps.publish.outputs.release }}
+        run: node bin/wso2-release.mjs theme publish --storage "$STAGING_STORAGE" --env staging --release "$RELEASE" --major "$MAJOR"
+      # The Worker keeps its manifest copy 30 s per isolate.
+      - name: Wait until the staging edge serves the new theme
+        env:
+          MAJOR: ${{ steps.publish.outputs.major }}
+          RELEASE: ${{ steps.publish.outputs.release }}
+        run: |
+          for _ in $(seq 1 36); do
+            got=$(curl -fsSI "$STAGING_HOST/_platform/theme/v$MAJOR/theme.css" | tr -d '\r' | awk -F': ' 'tolower($1) == "x-docs-theme" {print $2}' || true)
+            if [ "$got" = "v$MAJOR/$RELEASE" ]; then sleep 30; exit 0; fi
+            sleep 5
+          done
+          echo "::error::$STAGING_HOST still serves theme ${got:-none}, not v$MAJOR/$RELEASE"
+          exit 1
+      - name: Contrast check of the theme's colour pairs
+        id: contrast
+        continue-on-error: true
+        run: npm test -- test/contrast.test.mjs
+      - name: axe with the new theme (light and dark, desktop and 375 px, screenshots)
+        if: inputs.a11y
+        run: npx --yes pa11y-ci@5.0.0 --config pa11y.json --json > a11y.json || true
+      - name: Block only on violations the new theme introduces
+        id: axe
+        if: inputs.a11y
+        continue-on-error: true
+        env:
+          LIVE: ${{ steps.pages.outputs.live }}
+        run: |
+          args=(theme compare --new a11y.json --summary axe-summary.md)
+          [ -n "$LIVE" ] && args+=(--old a11y-live.json)
+          node bin/wso2-release.mjs "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.a11y
+        with:
+          name: theme-checks-${{ steps.publish.outputs.release }}
+          path: |
+            screenshots/
+            a11y.json
+            a11y-live.json
+            pa11y.json
+          retention-days: 30
+      - name: Summary
+        if: always()
+        env:
+          RELEASE: ${{ steps.publish.outputs.release }}
+          MAJOR: ${{ steps.publish.outputs.major }}
+          LIVE: ${{ steps.pages.outputs.live }}
+          A11Y: ${{ inputs.a11y }}
+          AXE: ${{ steps.axe.outcome }}
+          CONTRAST: ${{ steps.contrast.outcome }}
+        run: |
+          {
+            echo "## Theme v$MAJOR/$RELEASE on staging"
+            echo
+            if [ "$A11Y" = "true" ]; then
+              echo "Compared with: ${LIVE:-nothing (the first theme of this major)}"
+              echo
+              echo "Contrast check: **$CONTRAST**; axe gate: **$AXE**"
+              echo
+              cat axe-summary.md 2>/dev/null || echo "axe did not report"
+              echo
+              echo "Screenshots of the new theme are in the run's theme-checks artifact."
+            else
+              echo "Contrast check: **$CONTRAST**; axe: **skipped** (input \`a11y\` off)"
+              echo
+              echo "To run axe on the theme (one sample page of every live deployment of the major, against the live theme, with screenshots),"
+              echo "run Release docs by hand with scope \`theme\` and \`a11y\` on, which publishes the theme again under a new theme id:"
+              echo "\`gh workflow run release.yml --ref $GITHUB_REF_NAME -f scope=theme -f a11y=true\`"
+            fi
+            echo
+            echo "A failed check leaves production as it is;"
+            echo "staging keeps the new theme until \`wso2-release theme rollback --env staging\` (or Roll back docs, target theme)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Promotion, as a Docs release is promoted: the folder staging tested,
+  # copied byte for byte, then production's theme pointer, under its state
+  # lock. OFF for the Pilot with the rest of production.
+  theme-promote:
+    needs: theme
+    if: needs.theme.outputs.checks-passed == 'true' && vars.DOCS_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      RELEASE: ${{ needs.theme.outputs.release }}
+      MAJOR: ${{ needs.theme.outputs.major }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The composed manifest staging released with
+        run: node bin/wso2-release.mjs composed --storage "$STAGING_STORAGE" --out composed.json
+      - name: Copy the tested theme to production and point production's theme at it
+        run: node bin/wso2-release.mjs theme publish --storage "$PRODUCTION_STORAGE" --from "$STAGING_STORAGE" --env production --policy composed.json --release "$RELEASE" --major "$MAJOR"

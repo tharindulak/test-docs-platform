@@ -16,6 +16,7 @@ import { loadMkdocs, mkdocsUrl } from './mkdocs.mjs';
 import { compileCheck } from './compile.mjs';
 import { Report } from './run.mjs';
 import { productCards } from './overview.mjs';
+import { isIndexSrc, legacyNavIcon, platformIconName } from './nav-icons.mjs';
 
 const posix = path.posix;
 
@@ -81,6 +82,18 @@ export async function convertFamily({ config, sourceRoot, repoDir, sourceRef, co
     sidebar_label: 'Overview',
     sidebar_position: 1,
   };
+  // The legacy home's sidebar icon (lib/nav-icons.mjs): that of its nav
+  // entry, a top-level page or the top-level section it is the index of.
+  if (config.navIcons) {
+    const home = (n) => n.kind === 'page' && n.src.trim().replace(/^\.?\//, '') === 'index.md';
+    const top = mk.nav.find((n) => home(n) || (n.kind === 'section' && home(n.children.find((c) => c.kind === 'page' && isIndexSrc(c.src)) ?? {})));
+    const legacy = top ? legacyNavIcon(mk.config.extra?.nav_icons, { title: top.label, level: 1, url: '' }, config.navIcons) : null;
+    if (legacy) {
+      const r = platformIconName(legacy, config.navIcons);
+      if (r.problem) report.add('nav-icon', 'index', `"${top.label}" (level 1): ${r.problem}; left out`);
+      else front.sidebar_custom_props = { icon: r.name };
+    }
+  }
 
   // Regenerate the Doc space directory.
   for (const p of ['docs', 'partials', 'assets', '.migration']) fs.rmSync(path.join(outDir, p), { recursive: true, force: true });

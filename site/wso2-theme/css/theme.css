@@ -1,0 +1,299 @@
+/* The WSO2 Docs theme: every colour, type, radius, shadow and spacing value,
+   keyed on Docusaurus's [data-theme], with Infima's --ifm-* mapped onto them.
+   The theme's other stylesheets (chrome.css, api-reference.css, layouts.css,
+   custom.css, nav-icons.css, code.css) read only these variables.
+
+   Source: the WSO2 Docs designs (the Landing and Doc space pages, 2026-10)
+   and their WSO2 brand tokens: navy #17223A text, WSO2 orange accents,
+   #D43100 links, Inter for text and Inter Tight for headings. Sizes are the
+   designs' px on a 16px root, written in rem so text follows the reader's
+   browser setting. The designs have no dark mode; dark mode here is the brand
+   navy, derived for AA. See spec/chrome-and-version-switching.md ("Theme and
+   accessibility").
+
+   WCAG 2.2 AA: test/contrast.test.mjs checks every text pair here in both
+   modes, the focus ring at 3:1, and links at 3:1 from the text around them
+   (links in running text are not underlined until hover or focus). WSO2
+   orange (#ff7300) is 2.7:1 on white: in light mode it is for accents only
+   (chevrons, borders, bars); links use #d43100, the active item #c42c00. */
+
+:root,
+html[data-theme='light'] {
+  /* Type */
+  --wso2-font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --wso2-font-display: 'Inter Tight Variable', 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --wso2-font-mono: SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
+
+  /* Colours */
+  --wso2-bg: #ffffff;
+  --wso2-surface: #ffffff; /* dropdown panels and cards */
+  --wso2-text: #17223a; /* brand navy: headings and running text */
+  --wso2-text-strong: #3a4256; /* sidebar sections, the Edition chip */
+  --wso2-text-muted: #565b66;
+  --wso2-text-faint: #8a8f99; /* placeholders and separators: never body text */
+  --wso2-divider: #e6e8ec;
+  --wso2-border: #d9dce2; /* buttons, pagination, the Copy page menu */
+  --wso2-link: #d43100;
+  --wso2-link-hover: #c42c00;
+  --wso2-link-weight: 600; /* with the 3:1 from the text, the cue that marks a link */
+  --wso2-accent: #ff7300; /* chevrons, borders, bars: never text on white */
+  --wso2-accent-strong: #ff3900; /* hover borders */
+  --wso2-focus: #d43100;
+  --wso2-on-accent: #17223a;
+  --wso2-hover: #f3f4f6;
+  --wso2-selected: #f1f2f4; /* the current breadcrumb */
+  --wso2-active: #c42c00; /* the current page in the sidebar */
+  --wso2-active-bg: #fff1eb;
+  --wso2-card-border: #e6e8ec;
+  --wso2-table-border: #e6e8ec;
+  --wso2-table-head-bg: #f7f8fa;
+  --wso2-code-bg: #161618; /* code blocks, both modes */
+  --wso2-code-fg: #d9d9de;
+  --wso2-code-divider: rgba(255, 255, 255, 0.1); /* code block title and buttons */
+  /* Code block syntax colours (code.css), both modes: Oceanic Next, as
+     prism-react-renderer ships it, each at least 4.5:1 on --wso2-code-bg. */
+  --wso2-code-comment: #999999;
+  --wso2-code-keyword: #c5a5c5;
+  --wso2-code-string: #8dc891;
+  --wso2-code-number: #5a9bcf;
+  --wso2-code-boolean: #ff8b50;
+  --wso2-code-tag: #fc929e;
+  --wso2-code-builtin: #d8dee9;
+  --wso2-code-function: #79b6f2;
+  --wso2-code-variable: #d7deea;
+  --wso2-code-class-name: #fac863;
+  --wso2-nav-icon-color: #848484; /* sidebar icons (nav-icons.css), both modes */
+  --wso2-code-inline-bg: #f1f2f4;
+  --wso2-code-inline-fg: #17223a;
+  --wso2-code-inline-border: #e6e8ec;
+  --wso2-overlay: rgba(12, 23, 50, 0.54); /* behind the phone menu */
+  --wso2-hint-ok: #1f7a4d;
+  --wso2-hint-missing: #b42318;
+  --wso2-info-fg: #0b4a6f;
+  --wso2-info-bg: #eaf7ff;
+  --wso2-info-border: #b9e2f7;
+  --wso2-warning-fg: #4d3800;
+  --wso2-warning-bg: #fff8e6;
+  --wso2-warning-border: #ffe1a3;
+  --wso2-error-fg: #7a1f17;
+  --wso2-error-bg: #fdeeec;
+  --wso2-error-border: #f6c6c0;
+
+  /* Admonitions: the designs' grey card; each type has its own icon and
+     label colour. */
+  --wso2-admonition-bg: #f4f6f9;
+  --wso2-admonition-border: #e1e5eb;
+  --wso2-admonition-note: #17223a;
+  --wso2-admonition-tip: #1f7a4d;
+  --wso2-admonition-info: #0b5c86;
+  --wso2-admonition-warning: #8a4b00;
+  --wso2-admonition-danger: #b42318;
+
+  /* The wso2.com bar: white in light mode */
+  --wso2-site-bar-bg: #ffffff;
+  --wso2-site-bar-text: #17223a;
+  --wso2-site-bar-border: #e6e8ec;
+
+  /* The docs bar, the Landing hero and its catalogue: brand navy in both modes */
+  --wso2-bar-bg: #0c1732;
+  --wso2-bar-text: #ffffff;
+  --wso2-bar-text-muted: #c9ced8;
+  --wso2-bar-control-bg: rgba(255, 255, 255, 0.04);
+  --wso2-bar-control-border: rgba(255, 255, 255, 0.22);
+  --wso2-bar-search-bg: rgba(255, 255, 255, 0.06);
+  --wso2-bar-search-border: rgba(255, 255, 255, 0.18);
+  --wso2-bar-toggle-border: rgba(255, 255, 255, 0.35);
+  --wso2-bar-key-bg: #1a2440; /* rgba(255,255,255,.1) on the bar, solid for the contrast test */
+  --wso2-bar-key-border: rgba(255, 255, 255, 0.22);
+  --wso2-bar-focus: #ff7300; /* 6.5:1 on the navy */
+  --wso2-landing-bg: #0c1732;
+  --wso2-landing-grid: rgba(255, 255, 255, 0.035);
+  --wso2-landing-glow: rgba(27, 74, 140, 0.45);
+  --wso2-landing-panel: #0b1530;
+  --wso2-landing-panel-border: rgba(255, 255, 255, 0.06);
+  --wso2-landing-text: #d9dce2;
+  --wso2-landing-text-muted: #8a93a6;
+  --wso2-landing-rule: #a3410f;
+  --wso2-landing-hover: #ff7300;
+  --wso2-landing-underline: rgba(255, 255, 255, 0.3);
+  --wso2-hero-search-border: rgba(255, 255, 255, 0.2);
+
+  /* API reference method badges and the download button */
+  --wso2-api-get: #1f7a4d;
+  --wso2-api-post: #0b5c86;
+  --wso2-api-put: #8a4b00;
+  --wso2-api-delete: #b42318;
+  --wso2-api-other: #565b66;
+  --wso2-api-on-primary: #ffffff;
+
+  /* Radius, shadows, spacing */
+  --wso2-radius-xs: 4px;
+  --wso2-radius-code: 5px; /* inline code */
+  --wso2-radius-row: 6px; /* sidebar rows and menu rows */
+  --wso2-radius: 8px;
+  --wso2-radius-lg: 12px; /* dropdowns and cards */
+  --wso2-radius-xl: 16px; /* the Landing catalogue */
+  --wso2-shadow-sm: 0 2px 8px rgba(23, 34, 58, 0.07);
+  --wso2-shadow-md: 0 8px 24px rgba(23, 34, 58, 0.09);
+  --wso2-shadow-dropdown: 0 16px 40px rgba(12, 23, 50, 0.2);
+  --wso2-shadow-landing-panel: 0 30px 80px rgba(0, 0, 0, 0.35);
+  --wso2-site-bar-height: 54px;
+  --wso2-header-height: 56px;
+  --wso2-header-padding: 28px;
+  --wso2-sidebar-width: 300px;
+  --wso2-toc-width: 272px;
+  --wso2-content-max-width: 900px;
+  --wso2-content-padding: 40px;
+  --wso2-phone-margin: 16px;
+  /* Code blocks: 1rem at the sides (Infima's --ifm-pre-padding, one value,
+     since Docusaurus computes with it), less above and below the code. */
+  --wso2-code-padding: 1rem;
+  --wso2-code-padding-block: 0.875rem;
+
+  /* Motion (none under prefers-reduced-motion, below) */
+  --wso2-hover-transition: color 0.12s, background-color 0.12s, border-color 0.12s;
+  --wso2-chevron-transition: transform 0.2s;
+  --wso2-drawer-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode: the brand navy. The designs have none; these keep every pair
+   at AA and links at 3:1 from the text. */
+html[data-theme='dark'] {
+  --wso2-bg: #111a2e;
+  --wso2-surface: #17223a;
+  --wso2-text: #f2f4f7;
+  --wso2-text-strong: #d9dce2;
+  --wso2-text-muted: #b5b9c0;
+  --wso2-text-faint: #8a93a6;
+  --wso2-divider: #2c3a5c;
+  --wso2-border: #3a4a70;
+  --wso2-link: #ee5a28;
+  --wso2-link-hover: #ff7a45;
+  --wso2-focus: #ff7300;
+  --wso2-hover: #1f2d4a;
+  --wso2-selected: #1f2d4a;
+  --wso2-active: #ff8552;
+  --wso2-active-bg: #2a2027;
+  --wso2-card-border: #2c3a5c;
+  --wso2-table-border: #2c3a5c;
+  --wso2-table-head-bg: #17223a;
+  --wso2-code-inline-bg: #1f2d4a;
+  --wso2-code-inline-fg: #f2f4f7;
+  --wso2-code-inline-border: #2c3a5c;
+  --wso2-overlay: rgba(0, 0, 0, 0.6);
+  --wso2-hint-ok: #7fd1a3;
+  --wso2-hint-missing: #f59a90;
+  --wso2-info-fg: #b8e2f8;
+  --wso2-info-bg: #0d2638;
+  --wso2-info-border: #1d4a66;
+  --wso2-warning-fg: #ffe2a8;
+  --wso2-warning-bg: #2a2110;
+  --wso2-warning-border: #5c4614;
+  --wso2-error-fg: #f8c9c3;
+  --wso2-error-bg: #2c1513;
+  --wso2-error-border: #5e2a24;
+  --wso2-admonition-bg: #17223a;
+  --wso2-admonition-border: #2c3a5c;
+  --wso2-admonition-note: #f2f4f7;
+  --wso2-admonition-tip: #7fd1a3;
+  --wso2-admonition-info: #8fd0f5;
+  --wso2-admonition-warning: #ffc266;
+  --wso2-admonition-danger: #f59a90;
+  --wso2-site-bar-bg: #0e1628;
+  --wso2-site-bar-text: #f2f4f7;
+  --wso2-site-bar-border: #2c3a5c;
+  --wso2-api-get: #7fd1a3;
+  --wso2-api-post: #8fd0f5;
+  --wso2-api-put: #ffc266;
+  --wso2-api-delete: #f59a90;
+  --wso2-api-other: #b5b9c0;
+  --wso2-api-on-primary: #111a2e;
+  --wso2-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --wso2-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --wso2-shadow-dropdown: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Infima on the theme, in both modes (Infima's own html[data-theme='dark']
+   rule would otherwise win over a :root mapping). */
+:root,
+html[data-theme='light'],
+html[data-theme='dark'] {
+  --ifm-color-primary: var(--wso2-link);
+  --ifm-color-primary-dark: var(--wso2-link-hover);
+  --ifm-color-primary-darker: var(--wso2-link-hover);
+  --ifm-color-primary-darkest: var(--wso2-link-hover);
+  --ifm-color-primary-light: var(--wso2-link);
+  --ifm-color-primary-lighter: var(--wso2-link);
+  --ifm-color-primary-lightest: var(--wso2-link);
+  --ifm-background-color: var(--wso2-bg);
+  --ifm-background-surface-color: var(--wso2-bg);
+  --ifm-navbar-background-color: var(--wso2-bar-bg);
+  --ifm-footer-background-color: var(--wso2-bg);
+  --ifm-font-color-base: var(--wso2-text);
+  --ifm-heading-color: var(--wso2-text);
+  --ifm-link-color: var(--wso2-link);
+  --ifm-link-hover-color: var(--wso2-link-hover);
+  --ifm-link-decoration: none;
+  --ifm-link-hover-decoration: none;
+  --ifm-hover-overlay: var(--wso2-hover);
+  --ifm-color-emphasis-100: var(--wso2-hover);
+  --ifm-color-emphasis-300: var(--wso2-divider);
+  --ifm-color-emphasis-700: var(--wso2-text-muted);
+  --ifm-color-content-secondary: var(--wso2-text-muted);
+  --ifm-font-family-base: var(--wso2-font-family);
+  --ifm-heading-font-family: var(--wso2-font-display);
+  --ifm-font-family-monospace: var(--wso2-font-mono);
+  --ifm-font-size-base: 100%;
+  --ifm-line-height-base: 1.7;
+  --ifm-heading-font-weight: 700;
+  --ifm-h1-font-size: 2.75rem;
+  --ifm-h2-font-size: 1.875rem;
+  --ifm-h3-font-size: 1.375rem;
+  --ifm-h4-font-size: 1.125rem;
+  --ifm-global-radius: var(--wso2-radius);
+  --ifm-global-shadow-md: var(--wso2-shadow-dropdown);
+  --ifm-code-font-size: 0.875em;
+  --ifm-code-background: var(--wso2-code-inline-bg);
+  --ifm-code-border-radius: var(--wso2-radius-code);
+  --ifm-code-padding-vertical: 1px;
+  --ifm-code-padding-horizontal: 5px;
+  --ifm-pre-background: var(--wso2-code-bg);
+  --ifm-pre-color: var(--wso2-code-fg);
+  --ifm-pre-border-radius: var(--wso2-radius);
+  --ifm-pre-line-height: 1.5;
+  --ifm-pre-padding: var(--wso2-code-padding);
+  --ifm-table-border-color: var(--wso2-table-border);
+  --ifm-table-stripe-background: transparent;
+  --ifm-table-head-background: var(--wso2-table-head-bg);
+  --ifm-table-cell-padding: 0.625rem 0.875rem;
+  --ifm-navbar-height: var(--wso2-header-height);
+  --ifm-navbar-padding-vertical: 0;
+  --ifm-navbar-padding-horizontal: var(--wso2-header-padding);
+  --ifm-navbar-shadow: none;
+  --ifm-navbar-link-color: var(--wso2-bar-text);
+  --ifm-navbar-link-hover-color: var(--wso2-bar-text);
+  --ifm-menu-color: var(--wso2-text-muted);
+  --ifm-menu-color-active: var(--wso2-active);
+  --ifm-menu-color-background-active: var(--wso2-active-bg);
+  --ifm-menu-color-background-hover: var(--wso2-hover);
+  --ifm-toc-border-color: var(--wso2-divider);
+  --ifm-toc-link-color: var(--wso2-text-muted);
+  --ifm-breadcrumb-item-background-active: var(--wso2-selected);
+  --ifm-alert-border-left-width: 1px;
+  --doc-sidebar-width: var(--wso2-sidebar-width);
+}
+
+/* Motion: every animation and transition is off for readers who ask for
+   less. 1ms rather than none, so Docusaurus's collapsibles still get the
+   transitionend event they finish on (as Docusaurus itself does). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -30,12 +30,12 @@ export default {
     issues: { repo: 'wso2/docs-apim' },
     // Prefixed, since docs-api-platform is shared: API Platform Cloud and AI
     // Gateway join it with "Convert API Platform Cloud and AI Gateway".
-    editions: [{ id: '4.7.0', branch: 'api-manager/release/4.7.0' }, { id: '4.6.0', branch: 'api-manager/release/4.6.0' }],
-    // Legacy versions (product placement): 4.5.0 to 3.0.0 stay on
+    editions: [{ id: '4.7.0', branch: 'api-manager/release/4.7.0' }, { id: '4.6.0', branch: 'api-manager/release/4.6.0' }, { id: '4.5.0', branch: 'api-manager/release/4.5.0' }],
+    // Legacy versions (product placement): 4.4.0 to 3.0.0 stay on
     // apim.docs.wso2.com, 2.6.0 and older on Confluence (the spaces wso2/docs-apim's
     // versions.json names, at the archive address worker/src/confluence.mjs uses).
     legacyVersions: [
-      ...['4.5.0', '4.4.0', '4.3.0', '4.2.0', '4.1.0', '4.0.0', '3.2.0', '3.1.0', '3.0.0'].map((id) => ({ id, url: `https://apim.docs.wso2.com/en/${id}/` })),
+      ...['4.4.0', '4.3.0', '4.2.0', '4.1.0', '4.0.0', '3.2.0', '3.1.0', '3.0.0'].map((id) => ({ id, url: `https://apim.docs.wso2.com/en/${id}/` })),
       ...[['2.6.0', 'AM260'], ['2.5.0', 'AM250'], ['2.2.0', 'AM220'], ['2.1.0', 'AM210'], ['2.0.0', 'AM200'], ['1.10.0', 'AM1100'], ['1.9.1', 'AM191'], ['1.9.0', 'AM190']]
         .map(([id, space]) => ({ id, url: `https://wso2docs.atlassian.net/wiki/spaces/${space}/overview` })),
     ],
@@ -63,6 +63,15 @@ export default {
     Administration: { folder: 'deploy-and-operate/administer' },
     APIOps: { folder: 'guides/apiops' },
     Reference: { folder: 'reference' },
+    // 4.5.0's nav: the same folders under its older labels; Governance and
+    // Monitoring (API Analytics plus Observability) have no later counterpart.
+    Documentation: { page: 'index' },
+    'Manage APIs': { folder: 'guides/api-design-manage' },
+    'Consume APIs': { folder: 'guides/api-developer-portal' },
+    Governance: { folder: 'guides/governance' },
+    Monitoring: { folder: 'guides/monitoring' },
+    Administer: { folder: 'deploy-and-operate/administer' },
+    'Install and Setup': { folder: 'deploy-and-operate/install-and-setup' },
   },
   // Nav sections (by nav path) that go to a fixed folder.
   sectionFolders: {
@@ -73,6 +82,50 @@ export default {
   pageOverrides: {
     'get-started/about-this-release.md': 'release-notes/about-this-release',
   },
+  // 4.5.0's home page draws its tiles with Jinja ({% set tiles %}): the same
+  // links as cards. Later versions read extra.home_page_cards.
+  homeCards: (edition) => (edition !== '4.5.0' ? null : [{
+    section: [
+      { title: 'Get Started', list_items: [
+        { title: 'Overview', url: 'get-started/overview.md' },
+        { title: 'Key Concepts', url: 'get-started/key-concepts.md' },
+        { title: 'Quick Start Guide', url: 'get-started/api-manager-quick-start-guide.md' },
+        { title: 'About this Release', url: 'get-started/about-this-release.md' },
+      ] },
+      { title: 'Deployment Options', list_items: [
+        { title: 'Deploy on VM', url: 'install-and-setup/install/installing-the-product/running-the-api-m.md' },
+        { title: 'Deploy on Kubernetes', url: 'install-and-setup/install/deploying-api-manager-with-kubernetes-resources.md' },
+        { title: 'SaaS', url: 'https://wso2.com/bijira/docs/' },
+      ] },
+      { title: 'Setup', list_items: [
+        { title: 'Install', url: 'install-and-setup/install/installing-the-product/installing-api-m-runtime.md' },
+        { title: 'Deploy', url: 'install-and-setup/setup/deployment-overview.md' },
+        { title: 'Upgrade WSO2 API Manager', url: 'install-and-setup/upgrading-wso2-api-manager/upgrading-api-manager.md' },
+      ] },
+      { title: 'Developer Resources', list_items: [
+        { title: 'Product REST APIs', url: 'reference/product-apis/overview.md' },
+        { title: 'Tooling', url: 'reference/apictl/wso2-api-controller.md' },
+        { title: 'SDKs', url: 'consume/generating-sdks/generate-sdks-in-dev-portal.md' },
+        { title: 'Configuration Catalog', url: 'reference/config-catalog.md' },
+      ] },
+      { title: 'Guides', list_items: [
+        { title: 'Designing APIs', url: 'manage-apis/design/design-api-overview.md' },
+        { title: 'Create an API Product', url: 'manage-apis/design/create-api-product/create-api-product.md' },
+        { title: 'Authentication', url: 'manage-apis/design/api-security/api-authentication/api-authentication-overview.md' },
+        { title: 'Authorization', url: 'manage-apis/design/api-security/authorization/api-authorization.md' },
+        { title: 'Rate Limiting', url: 'manage-apis/design/rate-limiting/introducing-throttling-use-cases.md' },
+        { title: 'Consuming APIs', url: 'consume/consume-api-overview.md' },
+        { title: 'Analytics', url: 'monitoring/api-analytics/choreo-analytics/getting-started-guide.md' },
+        { title: 'CI/CD', url: 'install-and-setup/setup/api-controller/ci-cd-with-wso2-api-management.md' },
+        { title: 'View More', url: 'tutorials/tutorials-overview.md' },
+      ] },
+      { title: 'Community and Support', list_items: [
+        { title: 'GitHub', url: 'https://github.com/wso2/api-manager/issues' },
+        { title: 'Discord Channel', url: 'https://discord.com/invite/wso2' },
+        { title: 'Enterprise Support', url: 'https://wso2.com/subscription/' },
+      ] },
+    ],
+  }]),
   skeleton: [
     { folder: 'get-started', label: 'Get started' },
     { folder: 'guides', label: 'Guides' },

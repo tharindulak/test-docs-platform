@@ -4,44 +4,186 @@
     "links": [
       { "label": "Support", "href": "https://wso2.com/support/" },
       { "label": "wso2.com", "href": "https://wso2.com/" }
-    ]
+    ],
+    "site": {
+      "home": { "label": "WSO2", "href": "https://wso2.com/" },
+      "items": [
+        { "label": "Agentic Enterprise", "href": "https://wso2.com/agentic-enterprise/" },
+        {
+          "label": "Products",
+          "groups": [
+            {
+              "title": "Agent Platform",
+              "href": "https://wso2.com/agent-platform/",
+              "links": [
+                { "label": "Agent Manager", "href": "https://wso2.com/agent-platform/agent-manager/" },
+                { "label": "AI Gateway", "href": "https://wso2.com/api-platform/ai-gateway/" },
+                { "label": "Agent ID", "href": "https://wso2.com/identity-platform/agent-id/" }
+              ]
+            },
+            {
+              "title": "API Platform",
+              "href": "https://wso2.com/api-platform/",
+              "links": [
+                { "label": "API Manager", "href": "https://wso2.com/api-platform/api-manager/" },
+                { "label": "API Gateway", "href": "https://wso2.com/api-platform/api-gateway/" },
+                { "label": "AI Gateway", "href": "https://wso2.com/api-platform/ai-gateway/" },
+                { "label": "AI Workspace", "href": "https://wso2.com/api-platform/ai-workspace/" },
+                { "label": "API Control Plane", "href": "https://wso2.com/api-platform/api-control-plane/" },
+                { "label": "API Portal & MCP Hub", "href": "https://wso2.com/api-platform/api-developer-portal/" },
+                { "label": "Monetization", "href": "https://wso2.com/api-platform/monetization/" }
+              ]
+            },
+            {
+              "title": "Integration Platform",
+              "href": "https://wso2.com/integration-platform/",
+              "links": [
+                { "label": "Integrator", "href": "https://wso2.com/integration-platform/integrator/" }
+              ]
+            },
+            {
+              "title": "Identity Platform",
+              "href": "https://wso2.com/identity-platform/",
+              "links": [
+                { "label": "Identity Server", "href": "https://wso2.com/identity-platform/identity-server/" },
+                { "label": "Agent ID", "href": "https://wso2.com/identity-platform/agent-id/" },
+                { "label": "Security Token Service", "href": "https://wso2.com/identity-platform/security-token-service" }
+              ]
+            },
+            {
+              "title": "Engineering Platform",
+              "href": "https://wso2.com/engineering-platform/",
+              "links": [
+                { "label": "Developer Platform for OpenChoreo", "href": "https://wso2.com/engineering-platform/openchoreo/" }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Solutions",
+          "groups": [
+            {
+              "title": "By Industry",
+              "links": [
+                { "label": "Financial Services", "href": "https://wso2.com/solutions/financial-services/" },
+                { "label": "Healthcare", "href": "https://wso2.com/solutions/healthcare/" },
+                { "label": "Government", "href": "https://wso2.com/solutions/government/" },
+                { "label": "Telco", "href": "https://wso2.com/identity-platform/industries/telco/" },
+                { "label": "Education", "href": "https://wso2.com/library/conference/2024/05/transforming-education-with-tech/" }
+              ]
+            },
+            {
+              "title": "By Initiative",
+              "links": [
+                { "label": "Digital Sovereignty & Resilience", "href": "https://wso2.com/digital-sovereignty/" },
+                { "label": "Platform Consolidation", "href": "https://wso2.com/solutions/platform-consolidation/" },
+                { "label": "DPDP Compliance", "href": "https://wso2.com/identity-platform/dpdp-compliance-india" },
+                { "label": "AI Governance", "href": "https://wso2.com/api-platform/ai-gateway/" },
+                { "label": "API Monetization", "href": "https://wso2.com/api-monetization/" },
+                { "label": "Platform and Cloud Modernization", "href": "https://wso2.com/library/blogs/integration-modernization-is-no-longer-optional-why-enterprises-need-to-move-beyond-legacy-platforms-like-tibco/" }
+              ]
+            },
+            {
+              "title": "By Use Case",
+              "links": [
+                { "label": "Open Banking", "href": "https://wso2.com/solutions/financial-services/open-banking/" },
+                { "label": "CMS Interoperability", "href": "https://wso2.com/solutions/healthcare/cms-interoperability/" },
+                { "label": "Government Digital Identity", "href": "https://wso2.com/solutions/government/digital-identity/" },
+                { "label": "Payment Modernization", "href": "https://wso2.com/solutions/financial-services/payment-modernization/" }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Company",
+          "groups": [
+            {
+              "title": "Discover",
+              "links": [
+                { "label": "About", "href": "https://wso2.com/about/" },
+                { "label": "Team", "href": "https://wso2.com/team/" },
+                { "label": "Customers", "href": "https://wso2.com/customers/" },
+                { "label": "News", "href": "https://wso2.com/about/news/" },
+                { "label": "Careers", "href": "https://wso2.com/careers/" },
+                { "label": "Partners", "href": "https://wso2.com/partners/" },
+                { "label": "Security and Compliance", "href": "https://wso2.com/security/" }
+              ]
+            },
+            {
+              "title": "Resources",
+              "links": [
+                { "label": "Product Downloads", "href": "https://wso2.com/products/downloads/" },
+                { "label": "Customer Stories", "href": "https://wso2.com/customers/" },
+                { "label": "Documentation", "href": "/" },
+                { "label": "Events", "href": "https://wso2.com/events/" },
+                { "label": "Library", "href": "https://wso2.com/library/" },
+                { "label": "Open Source", "href": "https://wso2.com/open-source/" },
+                { "label": "Research", "href": "https://wso2.com/research/" },
+                { "label": "Training and Certification", "href": "https://wso2.com/training/" }
+              ]
+            },
+            {
+              "title": "Support",
+              "links": [
+                { "label": "Subscription", "href": "https://wso2.com/subscription/" },
+                { "label": "Updates", "href": "https://wso2.com/updates/" },
+                { "label": "Consulting Services", "href": "https://wso2.com/consulting/" }
+              ]
+            }
+          ]
+        }
+      ],
+      "contact": { "label": "Contact", "href": "https://wso2.com/contact/" }
+    }
   },
   "announcement": null,
   "footer": {
     "columns": [
       {
-        "title": "Docs",
+        "title": "Products",
         "links": [
-          { "label": "All products", "href": "/" },
-          { "label": "Contribute", "href": "/contribute/" },
+          { "label": "Agent Platform", "href": "https://wso2.com/agent-platform/" },
+          { "label": "API Platform", "href": "https://wso2.com/api-platform/" },
+          { "label": "Integration Platform", "href": "https://wso2.com/integration-platform/" },
+          { "label": "Identity Platform", "href": "https://wso2.com/identity-platform/" },
+          { "label": "Engineering Platform", "href": "https://wso2.com/engineering-platform/" }
+        ]
+      },
+      {
+        "title": "Resources",
+        "links": [
+          { "label": "Product Downloads", "href": "https://wso2.com/products/downloads/" },
+          { "label": "Documentation", "href": "/" },
+          { "label": "Contribute to the docs", "href": "/contribute/" },
+          { "label": "Library", "href": "https://wso2.com/library/" },
+          { "label": "Training and Certification", "href": "https://wso2.com/training/" }
+        ]
+      },
+      {
+        "title": "Support",
+        "links": [
+          { "label": "Subscription", "href": "https://wso2.com/subscription/" },
+          { "label": "Updates", "href": "https://wso2.com/updates/" },
+          { "label": "Consulting Services", "href": "https://wso2.com/consulting/" },
           { "label": "Support and lifecycle", "href": "https://wso2.com/products/support-matrix/" }
         ]
       },
       {
-        "title": "Community",
+        "title": "Discover",
         "links": [
-          { "label": "GitHub", "href": "https://github.com/wso2" },
-          { "label": "Discord", "href": "https://discord.com/invite/wso2" },
-          { "label": "Training", "href": "https://wso2.com/training" }
-        ]
-      },
-      {
-        "title": "WSO2",
-        "links": [
-          { "label": "wso2.com", "href": "https://wso2.com/" },
-          { "label": "Support", "href": "https://wso2.com/support/" },
-          { "label": "Contact us", "href": "https://wso2.com/contact/" }
+          { "label": "About WSO2", "href": "https://wso2.com/about/" },
+          { "label": "Partners", "href": "https://wso2.com/partners/" },
+          { "label": "Careers", "href": "https://wso2.com/careers/" },
+          { "label": "Community", "href": "https://wso2.com/community/" }
         ]
       }
     ],
     "legal": [
+      { "label": "WSO2 Legal", "href": "https://wso2.com/legal/" },
       { "label": "Privacy policy", "href": "https://wso2.com/privacy-policy" },
-      { "label": "Cookie policy", "href": "https://wso2.com/cookie-policy/" },
-      { "label": "Terms of use", "href": "https://wso2.com/terms-of-use/" }
+      { "label": "Cookie policy", "href": "https://wso2.com/cookie-policy/" }
     ],
-    "copyright": "© {year} WSO2 LLC. All rights reserved."
+    "copyright": "© {year} WSO2 LLC"
   },
-  "feedback": {
-    "endpoint": "/api/feedback"
-  }
+  "feedback": { "endpoint": "/api/feedback" }
 }

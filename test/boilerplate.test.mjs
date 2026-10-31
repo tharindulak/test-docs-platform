@@ -1,57 +1,27 @@
 // Boilerplate to copy and start: the template in templates/content-repo/ and
 // `wso2-docs init`, composing from the published manifest (preview, check and
-// a Content repo's compose check without other checkouts), a section that
-// lists a Doc space before it exists, entries hidden until published, and
-// manifests that read dates as plain text.
+// a Content repo's compose check without other checkouts; end to end in
+// test/build/boilerplate.test.mjs), a section that lists a Doc space before it
+// exists, entries hidden until published, and manifests that read dates as
+// plain text.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import { GUIDE_URL, TEMPLATE_DIR, TEMPLATE_FILES, addDocSpaceToRoot, docSpaceDirs, writeRepoRoot } from '../lib/content-repo.mjs';
 import { compose, errorsIn, formatIssues, readManifestText, readRepoDocSpaces } from '../lib/compose.mjs';
 import { initDocSpace, initReport, SECTION_TEMPLATE, SKELETON_DIR } from '../lib/init.mjs';
-import { loadPolicy, publicManifest, sectionEntries } from '../lib/manifest.mjs';
-import { baseFromPublished, composeWithPublished, localRepo, readPublished, sourcesFromPublished } from '../lib/published.mjs';
+import { publicManifest, sectionEntries } from '../lib/manifest.mjs';
+import { baseFromPublished, composeWithPublished, readPublished, sourcesFromPublished } from '../lib/published.mjs';
 import { mergeManifest } from '../lib/release.mjs';
 import { validate } from '../lib/schemas.mjs';
 import { loadContentRepo } from '../lib/content.mjs';
 import { loadStandards } from '../lib/standards.mjs';
+import { docs, git, policy, publishedOf, read, release, root, tmp, withComing } from './helpers/content-repo-clis.mjs';
 
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const docsCli = path.join(root, 'bin', 'wso2-docs.mjs');
-const releaseCli = path.join(root, 'bin', 'wso2-release.mjs');
-const tmp = (name) => fs.mkdtempSync(path.join(os.tmpdir(), `wso2-${name}-`));
-const git = (dir, ...args) => execFileSync('git', ['-C', dir, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 const files = (dir) => execFileSync('find', [dir, '-type', 'f', '-not', '-path', '*/.git/*'], { encoding: 'utf8' }).split('\n').filter(Boolean).map((f) => path.relative(dir, f)).sort();
-// The CLIs as a Content repo runs them: no Content repo checkouts.
-const noCheckouts = () => {
-  const env = { ...process.env, GITHUB_ACTIONS: '' };
-  delete env.WSO2_DOCS_CONTENT_REPOS;
-  delete env.WSO2_DOCS_MANIFEST;
-  return env;
-};
-const docs = (cwd, ...args) => spawnSync(process.execPath, [docsCli, ...args], { cwd, encoding: 'utf8', env: noCheckouts() });
-const release = (cwd, ...args) => spawnSync(process.execPath, [releaseCli, ...args], { cwd, encoding: 'utf8', env: noCheckouts() });
-
-// The Pilot's world as published (staging), from the suite's fixture checkouts.
-const policy = loadPolicy();
-const publishedOf = (p = policy) => ({ schema: 1, environment: 'staging', ...publicManifest(p, { environment: 'staging' }) });
-const writePublished = (dir, published) => {
-  const file = path.join(dir, 'manifest.json');
-  fs.writeFileSync(file, JSON.stringify(published));
-  return file;
-};
-// The section change merged first: api-platform lists a Doc space that is coming.
-const withComing = (slug, extra = {}) => {
-  const p = structuredClone(policy);
-  p.sections['api-platform'].pending = [{ at: 6, docSpace: slug, ...extra }, { at: 4, product: { label: 'MCP Hub', opens: { docSpace: slug } } }];
-  return publishedOf(p);
-};
 
 test('init in an empty folder: the Doc space skeleton plus the repo root files the converter writes', () => {
   const dir = tmp('init-new');
@@ -259,72 +229,6 @@ test('a section entry stays hidden until its Doc space is published', () => {
   // Compose from that published file still sees every entry.
   const { manifest: again } = compose({ ...sourcesFromPublished({ environment: 'staging', ...manifest }), missingRepos: [] });
   assert.deepEqual(again.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'ai-workspace', 'api-portal']);
-});
-
-test('preview and check compose from the published manifest and the repo alone; compose --pr shows each issue on its file', { timeout: 900_000 }, () => {
-  const dir = tmp('from-published');
-  const repoDir = path.join(dir, 'docs-api-platform');
-  fs.mkdirSync(repoDir);
-  git(repoDir, 'init', '-q', '-b', 'main');
-  for (const d of ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'ai-workspace', 'api-portal']) {
-    fs.cpSync(path.join(root, 'fixtures', 'content-repos', 'docs-api-platform', d), path.join(repoDir, d), { recursive: true });
-  }
-  writeRepoRoot(repoDir, { repo: 'wso2/docs-api-platform' });
-  git(repoDir, 'add', '-A');
-  git(repoDir, 'commit', '-q', '-m', 'main');
-  git(repoDir, 'checkout', '-q', '-b', 'add-mcp-hub');
-  const init = docs(repoDir, 'init', 'mcp-hub', '--title', 'MCP Hub', '--cloud', '--self-hosted', '1.0.0');
-  assert.equal(init.status, 0, init.stderr);
-  assert.match(init.stdout, /Home section: api-platform/);
-  git(repoDir, 'add', '-A');
-  git(repoDir, 'commit', '-q', '-m', 'Start MCP Hub');
-  assert.deepEqual(localRepo(path.join(repoDir, 'mcp-hub')), { checkout: fs.realpathSync(repoDir), path: '', repo: 'wso2/docs-api-platform' });
-
-  // Before the section lists it: check blocks on home-not-listing, in the Doc space manifest check.
-  const early = writePublished(dir, publishedOf());
-  let r = docs(repoDir, 'check', 'mcp-hub', '--no-build', '--no-lint', '--published', early, '--format', 'json');
-  assert.equal(r.status, 1, r.stderr);
-  let report = JSON.parse(r.stdout);
-  const manifestCheck = report.checks.find((c) => c.id === 'manifest');
-  assert.equal(manifestCheck.status, 'fail');
-  assert.deepEqual(manifestCheck.findings.map((x) => [x.file, x.message.split(':')[0]]), [['docspace.yaml', 'home-not-listing']]);
-  assert.match(manifestCheck.note, /composed with .*manifest\.json with wso2\/docs-api-platform's Doc space manifests/);
-  r = release(dir, 'compose', '--pr', '--published', early, '--repo-dir', repoDir);
-  assert.equal(r.status, 1);
-  assert.match(r.stdout, /error \[home-not-listing\] mcp-hub's home section is api-platform/);
-  assert.match(r.stdout, /this change touches wso2\/docs-api-platform:mcp-hub\/docspace\.yaml$/m, 'only the new file: the rest is as on main');
-  // In Actions the error sits on the file, with its owners.
-  const actions = spawnSync(process.execPath, [releaseCli, 'compose', '--pr', '--published', early, '--repo-dir', repoDir, '--annotate', 'content/'], { cwd: dir, encoding: 'utf8', env: { ...noCheckouts(), GITHUB_ACTIONS: 'true' } });
-  assert.match(actions.stdout, /^::error file=content\/mcp-hub\/docspace\.yaml,title=Compose home-not-listing::.*owners: api-platform-docs/m);
-
-  // The section's change merged first (the entry waits, hidden): now both pass.
-  const published = writePublished(dir, withComing('mcp-hub'));
-  r = release(dir, 'compose', '--pr', '--published', published, '--repo-dir', repoDir);
-  assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /compose: passes against the published manifest/);
-  r = docs(repoDir, 'check', 'mcp-hub', '--published', published, '--format', 'json', '--build-out', path.join(dir, 'build'));
-  report = JSON.parse(r.stdout);
-  assert.equal(report.result, 'pass', JSON.stringify(report.checks.filter((c) => c.status === 'fail'), null, 2) + r.stderr);
-  assert.equal(report.checks.find((c) => c.id === 'manifest').status, 'pass');
-  assert.equal(report.checks.find((c) => c.id === 'preview-build').status, 'pass', 'the template builds as Cloud');
-  assert.equal(report.checks.find((c) => c.id === 'data-files').status, 'pass');
-  const composed = JSON.parse(read(os.homedir(), '.cache', 'wso2-docs', 'composed', 'mcp-hub.json'));
-  assert.deepEqual(composed.sections['api-platform'].menu.map((m) => m.docSpace), ['api-platform', 'api-manager', 'api-gateway', 'ai-gateway', 'ai-workspace', 'api-portal', 'mcp-hub'], 'the menu the build drew');
-  assert.deepEqual(composed.docSpaces['mcp-hub'].editions.map((e) => `${e.id}@${e.branch}`), ['cloud@main', '1.0.0@mcp-hub/release/1.0.0']);
-  const home = read(dir, 'build', 'index.html');
-  assert.match(home, /class="[^"]*overview/i, 'the overview home');
-  assert.ok(fs.existsSync(path.join(dir, 'build', 'reference', 'catalog', 'index.html')));
-
-  // A broken change to a Doc space manifest of this repo blocks with its own file named.
-  const ds = path.join(repoDir, 'api-manager', 'docspace.yaml');
-  fs.writeFileSync(ds, `${read(ds)}latest: 9.9.9\n`);
-  r = release(dir, 'compose', '--pr', '--published', published, '--repo-dir', repoDir);
-  assert.equal(r.status, 1);
-  assert.match(r.stdout, /error \[latest\] api-manager: latest is "9\.9\.9"/);
-  assert.match(r.stdout, /1 blocking error in this change \(owners: api-platform-docs\)/);
-  // Without a reachable published manifest, the message says what to set.
-  r = docs(repoDir, 'check', 'mcp-hub', '--no-build', '--published', path.join(dir, 'missing.json'));
-  assert.equal(r.status, 1);
 });
 
 test('readPublished: a URL is cached, and the cached copy is used when the host is down', async () => {

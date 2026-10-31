@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { CONTRIBUTE_DIR, STANDARDS_DIR, TEMPLATES_DIR, VALE_DIR, checkUrl, guideUrl, loadStandards } from '../lib/standards.mjs';
+import { NAV_ICON_SOURCES, navIconNames } from '../lib/nav-icons.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const S = loadStandards();
@@ -156,7 +157,7 @@ The migration from MkDocs maps the other admonition types onto these five:
 ${table(['MkDocs type', 'Becomes'], Object.entries(S.admonitions.migration).map(([a, b]) => [code(a), code(b)]))}`,
 ));
 
-const fmType = (k) => ({ pageType: `one of ${S.pageTypeIds.map(code).join(', ')}`, editions: '`cloud` or `self-hosted`', version: 'an exact version such as `7.4.0`, or `next`', enum: (k.values ?? []).map(code).join(', '), stringList: 'a list of strings' }[k.type] ?? k.type);
+const fmType = (k) => ({ pageType: `one of ${S.pageTypeIds.map(code).join(', ')}`, editions: '`cloud` or `self-hosted`', version: 'an exact version such as `7.4.0`, or `next`', enum: (k.values ?? []).map(code).join(', '), stringList: 'a list of strings', mapping: 'a mapping' }[k.type] ?? k.type);
 emit('standards/contribute/docs/reference/front-matter.mdx', page(
   { title: 'Front matter', description: 'The front-matter keys a WSO2 Docs page can have, which are required and their allowed values.', type: 'reference', sidebar_position: 4 },
   `Front matter is the YAML block between \`---\` lines at the top of a page. The front-matter check fails on a missing required key, a wrong value or an unknown key.
@@ -249,6 +250,83 @@ A team that needs something the Platform does not have proposes it; there is no 
 2. Once the Platform team agrees, open a pull request to the Platform. Your team may be its first user.
 3. To join this catalogue it needs a generic name (no product's), a Markdown form, an accessibility check, its entry here and an owner.
 4. It ships in a Platform release and is open to every team. Manifest and data-file fields are only ever added.`,
+));
+
+// Sidebar icons (lib/nav-icons.mjs): the how-to, with every allowed name.
+const iconNames = navIconNames();
+const iconGroups = NAV_ICON_SOURCES.map((src) => ({ ...src, names: iconNames.filter((n) => n.startsWith(src.prefix)) }));
+const iconForms = { 'octicons/': '`octicons/<name>-16`', 'fontawesome/': '`fontawesome/brands/<name>`, `fontawesome/solid/<name>`', 'wso2/': '`wso2/<name>`' };
+emit('standards/contribute/docs/guides/add-a-sidebar-icon.mdx', page(
+  { title: 'Add a sidebar icon', description: 'Show an icon before the label of a page or a folder in the sidebar, chosen from the Platform\'s list of icons.', type: 'how-to', sidebar_position: 10 },
+  `A sidebar entry can show an icon before its label: a page's entry, or a folder's group. Icons are optional, and an entry without one looks as it always has. Choose the icon from the [allowed names](#allowed-names); the [sidebar icons check](../reference/checks.mdx#nav-icons) rejects any other name.
+
+## Prerequisites
+
+- The page or folder whose entry gets the icon. See [Create a page](create-a-page.mdx).
+
+## Add an icon to a page
+
+1. Add \`sidebar_custom_props\` with the icon's name to the page's front matter:
+
+   \`\`\`mdx
+   ---
+   title: Get started with React
+   description: Add sign-in to a React app with the React SDK.
+   type: quick-start
+   sidebar_custom_props:
+     icon: fontawesome/brands/react
+   ---
+   \`\`\`
+
+## Add an icon to a folder
+
+1. Add \`customProps\` with the icon's name to the folder's \`_category_.yml\`:
+
+   \`\`\`yaml
+   label: Get started
+   position: 1
+   customProps:
+     icon: octicons/rocket-16
+   \`\`\`
+
+   Keep any other \`customProps\`, such as \`export: single\`, beside it.
+
+An icon shows at whatever level of the sidebar its entry sits.
+
+## Verify
+
+1. Run the checks. The sidebar icons check names any unknown icon and suggests a close name:
+
+   \`\`\`bash
+   npx @wso2/docs check identity-server
+   \`\`\`
+
+2. Preview the Doc space. The icon is 16 pixels, grey, 8 pixels before the label, and stays the same on hover and on the open page:
+
+   \`\`\`bash
+   npx @wso2/docs preview identity-server
+   \`\`\`
+
+The icon is decorative: screen readers read the label only, and Markdown twins and \`llms.txt\` leave it out.
+
+## Allowed names {#allowed-names}
+
+The names keep the form of the MkDocs Material theme that the earlier product sites used. The build draws each icon as SVG inside the page, so no icon font loads. Licences and attribution are in the Platform's [third-party notices](https://github.com/wso2/docs-platform/blob/main/THIRD-PARTY-NOTICES.md).
+
+${table(['Source', 'Name form', 'Icons', 'Licence'], iconGroups.map((g) => [`[${g.title}](#${g.prefix.replace(/\/$/, '')})`, iconForms[g.prefix], g.names.length, g.licence]))}
+
+To use an icon that is not listed, [propose it](../reference/components.mdx#propose).
+
+${iconGroups.map((g) => `### ${g.title} {#${g.prefix.replace(/\/$/, '')}}
+
+From ${g.from}.
+
+${g.names.map(code).join(', ')}`).join('\n\n')}
+
+## Next steps
+
+- [Front matter](../reference/front-matter.mdx)
+- [Components and layouts](../reference/components.mdx#navicon)`,
 ));
 
 // --- Author skills' reference files -------------------------------------------

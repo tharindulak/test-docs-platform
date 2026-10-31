@@ -25,7 +25,9 @@ On-site search across independently deployed Docs deployments: the engine, the r
 - **On release, a deployment upserts its new records, then deletes its stale ones**, per group (the family, then each part), never another deployment's, and never after a failed or empty import. Deleting first would leave a gap. [F12] [F30] [N20]
 - **A weekly consistency check compares the index with every live deployment's page list**, per group, and the records' former names with the manifest's; `--fix` repairs drift. [F12] [N20]
 - **A failed index update retries and alerts; it never blocks a release.** [F17] [F30]
-- **Typesense analytics (popular queries, queries with no hits) are on, tagged per deployment.** [F12]
+- **`search-setup` brings a collection up to the schema**: it makes the collection, adds the fields a newer schema gained, and drops and re-adds a field whose type or facet changed, which Typesense rebuilds from the stored records with no re-indexing. Writes to the collection wait while it rebuilds. When the rebuild outlasts the request, the step follows it through Typesense's schema-change status for up to ten minutes, then checks the schema. `page` is a facet, so the MCP server's `search_docs` can group hits by page. The same step makes the analytics rules and the question stop-word set (how, do, I, what, the, …) that `search_docs` drops from its queries; the search box uses neither.
+- **Only `search-setup` changes a collection's schema.** `search-index` makes a missing collection but leaves an existing one as it is, and warns when it lacks part of the schema; two indexing runs never change a schema at once.
+- **Typesense analytics (popular queries, queries with no hits) are on, tagged per deployment.** The MCP server's searches are left out, so an agent's queries are never recorded. [F12]
 
 ## Search scopes
 
@@ -53,12 +55,16 @@ On-site search across independently deployed Docs deployments: the engine, the r
 
 ## Keys
 
-- **The Typesense admin key lives only where Typesense runs**: on the 141 VM for the Pilot's staging, made there and never copied off; indexing, the consistency check and the browser key go through the VM's gate ([edge-and-hosting.md](edge-and-hosting.md#vm-search)). CI holds only the gate's two deploy keys. Browsers get a scoped, search-only key baked into the build; the Edge Worker has its own search key as a secret. [F11] [F30] [N23]
+- **The Typesense admin key lives only where Typesense runs**: on the 141 VM for the Pilot's staging, made there and never copied off; indexing, the consistency check and the browser key go through the VM's gate ([edge-and-hosting.md](edge-and-hosting.md#vm-search)). CI holds only the gate's two deploy keys. Browsers get a scoped, search-only key baked into the build; the Edge Worker has its own search key as a secret, scoped from the same parent with an expiry and never the browser key, so either can change alone. A scoped key cannot be revoked by itself, only with its parent, which stops both. [F11] [F30] [N23]
 - **`search-setup` makes a collection's search-only parent key once and reuses it on every later run** (the newest such key), so a run after a Platform release makes no new key. Its value is printed only when it is made; `--new-key` makes another for a key change. `search-keys` lists every key by id and value prefix, never its full value, and `search-key-delete` deletes one; browser keys scoped from a deleted parent stop working. [N23] [N25]
 
 ## MCP
 
 - **The MCP server's `search_docs` follows the same rules** (Cloud parts as the component's Cloud, Unlisted left out unless indexed, one Edition per Doc space where its selector opens). [N20]
+- **It has two scopes the search box doesn't**: Edition `cloud` with no Doc space covers the Cloud of every searchable Doc space, Cloud parts included; and a family Cloud's Cloud covers its Cloud parts, except an Unlisted one. Any other Edition needs a Doc space. A Doc space with no Edition ranks as All Editions does in the search box: newer Editions first.
+- **It ranks for an agent's queries**: the search box's fields and weights, scored by the best matching field (`max_weight`), with the question stop-word set dropped from the query and hits grouped by page (per Doc space and Edition, three hits each), so a page appears once. A query made only of question words keeps them. Self-hosted additions in Cloud's records are left out unless the agent asks for them. The search box's ranking doesn't change.
+- **The stop-word set holds no word that is also a name**: Typesense drops its words in any case, so "is" (IS, Identity Server), "it", "in" and "on" (single sign-on) stay out.
+- **On a collection that `search-setup` hasn't brought up to the schema**, `search_docs` searches again without what it lacks: with no stop-word set or `page` not a facet, without the stop words and the grouping, asking for 20 hits for each page it should return (at most 250) and grouping them by page itself, so a page with many hits can leave it with fewer pages than asked for; with no `selfHosted` field, without that filter. The new ranking still waits for `search-setup` ([releases-and-deployments.md](releases-and-deployments.md#platform-releases)).
 
 [F04]: ../.scratch/wso2-doc-space/issues/04-search-options.md
 [F11]: ../.scratch/wso2-doc-space/issues/11-platform-build-pipeline.md

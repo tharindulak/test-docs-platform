@@ -43,4 +43,6 @@ export default {
   },
   // editions.yaml: the Cloud variables, as its part uses them.
   editions: { cloud: is.editions.cloud },
+  // The overview's sidebar icon: that of the legacy home, read as for its part.
+  navIcons: is.navIcons,
 };

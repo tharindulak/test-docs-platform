@@ -5,7 +5,7 @@ type: concept
 sidebar_position: 4
 ---
 
-A Platform release is a versioned release of the Platform, the `@wso2/docs` package. Shipping it rebuilds every live Docs deployment pinned to its major from the Docs release it already runs, so those pages get the new Platform with no new Docs release.
+A Platform release is a versioned release of the Platform, the `@wso2/docs` package. Shipping it rebuilds every live Docs deployment pinned to its major from the Docs release it already runs, so those pages get the new Platform with no new Docs release. A release that changes only the shared theme rebuilds nothing: every page loads the theme from the edge.
 
 ## How it works
 
@@ -26,17 +26,26 @@ Fields of the manifests and data files are only ever added, so a manifest field 
 
 | Part | How it reaches WSO2 Docs |
 |---|---|
-| The build: theme, Platform chrome, plugins, checks | Pushing the release tag, such as `v1.4.0`, runs the **Platform release** workflow, which starts **Release docs** with scope `all`: every deployed Edition whose Content repository pins the release's major builds again from its deployed tag, under release id `<release>.r<run id>`, and flips. See [Which Docs deployments a release rebuilds](#which-docs-deployments-a-release-rebuilds). |
+| The shared theme: colours, type, spacing, fonts, the logo and favicons, code colours (`site/wso2-theme/`) | **Release docs** publishes it with every Platform release, without a build: it uploads the theme to staging, runs the contrast check of its colour pairs, and promotes it to production when it passes. axe, on one sample page of every live Docs deployment of the major against the live theme, runs only when asked: see [Run axe on the theme](../../guides/platform-team/release-the-platform.mdx#run-axe-on-the-theme). Every page links the live theme of its major, `/_platform/theme/v<major>/theme.css`, so readers get it within 5 minutes. See [A theme-only release](#a-theme-only-release). |
+| The build: Platform chrome, plugins, checks, and the theme's markup and JavaScript | Pushing the release tag, such as `v1.4.0`, runs the **Platform release** workflow, which starts **Release docs** with scope `all`: every deployed Edition whose Content repository pins the release's major builds again from its deployed tag, under release id `<release>.r<run id>`, and flips. See [Which Docs deployments a release rebuilds](#which-docs-deployments-a-release-rebuilds). |
 | The workflows Content repositories call | Their next run, at the moved `v1` |
 | The template's root files, such as `docs.yml` | A pull request in each Content repository, made with `npx @wso2/docs init --root-files` |
 | The Edge Worker | Not part of a Platform release: the Edge Worker workflow deploys `worker/` whenever a change to it merges to `main` |
 | The `wso2-docs` command writers run | The **Platform release** workflow publishes the package to npm, and `npx @wso2/docs` runs the newest published version |
 
+### A theme-only release
+
+When every path changed since the previous Platform release is in `site/wso2-theme/`, or in one no build reads, the **Platform release** workflow starts **Release docs** with scope `theme`: it publishes the theme and rebuilds nothing. The paths no build reads are `spec/`, `test/`, `.scratch/`, the Markdown files at the top of the repository, such as `GLOSSARY.md`, and `package.json` and `package-lock.json` when only their version changed. Any other change, such as a component, a plugin or `site/src/`, starts scope `all`, which rebuilds as before and publishes the theme too.
+
+Each Platform major has its own theme. A Content repository pinned to `v1` keeps `v1`'s theme after `2.0.0`, and only a `1.x.y` release from `releases/v1` changes it.
+
+A published theme is an immutable folder, like a release folder, with a theme id such as `1.4.0.r9003`: the Platform version, then the run id. Going live is a pointer move in the deployment state, so going back is one too: see [Roll back the theme](../../guides/platform-team/roll-back-a-release.mdx#roll-back-the-theme). A Docs deployment rolled back to a release built before the shared theme shows its old built-in look, and theme changes don't reach it until it is rebuilt.
+
 ### What the package carries
 
 The `@wso2/docs` package on npm carries only what its commands need when they run: the `wso2-docs` and `wso2-reports` commands, `lib/`, `plugins/`, the Docusaurus configuration and components in `site/`, `chrome/`, `navigation/`, `schemas/`, `templates/`, the standards sources the checks read, and `search/docker-compose.yml`. The `files` list in `package.json` sets this. The spec, tests, fixtures, the converter, scripts, skills, Contribute, `wso2-release` and the Edge Worker stay in the repository, because CI runs them from a Platform checkout.
 
-When you add a file a command imports or reads, add it to `files` if no entry covers it yet. `test/package-files.test.mjs` fails when the list misses a file the commands use, or carries one they don't, and builds a Doc space from the packed package as npx installs it. Check the result with `npm pack --dry-run`.
+When you add a file a command imports or reads, add it to `files` if no entry covers it yet. `test/package-files.test.mjs` fails when the list misses a file the commands use, or carries one they don't, and `test/build/package-files.test.mjs` builds a Doc space from the packed package as npx installs it. Check the result with `npm pack --dry-run`.
 
 ### Which Docs deployments a release rebuilds
 
@@ -53,10 +62,12 @@ A Platform change has to get past several caches before readers see it:
 
 | Cache | Where | A Platform change |
 |---|---|---|
-| Build caches in CI | `site/.docusaurus` and `node_modules/.cache`, kept by `build-deployment.yml` per Docs deployment and Platform commit | Starts afresh: the cache key holds the Platform commit, because Docusaurus's webpack cache doesn't see changes to the Platform's own plugins |
-| Local build cache | `node_modules/.cache/webpack` in a Platform checkout, or in npx's copy | Is not seen. Build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, or delete the folder. |
-| Published manifest copy | `~/.cache/wso2-docs/published/` | Used only when the host can't be reached |
+| Build caches in CI | `site/.docusaurus`, `site/node_modules/.cache` and `node_modules/.cache`, kept by `build-deployment.yml` per Docs deployment and Platform commit | Starts afresh: the cache key holds the Platform commit, because Docusaurus's webpack cache doesn't see changes to the Platform's own plugins |
+| Local build cache | `site/node_modules/.cache/webpack` in a Platform checkout, or in npx's copy | Is not seen. Build with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, or delete the folder. |
+| Published manifest copy | `published/` in the cache folder: `WSO2_DOCS_CACHE`, else `.cache/wso2-docs/` in a Platform checkout, or `~/.cache/wso2-docs/` for npx's copy | Used only when the host can't be reached |
 | Content-hashed assets | Browsers and the edge, a year | New builds have new file names |
+| The live shared theme: `/_platform/theme/v<major>/theme.css` and `img/` | Browsers, 5 minutes, then a stale copy for up to a day while the new one loads | Within 5 minutes; a returning reader may see the previous theme on one page |
+| A theme's fonts and images, by theme id | Browsers and the edge, a year | A new theme has a new theme id in its addresses |
 | Pages and other files | Browsers and the edge, `HTML_MAX_AGE`: 60 seconds on staging, 300 on production | Old pages for up to that long after the flip |
 | Runtime files: `manifest.json`, `chrome.json`, `sitemap.xml`, `llms.txt` | Browsers, 60 seconds. The Edge Worker's own copy of the manifest, 30 seconds. | Within about a minute and a half |
 | Redirects | Workers KV reads, 60 seconds. A 301 in browsers, an hour. | Up to an hour for a reader who already followed a 301 |

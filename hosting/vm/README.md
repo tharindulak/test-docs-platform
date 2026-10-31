@@ -92,12 +92,13 @@ You need: SSH to the VM as `ubuntu` with sudo (the 2026-10-20 key), a Platform r
    gh secret set DOCS_SEARCH_GATE_KEY --env staging --repo "$REPO" < docs-platform-keys/search-gate
    ```
 
-8. Make the browser key and give it to builds and the Edge Worker. The gate prints only the scoped key, never the keys it holds:
+8. Make the browser key and give it to builds, then a separate, expiring key for the Edge Worker. The gate prints only the scoped key, never the keys it holds:
 
    ```sh
    ssh -i docs-platform-keys/search-gate -o IdentitiesOnly=yes docs-platform@141.148.145.173 search-key > search-key.txt
    gh variable set SEARCH_KEY_STAGING --repo "$REPO" < search-key.txt
-   npx wrangler secret put TYPESENSE_SEARCH_KEY -c worker/wrangler.jsonc --env staging < search-key.txt
+   ssh -i docs-platform-keys/search-gate -o IdentitiesOnly=yes docs-platform@141.148.145.173 search-key --expires 2027-10-31 \
+     | npx wrangler secret put TYPESENSE_SEARCH_KEY -c worker/wrangler.jsonc --env staging
    ```
 
    Then rebuild every staging Docs deployment so pages carry the key, and index them: run **Actions** > **Search consistency** > **Run workflow** with **fix** on.

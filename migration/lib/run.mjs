@@ -36,6 +36,7 @@ import { groupByTag, collectOperations, schemaAnchor } from '../../lib/openapi.m
 import { editionFromId } from '../../lib/edition.mjs';
 import { productCards } from './overview.mjs';
 import { combineSites, siteResolver } from './sites.mjs';
+import { legacyNavIcon, platformIconName } from './nav-icons.mjs';
 
 const posix = path.posix;
 
@@ -248,7 +249,7 @@ async function convertTrees({ config, sourceRoot, outDir, edition, legacyVersion
   }
   for (const page of pages.values()) {
     const lp = page.srcs.get(homeTreeId) ?? page.srcs.get(layoutTreeId) ?? [...page.srcs.values()][0];
-    Object.assign(page, { src: lp.src, navLabel: lp.navLabel, sidebarLabel: lp.sidebarLabel, position: lp.position, inNav: lp.inNav, oldUrl: lp.oldUrl });
+    Object.assign(page, { src: lp.src, navLabel: lp.navLabel, sidebarLabel: lp.sidebarLabel, position: lp.position, inNav: lp.inNav, oldUrl: lp.oldUrl, nav: lp.nav });
     page.ctxIds = contexts.filter((c) => {
       if (!page.srcs.has(c.tree)) return false;
       if (c.pagesFrom) return fs.existsSync(path.resolve(sourceRoot, c.pagesFrom, trees.get(c.tree).mk.config.docs_dir ?? 'docs', page.srcs.get(c.tree).src));
@@ -270,7 +271,7 @@ async function convertTrees({ config, sourceRoot, outDir, edition, legacyVersion
     generatedDescriptions: 0, sidebarLabels: 0, relativeFallback: 0, unlisted: 0, placeholders_: 0,
     sharedPages: 0, cloudOnlyPages: 0, selfHostedOnlyPages: 0, markedPages: 0, markers: 0, flatMerged: 0,
     editionCheckFailures: 0, imageVariants: 0, linkVariants: 0, includesExpanded: 0, includeFrontMatter: 0,
-    flaggedOffPages: 0, specsFixed: 0, titlesVarying: 0, variants: 0, adjacentAlternatives: 0, cloudCounterparts: 0, ambiguousCounterparts: 0,
+    flaggedOffPages: 0, specsFixed: 0, titlesVarying: 0, variants: 0, adjacentAlternatives: 0, cloudCounterparts: 0, ambiguousCounterparts: 0, navIcons: 0,
   };
   Object.defineProperty(stats, 'placeholders', { get: () => stats.placeholdersWrapped, set: (v) => { stats.placeholdersWrapped = v; } });
   for (const t of trees.values()) if (t.id === homeTreeId || !multi) stats.flaggedOffPages += t.flaggedOff.size;
@@ -817,6 +818,9 @@ async function convertTrees({ config, sourceRoot, outDir, edition, legacyVersion
   // against the page rendered for that Edition alone; if the markers don't
   // hold, rendered again with block-level variants only.
   const convertPageBody = (page, cur) => {
+    // The product config's cards replace the home page's body (below), so a
+    // body its theme drew with template code is never converted.
+    if (page.target === 'index' && (typeof config.homeCards === 'function' ? config.homeCards(edition) : config.homeCards)) return '';
     if (!config.jinja) {
       let text = frontMatter(homeTree, page.src).content;
       // mkdocs-include-markdown-plugin: {% include "x.md" %} is the file,
@@ -931,6 +935,50 @@ async function convertTrees({ config, sourceRoot, outDir, edition, legacyVersion
     if (config.typeOverrides?.[target]) return config.typeOverrides[target];
     const hit = Object.keys(config.types).filter((k) => target === k || target.startsWith(`${k}/`)).sort((a, b) => b.length - a.length)[0];
     return hit ? config.types[hit] : 'reference';
+  };
+
+  // ---- Sidebar icons -------------------------------------------------------------
+  // The legacy theme's extra.nav_icons (config.navIcons says how its template
+  // reads them), matched on each page's and folder's nav entry in the home
+  // tree's nav. A section with no folder of its own that stands for the docs
+  // root puts its icon on its index page, the page that stands for it here.
+  const legacyIcons = config.navIcons ? homeTree.mk.config.extra?.nav_icons ?? null : null;
+  const iconFor = (entry, where) => {
+    const legacy = legacyNavIcon(legacyIcons, entry, config.navIcons);
+    if (!legacy) return null;
+    const r = platformIconName(legacy, config.navIcons);
+    if (r.problem) {
+      report.add('nav-icon', where, `"${entry.title}" (level ${entry.level}): ${r.problem}; left out`);
+      return null;
+    }
+    stats.navIcons++;
+    return r.name;
+  };
+  const navSections = [];
+  const seenSections = new Set();
+  for (const id of [homeTreeId, layoutTreeId, ...trees.keys()]) {
+    for (const sct of layouts.get(id).sections ?? []) {
+      const key = `${sct.folder}\0${sct.index}`;
+      if (!seenSections.has(key)) { seenSections.add(key); navSections.push(sct); }
+    }
+  }
+  const sectionIconOn = new Map(); // index page src → the icon of the section it stands for
+  const folderNav = new Map(); // folder → nav entry of a section without a category of its own
+  for (const sct of legacyIcons ? navSections : []) {
+    if (sct.folder) folderNav.set(sct.folder, sct);
+    else if (sct.folder === '' && sct.index) sectionIconOn.set(sct.index, sct);
+    else if (legacyNavIcon(legacyIcons, { title: sct.title, level: sct.level, url: '' }, config.navIcons)) {
+      report.add('nav-icon', sct.title, `nav section "${sct.title}" (level ${sct.level}) has no sidebar entry of its own here (its pages sit beside others); its icon is left out`);
+    }
+  }
+  const pageIcon = (page, fm) => {
+    if (!legacyIcons || !page.inNav || !page.nav) return null;
+    const sct = sectionIconOn.get(page.src);
+    if (sct) return iconFor({ title: sct.title, level: sct.level, url: '' }, page.src);
+    if (page.nav.hiddenIndex) return null;
+    // A nav entry without a title shows the page's own title (MkDocs).
+    const title = page.navLabel ?? (typeof fm.data.title === 'string' ? fm.data.title : null) ?? (headingPlainText(fm.content.match(/^#\s+(.*)$/m)?.[1] ?? '') || null);
+    return iconFor({ title, level: page.nav.level, url: page.oldUrl }, page.src);
   };
 
   const exportFolders = new Set();
@@ -1075,6 +1123,8 @@ async function convertTrees({ config, sourceRoot, outDir, edition, legacyVersion
       stats.sidebarLabels++;
     }
     if (page.position !== null && page.position !== undefined) front.sidebar_position = page.position;
+    const icon = pageIcon(page, fm);
+    if (icon) front.sidebar_custom_props = { icon };
     if (!page.inNav) {
       front.unlisted = true;
       stats.unlisted++;
@@ -1352,6 +1402,13 @@ async function convertTrees({ config, sourceRoot, outDir, edition, legacyVersion
     if (cat.api) data.collapsible = false;
     // Flattened guides (AI/LLM-friendly docs, decision 5): one <folder>.md.
     if (exportFolders.has(folder)) data.customProps = { export: 'single' };
+    // A folder laid out from another tree's nav takes that nav's icon only
+    // for content the home tree lacks: where the home tree has its pages, its
+    // own nav shows them elsewhere, without this section.
+    const foreign = !layouts.get(homeTreeId).categories.has(folder) && [...pages.values()].some((p) => p.srcs.has(homeTreeId) && p.target.startsWith(`${folder}/`));
+    const nav = foreign ? null : cat.nav ?? folderNav.get(folder);
+    const icon = nav && legacyIcons ? iconFor({ title: nav.title, level: nav.level, url: '' }, `docs/${folder}/_category_.yml`) : null;
+    if (icon) data.customProps = { ...data.customProps, icon };
     fs.writeFileSync(path.join(outDir, 'docs', folder, '_category_.yml'), yaml.dump(data));
   }
   stats.exportSingleFolders = [...exportFolders].filter((f) => usedFolders.has(f)).length;
@@ -1596,7 +1653,7 @@ function reportMarkdown(summary, report) {
     ['Broken anchors removed', s.droppedAnchors], ['Links to other legacy versions (kept)', s.otherVersionLinks], ['Links to other WSO2 docs (kept as legacy URLs)', s.crossProductLinks],
     ['Admonitions', s.admonitions], ['Collapsibles', s.details], ['Tab sets', s.tabSets], ['Code blocks', s.codeBlocks], ['Indented code blocks fenced', s.indentedCode],
     ['Raw HTML blocks converted', s.htmlBlocks], ['Explicit heading ids kept for old anchors', s.explicitIds], ['Placeholders wrapped in backticks', s.placeholdersWrapped],
-    ['Generated descriptions to review', s.generatedDescriptions], ['sidebar_label set', s.sidebarLabels],
+    ['Generated descriptions to review', s.generatedDescriptions], ['sidebar_label set', s.sidebarLabels], ['Sidebar icons (from the legacy nav_icons)', s.navIcons],
     ['Legacy redirect entries written', s.legacyRedirects ?? 0], ['Legacy MkDocs redirects (source)', s.legacyRedirectsSource ?? 0], ['Legacy redirects with no target page (sent to an ancestor or home)', s.legacyRedirectsUnresolved ?? 0], ['Legacy redirects to other sites', s.legacyRedirectsExternal ?? 0],
     ['MDX compile failures', summary.compileFailures],
     ['Override patches applied (override list)', `${summary.overrides?.patchesApplied ?? 0} of ${summary.overrides?.patches ?? 0}`],

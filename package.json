@@ -20,13 +20,15 @@
     "!lib/kv.mjs",
     "!lib/platform-release.mjs",
     "!lib/state-lock.mjs",
+    "!lib/shared-theme.mjs",
     "plugins/",
     "site/docusaurus.config.mjs",
     "site/sidebars.mjs",
     "site/package.json",
     "site/src/",
-    "site/static/",
+    "site/wso2-theme/",
     "chrome/",
+    "icons/",
     "navigation/",
     "schemas/",
     "templates/",
@@ -44,15 +46,17 @@
     "standards/vale/",
     "search/docker-compose.yml",
     "worker/src/feedback-reasons.mjs",
-    "worker/src/twin-paths.mjs"
+    "worker/src/twin-paths.mjs",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "tokens": "node scripts/build-tokens.mjs",
     "standards": "node scripts/build-standards.mjs",
-    "test": "node --import ./test/setup.mjs --test --test-concurrency=1 test/*.test.mjs",
+    "test": "node scripts/test.mjs",
+    "test:fast": "node scripts/test.mjs test/*.test.mjs",
+    "prepare": "node scripts/install-hooks.mjs",
     "edge:local": "node worker/local.mjs",
     "edge:check": "wrangler deploy --dry-run -c worker/wrangler.jsonc --env staging --outdir .cache/edge-bundle",
     "convert": "node migration/convert.mjs"
@@ -62,9 +66,9 @@
     "@docusaurus/mdx-loader": "3.10.2",
     "@docusaurus/preset-classic": "3.10.2",
     "@docusaurus/utils": "3.10.2",
-    "@fontsource-variable/inter": "5.2.8",
     "@mdx-js/mdx": "3.1.1",
     "@mdx-js/react": "^3.1.0",
+    "@primer/octicons": "18.0.0",
     "@slorber/remark-comment": "1.0.0",
     "ajv": "8.20.0",
     "aws4fetch": "1.0.20",
@@ -95,7 +99,6 @@
     "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {
-    "@wso2/oxygen-ui": "0.16.0",
     "esbuild": "0.25.11",
     "miniflare": "5.20261001.0-alpha",
     "wrangler": "4.147.0"

@@ -18,7 +18,7 @@ import {
 import { compose, mainRef, readInputs, readRepoDocSpaces } from '../lib/compose.mjs';
 import { loadContentRepo, showsCloudOnlyContent } from '../lib/content.mjs';
 import { inferEditionId } from '../lib/edition.mjs';
-import { checkReleaseScope } from '../lib/check/index.mjs';
+import { checkReleaseScope, pickEdition } from '../lib/check/index.mjs';
 import { resolveBase } from '../lib/check/git.mjs';
 import { validate } from '../lib/schemas.mjs';
 import { partialLinkResolver } from '../plugins/partials.mjs';
@@ -112,6 +112,35 @@ test('the repo root: the template\'s workflow and editor settings, plus a README
   assert.match(owners, /^\/identity-server\/ @wso2\/identity-server-docs$/m);
   assert.match(owners, /^\/\.github\/ @wso2\/docs-platform$/m);
   assert.deepEqual(docSpaceDirs(dir).map((d) => d.dir), ['identity-platform', 'identity-server']);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('pickEdition: a branch from main or a release branch builds that line\'s Edition (preview, build and check alike)', () => {
+  const dir = tmp('pick-edition');
+  for (const d of identityDirs) {
+    write(dir, `${d.dir}/docspace.yaml`, yaml.dump(d.docspace));
+    write(dir, `${d.dir}/docs/index.mdx`, '---\ntitle: Home\ndescription: Home.\ntype: concept\n---\n\nHome.\n');
+  }
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-q', '-m', 'main');
+  git(dir, 'branch', 'identity-server/release/7.3.0');
+  const repo = loadContentRepo(path.join(dir, 'identity-server'));
+  assert.equal(pickEdition(repo), 'cloud', 'main: its Cloud part');
+  git(dir, 'checkout', '-q', '-b', 'fix-typo');
+  write(dir, 'identity-server/docs/index.mdx', '---\ntitle: Home\ndescription: Home.\ntype: concept\n---\n\nFixed.\n');
+  git(dir, 'commit', '-qam', 'fix');
+  assert.equal(pickEdition(repo), 'cloud', 'a writer\'s branch from main');
+  // Once the release branch has commits of its own, a branch from it builds its version.
+  git(dir, 'checkout', '-q', 'identity-server/release/7.3.0');
+  write(dir, 'identity-server/docs/index.mdx', '---\ntitle: Home\ndescription: Home.\ntype: concept\n---\n\nOn 7.3.0.\n');
+  git(dir, 'commit', '-qam', 'a fix on 7.3.0');
+  assert.equal(pickEdition(repo), '7.3.0', 'the release branch');
+  git(dir, 'checkout', '-q', '-b', 'backport');
+  write(dir, 'identity-server/docs/index.mdx', '---\ntitle: Home\ndescription: Home.\ntype: concept\n---\n\nBackported.\n');
+  git(dir, 'commit', '-qam', 'backport');
+  assert.equal(pickEdition(repo), '7.3.0', 'a branch from the release branch');
+  assert.equal(pickEdition(repo, '7.2.0'), '7.2.0', '--edition wins');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -209,23 +238,23 @@ test('compose reads the Pilot as it is (fixtures/content-repos/): two Doc spaces
   const s = manifest.docSpaces;
   assert.deepEqual(s['identity-platform'].editions.map((e) => [e.id, e.branch, e.parts]), [['cloud', 'main', ['identity-server']]]);
   assert.equal(s['identity-platform'].model, 'cloud-only');
-  assert.deepEqual(s['identity-server'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['identity-server/release/7.3.0', 'identity-server/release/7.2.0']);
+  assert.deepEqual(s['identity-server'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['identity-server/release/7.3.0', 'identity-server/release/7.2.0', 'identity-server/release/7.1.0']);
   assert.equal(s['identity-server'].tagPrefix, 'identity-server/');
   assert.equal(s['identity-server'].latest, '7.3.0');
-  assert.deepEqual(s['api-manager'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['api-manager/release/4.7.0', 'api-manager/release/4.6.0']);
+  assert.deepEqual(s['api-manager'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['api-manager/release/4.7.0', 'api-manager/release/4.6.0', 'api-manager/release/4.5.0']);
   assert.equal(s['api-manager'].tagPrefix, 'api-manager/', 'prefixed branches give prefixed tags, though docs-api-platform builds one Doc space so far');
   assert.equal(s['api-manager'].repo, 'wso2/docs-api-platform');
-  // Legacy versions (product placement): 4.5.0 to 3.0.0 on apim.docs.wso2.com, 2.6.0 and older on Confluence.
+  // Legacy versions (product placement): 4.4.0 to 3.0.0 on apim.docs.wso2.com, 2.6.0 and older on Confluence.
   const legacy = s['api-manager'].editions.filter((e) => e.status === 'legacy');
-  assert.deepEqual(legacy.map((e) => e.id), ['4.5.0', '4.4.0', '4.3.0', '4.2.0', '4.1.0', '4.0.0', '3.2.0', '3.1.0', '3.0.0', '2.6.0', '2.5.0', '2.2.0', '2.1.0', '2.0.0', '1.10.0', '1.9.1', '1.9.0']);
-  assert.ok(legacy.slice(0, 9).every((e) => e.legacyUrl === `https://apim.docs.wso2.com/en/${e.id}/`));
+  assert.deepEqual(legacy.map((e) => e.id), ['4.4.0', '4.3.0', '4.2.0', '4.1.0', '4.0.0', '3.2.0', '3.1.0', '3.0.0', '2.6.0', '2.5.0', '2.2.0', '2.1.0', '2.0.0', '1.10.0', '1.9.1', '1.9.0']);
+  assert.ok(legacy.slice(0, 8).every((e) => e.legacyUrl === `https://apim.docs.wso2.com/en/${e.id}/`));
   assert.equal(legacy.find((e) => e.id === '2.6.0').legacyUrl, 'https://wso2docs.atlassian.net/wiki/spaces/AM260/overview');
   assert.equal(legacy.find((e) => e.id === '1.10.0').legacyUrl, 'https://wso2docs.atlassian.net/wiki/spaces/AM1100/overview');
   // On WSO2 Docs since Convert API Platform Cloud and AI Gateway: the family Cloud and its part.
   for (const slug of ['api-platform', 'ai-gateway', 'api-gateway', 'ai-workspace', 'api-portal']) assert.equal(s[slug].status, 'live', slug);
   assert.deepEqual(s['api-platform'].editions.map((e) => [e.id, e.branch, e.parts]), [['cloud', 'main', ['ai-gateway', 'api-gateway', 'ai-workspace', 'api-portal']]]);
   assert.deepEqual(s['ai-gateway'].cloud, { in: 'api-platform' });
-  assert.deepEqual(s['ai-gateway'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['ai-gateway/release/1.2.0', 'ai-gateway/release/2026.09.24']);
+  assert.deepEqual(s['ai-gateway'].editions.filter((e) => e.status !== 'legacy').map((e) => e.branch), ['ai-gateway/release/1.2.0', 'ai-gateway/release/2026.09.24', 'ai-gateway/release/1.1.0']);
   assert.equal(s['ai-gateway'].tagPrefix, 'ai-gateway/');
   // API Gateway, the second Cloud part: three Editions, 1.2.0 the latest.
   assert.deepEqual(s['api-gateway'].cloud, { in: 'api-platform' });

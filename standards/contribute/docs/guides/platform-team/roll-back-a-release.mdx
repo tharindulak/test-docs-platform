@@ -1,6 +1,6 @@
 ---
 title: Roll back a Docs release
-description: Point a Docs deployment back at an earlier Docs release in seconds, with no build, and hold it there with a pin until a fix is released.
+description: Point a Docs deployment or the shared theme back at an earlier release in seconds, with no build, and hold a deployment there with a pin until a fix.
 type: how-to
 sidebar_position: 6
 ---
@@ -47,6 +47,14 @@ node bin/wso2-release.mjs search-check --env local --storage s3://docs-staging -
 
 Each `rollback` prints the release it went back to, such as `staging: sandbox/1.0.0 rolled back to 1.0.0-docs.1`.
 
+A release built before the shared theme carries its own look. `rollback` says so, and the run's summary repeats it:
+
+```text
+note: sandbox/1.0.0 1.0.0-docs.1 was built before the shared theme (Platform 1.3.0): it shows its old built-in look, and theme publishes don't reach it until it is rebuilt or released again
+```
+
+The Docs deployment then looks as it did when it was built, until its next release or rebuild.
+
 ## Hold it with a pin
 
 A rollback holds only until the next Docs release of that Edition. Ask the Doc space's team to pin the Edition on `main`:
@@ -66,11 +74,30 @@ wso2-release: Edition 1.0.0 of sandbox is pinned to 1.0.0-docs.1 in its docspace
 
 The pinned tag itself still releases, so releasing it again also rolls back. When the fix is merged, the team removes the pin and releases. A pinned Cloud Edition holds the whole Cloud tree, Cloud parts included.
 
+## Roll back the theme
+
+The shared theme of each Platform major goes back the same way, with no build. Every page of that major gets the earlier theme within 5 minutes.
+
+1. List the published themes, newest first:
+
+   ```bash
+   node bin/wso2-release.mjs theme list --storage s3://docs-staging
+   ```
+
+   The `live` one is what pages load; `earlier` ones are those it can go back to. The last 20 are kept.
+
+2. Select **Actions** > **Roll back docs** > **Run workflow**, and choose the target `theme`.
+3. Leave **to** empty to go back one theme, or enter its theme id, such as `1.4.0.r9001`. Leave **major** empty for this Platform's major, or enter one, such as `1` for the theme of the repositories still on `v1`.
+4. Choose the environment, and select **Run workflow**.
+
+To rehearse it locally, run `node bin/wso2-release.mjs theme rollback --storage s3://docs-staging --env staging`. It prints the theme it went back to, such as `staging: theme v1 rolled back to 1.4.0.r9001 (was 1.4.1.r9002)`. The next Platform release publishes a new theme, which moves it forward again.
+
 ## Verify
 
 1. A page of each Docs deployment answers with an `x-docs-release` header naming the earlier folder, such as `sandbox/1.0.0/1.0.0-docs.1`, within about a minute and a half.
 2. `status` shows the rolled-back release as `release`, and the bad one first in `previous`.
 3. The **Roll back docs** run's summary lists each rollback.
+4. For the theme, `curl -sI https://<staging-host>/_platform/theme/v1/theme.css` answers with an `x-docs-theme` header naming the earlier theme.
 
 ## Troubleshooting
 
@@ -80,6 +107,9 @@ The pinned tag itself still releases, so releasing it again also rolls back. Whe
 | `<deployment> is not deployed` | Check the Docs deployment's name with `status`: `<doc space>/<edition>`, `<doc space>/latest`, or `<doc space>/_` for an unversioned Doc space |
 | `Release <x> is missing or incomplete` | That folder was deleted by the clean-up. Release its tag again. |
 | The bad release came back | A later release moved the Edition forward. Pin it. |
+| `Theme v1 has no earlier theme to roll back to` | Only one theme was published for that major. Fix the theme and release again. |
+| `Theme v1/<id> is missing or incomplete` | That theme was deleted by the clean-up, which keeps the last 20. Pick another from `theme list`. |
+| A page still shows its old look after a theme rollback | Its release was built before the shared theme: see the `note:` the rollback printed. |
 
 ## Next steps
 

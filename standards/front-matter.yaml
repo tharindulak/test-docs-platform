@@ -21,6 +21,9 @@ keys:
   sidebar_position:
     type: number
     help: Order within the folder's sidebar group.
+  sidebar_custom_props:
+    type: mapping
+    help: "Sidebar props. `icon` sets the page's sidebar icon, such as `sidebar_custom_props: { icon: octicons/rocket-16 }`; a folder sets its own in `_category_.yml` as `customProps: { icon: <name> }`. The names are listed in [Add a sidebar icon](../guides/add-a-sidebar-icon.mdx#allowed-names), and the sidebar icons check rejects any other."
   editions:
     type: editions
     help: Limits the page to `cloud` or `self-hosted` (an Edition marker for the whole page).

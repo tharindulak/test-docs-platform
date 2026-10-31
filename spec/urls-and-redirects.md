@@ -46,7 +46,7 @@ Bare addresses are 302, never 301: a 301 would be cached indefinitely and block 
 - **Links to another Doc space are written `docs:<doc-space>/<edition|latest|cloud>/<page>`.** Hard-coded `https://docs.wso2.com/` links and `pathname://` are not used. [F07]
 - **`docs:` links resolve to production URLs on every host**, so staging carries the same bytes as production; the staging crawl gate maps them onto staging. This replaced "resolve to the build's host". [F25] [F07]
 - **`docs:<part>/cloud/<page>` resolves to the part's address in its platform's tree; `docs:<cloud-only>/latest/` resolves to `/cloud/`.** [N05] [N17]
-- **`docs:` links render as same-tab full page loads** and are checked against the Deployment manifest and the target's published route list. A link to an unknown Doc space or Edition, or to a Legacy version, fails. [F07] [F17] [F24]
+- **`docs:` links render as same-tab full page loads** and are checked, in pages and in catalog data files alike, against the Deployment manifest and the target's published route list. A link to an unknown Doc space or Edition, or to a Legacy version, fails. [F07] [F17] [F24]
 
 ## Page moves
 

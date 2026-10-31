@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { loadPolicy, publicManifest } from '../lib/manifest.mjs';
-import { menu, productsMenu, sectionFor } from '../lib/switching.mjs';
+import { menu, mergeManifest as mergeSwitching, productsMenu, sectionFor } from '../lib/switching.mjs';
 import { cloudflareKv, fileKv } from '../lib/kv.mjs';
 import { FsStorage } from '../lib/storage.mjs';
 import { crawl } from '../lib/crawl.mjs';
@@ -75,7 +75,7 @@ test('plan: prefixed tags pick the Doc space and its directory; latest is the ne
   assert.throws(() => planRelease(policy, { repo: 'wso2/docs-api-platform', tag: 'ai-gateway/cloud-2026.10.21.1' }), /Cloud part of api-platform; tag api-platform\/cloud-/);
   assert.throws(() => planRelease(policy, { repo: 'wso2/docs-identity-platform', tag: 'api-manager/4.7.0-docs.1' }), /not in wso2\/docs-identity-platform/);
   assert.throws(() => planRelease(policy, { repo: 'wso2/docs-sandbox', tag: 'sandbox/1.0.0-docs.1' }), /tags are unprefixed/);
-  assert.throws(() => planRelease(policy, { repo: 'wso2/docs-identity-platform', tag: 'identity-server/7.1.0-docs.1' }), /legacy version/);
+  assert.throws(() => planRelease(policy, { repo: 'wso2/docs-identity-platform', tag: 'identity-server/7.0.0-docs.1' }), /legacy version/);
   assert.throws(() => planRelease(policy, { repo: 'wso2/docs-identity-platform', tag: 'identity-server/9.0.0-docs.1' }), /not in the manifest policy/);
   assert.throws(() => planRelease(policy, { repo: 'wso2/elsewhere', tag: '7.3.0-docs.1' }), /No Doc space/);
 
@@ -229,7 +229,7 @@ test('retire takes down a deployment whose Edition the manifest dropped, and ref
   }
   await flip(s, { environment: 'staging', policy, deployments: [{ space: 'identity-server', segment: '7.3.0', release: '7.3.0-docs.1' }, { space: 'identity-server', segment: '7.2.0', release: '7.2.0-docs.1' }] });
   await assert.rejects(retire(s, { environment: 'staging', policy, space: 'identity-server', segment: '7.2.0' }), /still an Edition in the manifest \(7\.2\.0\)/);
-  await assert.rejects(retire(s, { environment: 'staging', policy, space: 'identity-server', segment: '7.1.0' }), /not deployed/);
+  await assert.rejects(retire(s, { environment: 'staging', policy, space: 'identity-server', segment: '7.0.0' }), /not deployed/);
 
   // 7.2.0 moves to legacyVersions: until it is retired it still serves, with a warning, but leaves the sitemap index.
   const p = structuredClone(policy);
@@ -389,7 +389,7 @@ test('a change on the Platform\'s main line releases Contribute, and a navigatio
   assert.deepEqual(platformDeploymentsFor(['navigation/sections/identity-platform.yaml']), { contribute: true, landing: true }, 'menus are built into Contribute too');
   assert.deepEqual(platformDeploymentsFor(['worker/src/index.mjs', 'spec/README.md', '.scratch/x.md', 'test/a.mjs']), { contribute: false, landing: false });
   assert.deepEqual(platformDeploymentsFor(['package-lock.json']), { contribute: true, landing: false });
-  assert.deepEqual(platformDeploymentsFor(['chrome/landing.yaml']), { contribute: true, landing: true }, 'the Landing page\'s start paths');
+  assert.deepEqual(platformDeploymentsFor(['chrome/landing.yaml']), { contribute: true, landing: true }, 'the Landing page\'s own content');
   assert.deepEqual(platformDeploymentsFor(['chrome/chrome.json']), { contribute: true, landing: false });
   assert.deepEqual(platformDeploymentsFor(null), { contribute: true, landing: true }, 'no base to diff: release both');
 
@@ -517,6 +517,19 @@ test('a component whose Cloud part is not deployed opens its latest Self-hosted 
   assert.equal(entry(bakedManifest(policy, { environment: 'production' })), '/identity-platform/cloud/identity-server/');
   // The published manifest keeps cloud.in, so compose from it still sees the Cloud part.
   assert.deepEqual(live.docSpaces['identity-server'].cloud, { in: 'identity-platform' });
+
+  // A page built while the part waited (its snapshot marks it pending) follows
+  // the live manifest once the tree is deployed: the browser merges the live
+  // copy over the snapshot, so the published manifest says so explicitly.
+  assert.equal(liveCloud.docSpaces['identity-server'].cloudPartPending, false);
+  const oldPage = mergeSwitching(baked, JSON.parse(JSON.stringify(liveCloud)));
+  assert.equal(entry(oldPage), '/identity-platform/cloud/identity-server/');
+  assert.equal(line(oldPage), '/identity-platform/cloud/identity-server/');
+  // Even from a published manifest that leaves the field out (absent is "not pending").
+  const { cloudPartPending, ...lean } = liveCloud.docSpaces['identity-server'];
+  assert.equal(cloudPartPending, false);
+  const older = mergeSwitching(baked, { ...liveCloud, docSpaces: { ...liveCloud.docSpaces, 'identity-server': lean } });
+  assert.equal(entry(older), '/identity-platform/cloud/identity-server/');
 });
 
 test('the build bakes that snapshot: the Docusaurus config reads WSO2_DOCS_DEPLOYED', async () => {
@@ -533,11 +546,35 @@ test('the build bakes that snapshot: the Docusaurus config reads WSO2_DOCS_DEPLO
   assert.deepEqual(withState.sections['api-platform'].menu, [], 'API Platform\'s Doc spaces wait: none is deployed');
   assert.deepEqual(entries(withState), ['Identity Server', 'Security Token Service'], 'Identity Server is what this build deploys');
   assert.ok(entries(snapshot({})).includes('API Manager'), 'without deployment state, the composed manifest\'s menus');
+  // Identity Platform Cloud deployed: the Cloud part is not pending.
+  assert.equal(withState.docSpaces['identity-server'].cloudPartPending, false);
   // Identity Platform Cloud not deployed: this Self-hosted build's menus open Identity Server on its newest release.
-  assert.equal(withState.docSpaces['identity-server'].cloudPartPending, undefined);
   const noCloud = path.join(tmp(), 'state.json');
   fs.writeFileSync(noCloud, JSON.stringify({ schema: 1, deployments: { 'identity-server/7.2.0': { release: '7.2.0-docs.1', tag: 'identity-server/7.2.0-docs.1', edition: '7.2.0' } } }));
   const selfHostedOnly = snapshot({ WSO2_DOCS_DEPLOYED: noCloud });
   assert.equal(selfHostedOnly.docSpaces['identity-server'].cloudPartPending, true);
   assert.equal(productsMenu(selfHostedOnly).flatMap((g) => g.entries).find((e) => e.label === 'Identity Server').href, '/identity-server/latest/');
+});
+
+// An older version's canonical is the latest twin's page, following a page
+// move: the build reads the latest twin's redirect map beside its page list.
+test('older versions take canonicals from the latest twin\'s pages and redirects', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { canonicalFor } = await import('../plugins/platform-outputs.mjs');
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), '..');
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'pages.json'), JSON.stringify([{ path: '' }, { path: 'guides/mfa/' }]));
+  fs.writeFileSync(path.join(dir, 'redirects.json'), JSON.stringify([
+    { from: '/identity-server/latest/guides/multi-factor-auth/', to: '/identity-server/latest/guides/mfa/', status: 301 },
+    { from: 'https://is.docs.wso2.com/en/latest/guides/authentication/mfa/', to: '/identity-server/latest/guides/mfa/', status: 301 },
+  ]));
+  const options = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e',
+    "const c = (await import('./site/docusaurus.config.mjs')).default; const p = c.plugins.find((x) => Array.isArray(x) && String(x[0]).endsWith('platform-outputs.mjs'))[1]; console.log(JSON.stringify({ ...p, latestPages: [...p.latestPages] }));"], {
+    cwd: root, encoding: 'utf8', env: { ...process.env, WSO2_DOCS_CONTENT: path.join(root, 'fixtures', 'stub-repo', 'identity-server'), WSO2_DOCS_EDITION: '7.2.0', WSO2_DOCS_LATEST_PAGES: path.join(dir, 'pages.json') },
+  }));
+  assert.deepEqual(options.latestRedirects, { 'guides/multi-factor-auth/': 'guides/mfa/' }, 'page moves only, relative to the latest twin');
+  const o = { ...options, latestPages: new Set(options.latestPages) };
+  assert.equal(canonicalFor('guides/multi-factor-auth/', o), 'https://docs.wso2.com/identity-server/latest/guides/mfa/');
+  assert.equal(canonicalFor('', o), 'https://docs.wso2.com/identity-server/latest/');
+  assert.equal(canonicalFor('guides/only-here/', o), 'https://docs.wso2.com/identity-server/7.2.0/guides/only-here/');
 });

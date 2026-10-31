@@ -13,6 +13,7 @@ sidebar_position: 6
 |---|---|
 | `--published <URL or file>` | The published manifest to start from. Default: `WSO2_DOCS_PUBLISHED_MANIFEST`, else staging's. A copy is kept, and used when the host can't be reached. |
 | `WSO2_DOCS_CONTENT_REPOS` | A folder of Content repository checkouts. If set, the manifest is composed from their `main` lines instead, to test a change across repositories. |
+| `WSO2_DOCS_CACHE` | The folder for the published manifest's copy, composed manifests, Vale settings and builds made without `--out`. Default: `~/.cache/wso2-docs`, or `.cache/wso2-docs` in the Platform checkout when the Platform runs from a git checkout of its own. Set it to keep two runs from one checkout apart. |
 | `--manifest <file>` | A composed Deployment manifest, used as it is |
 | `--deployed <file>` | The deployment state the built-in menus follow: an environment's `_platform/state.json` (`wso2-release status`) or a published `manifest.json`. Default: the published manifest, when the Deployment manifest is composed from it. With `--manifest` and no `--deployed`, the menus list every Doc space in the manifest. |
 

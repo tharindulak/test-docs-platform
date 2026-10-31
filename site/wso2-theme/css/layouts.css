@@ -1,0 +1,86 @@
+/* Page layouts: overview cards and catalogs (plugins/remark-layouts.mjs,
+   site/src/components/layouts/). Reads only theme.css's variables, whose
+   text pairs test/contrast.test.mjs checks in both colour modes. */
+
+/* ---- overview ------------------------------------------------------------- */
+.wso2-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+.wso2-overview-card {
+  border: 1px solid var(--wso2-divider);
+  border-radius: var(--wso2-radius-lg);
+  padding: 1rem 1.25rem;
+  background: var(--wso2-bg);
+  min-width: 0;
+}
+.wso2-overview-card > h2,
+.wso2-overview-card > h3 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+/* The rule under a card's heading in the legacy cards: the card draws its own edge. */
+.wso2-overview-card > hr { display: none; }
+.wso2-overview-card > p { color: var(--wso2-text-muted); margin-bottom: 0.75rem; }
+.wso2-overview-card > ul,
+.wso2-overview-card > ol { padding-left: 0; list-style: none; margin-bottom: 0; }
+.wso2-overview-card > ul > li,
+.wso2-overview-card > ol > li { margin: 0.35rem 0; }
+.wso2-overview-card li > p { margin: 0; }
+.wso2-overview-card li > p + p { color: var(--wso2-text-muted); font-size: 0.9rem; }
+
+/* ---- catalog -------------------------------------------------------------- */
+.wso2-layout-catalog { margin-top: 1.5rem; }
+.wso2-layout-catalog__controls { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: center; }
+.wso2-layout-catalog__search input {
+  min-width: min(100%, 18rem);
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--wso2-divider);
+  border-radius: var(--wso2-radius);
+  background: var(--wso2-bg);
+  color: var(--wso2-text);
+  font: inherit;
+}
+.wso2-layout-catalog__search input:focus-visible,
+.wso2-layout-catalog__chip:focus-visible { outline: 2px solid var(--wso2-focus); outline-offset: 2px; }
+.wso2-layout-catalog__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.wso2-layout-catalog__chip {
+  border: 1px solid var(--wso2-divider);
+  border-radius: 999px;
+  padding: 0.25rem 0.8rem;
+  background: var(--wso2-bg);
+  color: var(--wso2-text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.wso2-layout-catalog__chip:hover { background: var(--wso2-hover); }
+.wso2-layout-catalog__chip[aria-pressed='true'] { background: var(--wso2-selected); border-color: var(--wso2-text); font-weight: 600; }
+.wso2-layout-catalog__status { min-height: 1.5rem; margin: 0.75rem 0 0.25rem; color: var(--wso2-text-muted); font-size: 0.875rem; }
+.wso2-layout-catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+}
+.wso2-layout-catalog__item {
+  position: relative;
+  border: 1px solid var(--wso2-divider);
+  border-radius: var(--wso2-radius-lg);
+  padding: 1rem 1.25rem;
+  margin: 0;
+  min-width: 0;
+}
+.wso2-layout-catalog__item[hidden] { display: none; }
+.wso2-layout-catalog__item > p { margin: 0 0 0.5rem; }
+.wso2-layout-catalog__item > p:last-child { margin-bottom: 0; }
+.wso2-layout-catalog__item > p:nth-of-type(3) { font-size: 0.875rem; }
+.wso2-layout-catalog__item > p:nth-of-type(2) { color: var(--wso2-text-muted); }
+.wso2-layout-catalog__logo p { margin: 0 0 0.5rem; }
+.wso2-layout-catalog__logo img { height: 2.25rem; width: auto; max-width: 8rem; object-fit: contain; }
+.wso2-layout-catalog__badge {
+  position: absolute; top: 0.75rem; right: 0.75rem;
+  font-size: 0.75rem; padding: 0.05rem 0.5rem; border-radius: 999px;
+  background: var(--wso2-info-bg); color: var(--wso2-info-fg);
+}
+.wso2-layout-catalog__badge--deprecated { background: var(--wso2-warning-bg); color: var(--wso2-warning-fg); }

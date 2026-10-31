@@ -77,8 +77,9 @@ function Hit({ hit, ctx, manifest, scope, active, onNavigate, linkRef }) {
     history.push(t.href);
   };
   return (
-    <li className="wso2-search-hit" data-active={active || undefined} role="option" aria-selected={active}>
-      <a href={t.href} onClick={onClick} ref={linkRef} data-same-deployment={t.sameDeployment}>
+    <li className="wso2-search-hit" data-active={active || undefined} role="presentation">
+      {/* The link is the option, so the option holds nothing else interactive. */}
+      <a href={t.href} onClick={onClick} ref={linkRef} data-same-deployment={t.sameDeployment} role="option" aria-selected={active}>
         <span className="wso2-search-hit__crumbs">{crumbs}</span>
         <span className="wso2-search-hit__title">
           <Highlight attribute={title} hit={hit} />

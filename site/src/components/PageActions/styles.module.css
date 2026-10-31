@@ -17,9 +17,9 @@
 
 .group {
   display: inline-flex;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--ifm-button-border-radius, 6px);
-  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--wso2-divider);
+  border-radius: var(--wso2-radius);
+  background: var(--wso2-surface);
   overflow: hidden;
 }
 
@@ -27,7 +27,7 @@
 .toggle {
   font: inherit;
   font-size: 0.8125rem;
-  color: var(--ifm-font-color-base);
+  color: var(--wso2-text);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -40,23 +40,28 @@
 }
 
 .toggle {
-  border-left: 1px solid var(--ifm-color-emphasis-300);
+  border-left: 1px solid var(--wso2-divider);
   padding: 0.3rem 0.5rem;
   display: inline-flex;
   align-items: center;
 }
 
 .main:hover,
-.toggle:hover,
-.item:hover,
-.item:focus {
-  background: var(--ifm-color-emphasis-100);
+.toggle:hover {
+  background: var(--wso2-hover);
+}
+
+/* Menu items: hover changes only the colour, as nav items do (a tinted row
+   would take the muted hint under 4.5:1). */
+.item:hover .label,
+.item:focus .label {
+  color: var(--wso2-link-hover);
 }
 
 .main:focus-visible,
 .toggle:focus-visible,
 .item:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
+  outline: 2px solid var(--wso2-focus);
   outline-offset: -2px;
 }
 
@@ -75,10 +80,10 @@
   top: calc(100% + 0.25rem);
   min-width: 15rem;
   padding: 0.25rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--ifm-global-radius, 6px);
-  background: var(--ifm-background-surface-color);
-  box-shadow: var(--ifm-global-shadow-md);
+  border: 1px solid var(--wso2-divider);
+  border-radius: var(--wso2-radius-lg);
+  background: var(--wso2-surface);
+  box-shadow: var(--wso2-shadow-dropdown);
 }
 
 .item {
@@ -89,7 +94,7 @@
   font: inherit;
   border: 0;
   background: transparent;
-  color: var(--ifm-font-color-base);
+  color: var(--wso2-text);
   border-radius: 4px;
   padding: 0.4rem 0.6rem;
   cursor: pointer;
@@ -98,7 +103,7 @@
 
 .item:hover {
   text-decoration: none;
-  color: var(--ifm-font-color-base);
+  color: var(--wso2-text);
 }
 
 .label {
@@ -108,7 +113,7 @@
 
 .hint {
   font-size: 0.75rem;
-  color: var(--ifm-color-emphasis-700);
+  color: var(--wso2-text-muted);
 }
 
 /* Narrow screens: the menu sits under the title instead of beside it. */

@@ -1,0 +1,374 @@
+/* Platform chrome: the wso2.com bar, the docs bar and its menus, notices,
+   page feedback, footer and Landing. Reads only theme.css's variables;
+   test/contrast.test.mjs checks every text pair built from them against
+   WCAG 2.2 AA, in both colour modes. Add new text pairs to that test. */
+
+.wso2-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+:focus-visible { outline: 2px solid var(--wso2-focus); outline-offset: 2px; }
+
+/* ---- The wso2.com bar --------------------------------------------------- */
+/* 54px, white in light mode: the logo left, wso2.com's links and menus in
+   the middle, Contact right. It scrolls away; its menus open over the docs
+   bar. */
+.wso2-site-bar {
+  position: relative; z-index: calc(var(--ifm-z-index-fixed) + 2);
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2rem;
+  height: var(--wso2-site-bar-height); padding: 0 var(--wso2-header-padding);
+  background: var(--wso2-site-bar-bg); color: var(--wso2-site-bar-text);
+  border-bottom: 1px solid var(--wso2-site-bar-border); font-size: 0.8125rem; line-height: 1.4;
+}
+.wso2-site-bar a { color: inherit; }
+.wso2-site-bar a:hover { color: var(--wso2-link-hover); text-decoration: none; }
+.wso2-site-bar__logo, .wso2-footer__logo {
+  justify-self: start; display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 1.3125rem; font-weight: 500; letter-spacing: 0.01em; line-height: 1;
+}
+.wso2-site-bar__mark { display: block; }
+.wso2-site-bar__mark--dark { display: none; }
+html[data-theme='dark'] .wso2-site-bar__mark--light { display: none; }
+html[data-theme='dark'] .wso2-site-bar__mark--dark { display: block; }
+.wso2-site-bar__list, .wso2-site-bar__phone-list, .wso2-site-bar ul { list-style: none; margin: 0; padding: 0; }
+.wso2-site-bar__list { display: flex; align-items: center; gap: 1.75rem; }
+.wso2-site-bar__item {
+  display: inline-flex; align-items: center; gap: 0.375rem; letter-spacing: 0.02em; cursor: pointer;
+  transition: var(--wso2-hover-transition);
+}
+summary.wso2-site-bar__item { list-style: none; }
+summary.wso2-site-bar__item::-webkit-details-marker { display: none; }
+summary.wso2-site-bar__item:hover { color: var(--wso2-link-hover); }
+.wso2-site-bar__chevron { flex: none; transition: var(--wso2-chevron-transition); }
+details[open] > summary .wso2-site-bar__chevron { transform: rotate(180deg); }
+/* A menu's panel spans under the bar's middle: one column per group. */
+.wso2-site-bar__panel {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2rem; width: max-content; max-width: calc(100vw - 2rem); padding: 1.25rem 1.5rem 1.5rem;
+  background: var(--wso2-surface); color: var(--wso2-text);
+  border: 1px solid var(--wso2-divider); border-radius: 0 0 var(--wso2-radius-lg) var(--wso2-radius-lg);
+  box-shadow: var(--wso2-shadow-dropdown);
+}
+.wso2-site-bar__group { flex: 0 1 11.5rem; min-width: 0; }
+.wso2-site-bar__group-title {
+  margin: 0 0 0.625rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--wso2-divider);
+  color: var(--wso2-text-muted); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.wso2-site-bar__group li { margin: 0 0 0.25rem; }
+.wso2-site-bar__group li a { display: block; padding: 0.25rem 0; font-size: 0.875rem; }
+.wso2-site-bar__contact {
+  justify-self: end; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.wso2-site-bar__phone { display: none; }
+/* Under the open phone drawer, so its close button and colour-mode toggle show. */
+html:has(.navbar-sidebar--show) .wso2-site-bar { z-index: 0; }
+
+/* Phones and tablets: the logo and one Menu disclosure. */
+@media (max-width: 996px) {
+  .wso2-site-bar { grid-template-columns: 1fr auto; padding: 0 var(--wso2-phone-margin); }
+  .wso2-site-bar__nav, .wso2-site-bar__contact { display: none; }
+  .wso2-site-bar__phone { display: block; justify-self: end; }
+  .wso2-site-bar__phone-panel {
+    position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100vh - var(--wso2-site-bar-height)); overflow-y: auto;
+    padding: 0.5rem var(--wso2-phone-margin) 1rem; background: var(--wso2-surface); color: var(--wso2-text);
+    border-bottom: 1px solid var(--wso2-divider); box-shadow: var(--wso2-shadow-dropdown); font-size: 1rem;
+  }
+  .wso2-site-bar__phone-list > li { border-bottom: 1px solid var(--wso2-divider); }
+  .wso2-site-bar__phone-list > li:last-child { border-bottom: 0; }
+  .wso2-site-bar__phone-list .wso2-site-bar__item { display: flex; justify-content: space-between; min-height: 44px; }
+  .wso2-site-bar__phone-list .wso2-site-bar__panel {
+    position: static; transform: none; flex-direction: column; gap: 1rem; width: auto; max-width: none;
+    padding: 0 0 1rem; border: 0; box-shadow: none;
+  }
+  .wso2-site-bar__phone-list .wso2-site-bar__group { flex: none; }
+}
+
+/* ---- The docs bar --------------------------------------------------------- */
+/* Brand navy in both modes, 56px, sticky: "Docs", the product and version
+   buttons, search, the colour-mode toggle. Its dropdowns are light panels. */
+.navbar {
+  background: var(--wso2-bar-bg); color: var(--wso2-bar-text);
+  border-bottom: 1px solid var(--wso2-bar-bg); box-shadow: none; font-size: 0.9375rem; font-weight: 400;
+}
+.navbar__items { gap: 0.5rem; }
+.navbar :focus-visible { outline-color: var(--wso2-bar-focus); }
+.navbar__toggle { color: var(--wso2-bar-text); }
+/* The stock brand link is empty (no navbar.logo or title): the Brand item replaces it. */
+a.navbar__brand:empty { display: none; }
+.wso2-brand {
+  display: flex; align-items: center; height: 22px; margin: 0 0.5rem 0 0; padding: 0 1rem 0 0;
+  border-right: 1px solid var(--wso2-bar-control-border);
+  color: var(--wso2-bar-text); font-size: 0.9375rem; font-weight: 600; line-height: 1; white-space: nowrap;
+}
+.wso2-brand:hover { color: var(--wso2-bar-text); text-decoration: none; }
+
+.wso2-menu { position: relative; padding: 0; }
+.wso2-menu__button {
+  display: inline-flex; align-items: center; gap: 0.5rem; max-width: 22rem; height: 38px;
+  padding: 0 0.75rem; border: 1px solid var(--wso2-bar-control-border); border-radius: var(--wso2-radius);
+  background: var(--wso2-bar-control-bg); color: var(--wso2-bar-text);
+  font: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer; transition: var(--wso2-hover-transition);
+}
+.wso2-edition-dropdown .wso2-menu__button { font-size: 0.875rem; }
+.wso2-menu__button:hover, .wso2-menu__button[aria-expanded='true'] { border-color: var(--wso2-accent); }
+.wso2-menu__button-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wso2-menu__icon { flex: none; }
+.wso2-caret {
+  width: 0.4rem; height: 0.4rem; border-style: solid; border-color: currentColor; border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-2px) rotate(45deg); flex: none; opacity: 0.85; transition: var(--wso2-chevron-transition);
+}
+.wso2-menu__button[aria-expanded='true'] .wso2-caret { transform: translateY(1px) rotate(-135deg); }
+
+/* Dropdowns: light panels, radius 12, rows that tint on hover; the current
+   row is the orange wash. */
+.wso2-menu__panel {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: calc(var(--ifm-z-index-fixed) + 1);
+  min-width: 20rem; max-height: calc(100vh - 8.75rem); overflow-y: auto; padding: 0.375rem;
+  background: var(--wso2-surface); color: var(--wso2-text); font-size: 0.9375rem; font-weight: 400;
+  border: 1px solid var(--wso2-divider); border-radius: var(--wso2-radius-lg); box-shadow: var(--wso2-shadow-dropdown);
+}
+.navbar .wso2-menu__panel :focus-visible { outline-color: var(--wso2-focus); }
+.wso2-menu__panel[hidden] { display: none; }
+.wso2-menu__panel--wide { width: min(37.5rem, calc(100vw - 3.5rem)); padding: 1rem 1.25rem 1.125rem; }
+.wso2-menu__columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1.5rem; }
+.wso2-menu__group { padding: 0.25rem 0 0.625rem; }
+.wso2-menu__group-label {
+  margin: 0 0 0.25rem; padding: 0 0.625rem 0.5rem; border-bottom: 1px solid var(--wso2-divider);
+  font-size: 0.8125rem; line-height: 1.3; font-weight: 700; color: var(--wso2-text);
+}
+.wso2-edition-dropdown .wso2-menu__group-label { border-bottom: 0; padding: 0.375rem 0.625rem 0.125rem; font-size: 0.75rem; color: var(--wso2-text-muted); }
+.wso2-menu__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.wso2-menu__link {
+  display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+  padding: 0.5rem 0.625rem; border-radius: var(--wso2-radius-row);
+  color: var(--wso2-text); font-weight: 500; line-height: 1.35; transition: var(--wso2-hover-transition);
+}
+.wso2-menu__link:hover { background: var(--wso2-hover); color: var(--wso2-text); text-decoration: none; }
+/* The current one carries aria-current (a stable hook, the same specificity as a class). */
+.wso2-menu__link[aria-current] { background: var(--wso2-active-bg); color: var(--wso2-active); font-weight: 600; }
+.wso2-latest {
+  margin-left: 0.5rem; padding: 0 0.4rem; border-radius: 999px; background: var(--wso2-selected);
+  color: var(--wso2-hint-ok); font-size: 0.75rem; font-weight: 600;
+}
+.wso2-menu__muted { color: var(--wso2-text-muted); font-weight: 400; }
+.wso2-hint { flex: none; font-size: 0.75rem; font-weight: 500; color: var(--wso2-text-muted); white-space: nowrap; }
+.wso2-menu__link[aria-current] .wso2-hint { color: var(--wso2-text-muted); }
+.wso2-hint--same { color: var(--wso2-hint-ok); }
+.wso2-hint--missing { color: var(--wso2-hint-missing); }
+.wso2-badge {
+  margin-left: 0.4rem; padding: 0 0.35rem; font-size: 0.7rem; border: 1px solid var(--wso2-border);
+  border-radius: 999px; color: var(--wso2-text-muted); vertical-align: 1px;
+}
+.wso2-menu__footer { border-top: 1px solid var(--wso2-divider); margin-top: 0.375rem; padding-top: 0.375rem; }
+.wso2-menu__action, .wso2-menu__footer-link {
+  display: block; width: 100%; padding: 0.5rem 0.625rem; border: 0; border-radius: var(--wso2-radius-row);
+  background: none; color: var(--wso2-link); font: inherit; font-weight: 600; text-align: left; cursor: pointer;
+}
+.wso2-menu__footer-link { margin-top: 0.25rem; border-top: 1px solid var(--wso2-divider); border-radius: 0; padding-top: 0.75rem; }
+.wso2-menu__action:hover, .wso2-menu__footer-link:hover { color: var(--wso2-link-hover); text-decoration: none; }
+.wso2-external { color: var(--wso2-text-muted); }
+
+/* Search: a quiet field on the navy bar, a pill on the Landing hero. */
+.wso2-search {
+  display: inline-flex; align-items: center; gap: 0.625rem; width: 15rem; height: 36px; margin: 0 0.5rem;
+  padding: 0 0.875rem; border: 1px solid var(--wso2-bar-search-border); border-radius: var(--wso2-radius);
+  background: var(--wso2-bar-search-bg); color: var(--wso2-bar-text-muted); font: inherit; font-size: 0.875rem; cursor: pointer;
+  transition: var(--wso2-hover-transition);
+}
+.wso2-search:hover { border-color: var(--wso2-accent); }
+.wso2-search__icon { flex: none; color: var(--wso2-accent); }
+.wso2-search__label { flex: 1; text-align: left; }
+.wso2-search__keys {
+  padding: 0 0.3rem; border: 1px solid var(--wso2-bar-key-border); border-bottom-width: 2px; border-radius: var(--wso2-radius-xs);
+  background: var(--wso2-bar-key-bg); box-shadow: none; color: var(--wso2-bar-text-muted); font: inherit; font-size: 0.6875rem; font-weight: 500;
+}
+.wso2-search--hero {
+  width: min(38.75rem, 100%); height: 52px; margin: 1rem auto 0; padding: 0 1.25rem; gap: 0.75rem;
+  border-color: var(--wso2-hero-search-border); border-radius: 999px; font-size: 1rem; color: var(--wso2-landing-text-muted);
+}
+.wso2-search--hero .wso2-search__keys { margin-left: auto; }
+
+/* The colour-mode toggle: a 36px outlined square. Docusaurus gives it no
+   stable class, so it is reached by structure: the clean-btn button in the
+   navbar's right-hand items (no Platform component uses clean-btn). */
+.navbar__items--right > div > button.clean-btn {
+  width: 36px; height: 36px; border: 1px solid var(--wso2-bar-toggle-border); border-radius: var(--wso2-radius);
+  background: var(--wso2-bar-control-bg); color: var(--wso2-bar-text);
+}
+.navbar__items--right > div > button.clean-btn:hover { border-color: var(--wso2-accent); background: var(--wso2-bar-control-bg); }
+
+/* Phones: "Docs" moves into the menu; the product and version buttons stay
+   in the bar, compact; search becomes an icon; the dropdowns span the bar. */
+@media (max-width: 996px) {
+  .navbar { padding: 0 var(--wso2-phone-margin); }
+  .navbar .wso2-brand { display: none; }
+  .navbar .wso2-menu.navbar__item { display: block; position: static; }
+  .wso2-menu__button { height: 34px; padding: 0 0.5rem; gap: 0.375rem; font-size: 0.875rem; }
+  .wso2-product-switcher .wso2-menu__button { max-width: 10rem; }
+  .wso2-menu__panel { left: var(--wso2-phone-margin); right: var(--wso2-phone-margin); width: auto; min-width: 0; top: calc(100% + 4px); }
+  .wso2-menu__panel--wide { width: auto; }
+  .wso2-menu__columns { grid-template-columns: minmax(0, 1fr); }
+  .navbar .wso2-search { width: auto; margin: 0; padding: 0 0.5rem; border-color: transparent; background: none; }
+  .navbar .wso2-search .wso2-search__label, .navbar .wso2-search .wso2-search__keys { display: none; }
+}
+
+/* ---- Docs section menu ------------------------------------------------- */
+/* The section's title, then one entry per Doc space: the open one carries
+   this deployment's tree; the others are one line, name left and version
+   dropdown right. Entries are sidebar rows (custom.css), divided by a line. */
+.wso2-section__title {
+  list-style: none; padding: 0.25rem 0.75rem 0.5rem;
+  font-size: 0.75rem; line-height: 1.3; font-weight: 700; letter-spacing: 0.04em; color: var(--wso2-text-muted);
+}
+.menu .wso2-entry { border-top: 1px solid var(--wso2-divider); padding-top: 0.375rem; margin-top: 0.375rem; }
+.wso2-entry__head { display: flex; align-items: center; gap: 0.5rem; }
+.wso2-entry__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wso2-entry--open > .wso2-entry__head > .menu__link.wso2-entry__name { color: var(--wso2-text); font-weight: 600; }
+.wso2-entry__version {
+  flex: none; display: inline-flex; align-items: center; gap: 0.35rem; max-width: 10rem;
+  padding: 0.125rem 0.5rem; border: 1px solid var(--wso2-border); border-radius: var(--wso2-radius-row);
+  background: var(--wso2-bg); color: var(--wso2-text); font: inherit; font-size: 0.8125rem; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.wso2-entry__version:hover { border-color: var(--wso2-accent); }
+.wso2-entry__version > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wso2-entry__version[aria-expanded='true'] .wso2-caret { transform: translateY(1px) rotate(-135deg); }
+.wso2-entry__versions {
+  list-style: none; display: grid; gap: 2px; width: max-content; min-width: 8rem; max-width: 100%;
+  margin: 0.3rem 0 0.3rem auto; padding: 0.375rem;
+  border: 1px solid var(--wso2-divider); border-radius: var(--wso2-radius-lg); background: var(--wso2-surface);
+  box-shadow: var(--wso2-shadow-dropdown);
+}
+.wso2-entry__versions[hidden] { display: none; }
+.wso2-entry__version-link {
+  display: block; padding: 0.375rem 0.625rem; border-radius: var(--wso2-radius-row);
+  color: var(--wso2-text); font-size: 0.875rem; font-variant-numeric: tabular-nums; transition: var(--wso2-hover-transition);
+}
+.wso2-entry__version-link:hover { background: var(--wso2-hover); color: var(--wso2-text); text-decoration: none; }
+.wso2-entry__version-link[aria-current] { background: var(--wso2-active-bg); color: var(--wso2-active); font-weight: 600; }
+.wso2-entry__tag {
+  display: inline-block; margin: 0.3rem 0 0; padding: 0 0.5rem;
+  border-radius: 999px; background: var(--wso2-info-bg); color: var(--wso2-info-fg); font-size: 0.75rem;
+}
+.wso2-crumb-section .breadcrumbs__link { color: var(--wso2-text-muted); }
+
+/* ---- Announcement and Edition notices ---------------------------------- */
+.wso2-announcement {
+  display: flex; justify-content: center; align-items: center; gap: 1rem; padding: 0.5rem 1rem;
+  background: var(--wso2-info-bg); color: var(--wso2-info-fg); font-size: 0.875rem;
+}
+.wso2-announcement__text { margin: 0; text-align: center; }
+.wso2-announcement a, .wso2-notice a { color: inherit; text-decoration: underline; font-weight: 600; }
+.wso2-announcement__dismiss, .wso2-notice__dismiss {
+  border: 0; background: none; color: inherit; font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0 0.25rem;
+}
+.wso2-notices { margin-bottom: 1.25rem; display: grid; gap: 0.5rem; }
+.wso2-notice {
+  display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem 1rem;
+  border: 1px solid; border-radius: var(--wso2-radius); font-size: 0.9375rem; line-height: 1.6;
+}
+.wso2-notice__body { flex: 1; }
+.wso2-notice--info, .wso2-notice--switch { background: var(--wso2-info-bg); border-color: var(--wso2-info-border); color: var(--wso2-info-fg); }
+.wso2-notice--warning { background: var(--wso2-warning-bg); border-color: var(--wso2-warning-border); color: var(--wso2-warning-fg); }
+.wso2-notice--eol { background: var(--wso2-error-bg); border-color: var(--wso2-error-border); color: var(--wso2-error-fg); }
+
+/* ---- End of page: feedback and page actions ---------------------------- */
+.wso2-page-end { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--wso2-divider); }
+.wso2-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.markdown .wso2-feedback p { margin: 0; }
+.wso2-feedback__question { font-weight: 600; }
+.wso2-feedback__buttons, .wso2-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.wso2-feedback__reasons { display: grid; gap: 0.5rem; flex-basis: 100%; }
+.wso2-button, .wso2-chip {
+  padding: 0.3rem 0.9rem; border: 1px solid var(--wso2-border); border-radius: 999px;
+  background: var(--wso2-bg); color: var(--wso2-text); font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer;
+  transition: var(--wso2-hover-transition);
+}
+.wso2-button:hover, .wso2-chip:hover { background: var(--wso2-hover); border-color: var(--wso2-accent-strong); }
+.wso2-page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 1rem; font-size: 0.875rem; font-weight: 500; }
+.wso2-muted { color: var(--wso2-text-muted); }
+
+/* ---- Footer ------------------------------------------------------------ */
+/* wso2.com's: the logo, then 14px columns with navy titles and muted links,
+   then the copyright and legal links over a line. */
+.wso2-footer {
+  border-top: 1px solid var(--wso2-divider); background: var(--wso2-bg); color: var(--wso2-text-muted);
+  font-size: 0.875rem; line-height: 1.5;
+}
+.wso2-footer a { color: var(--wso2-text-muted); transition: var(--wso2-hover-transition); }
+.wso2-footer a:hover { color: var(--wso2-link-hover); text-decoration: none; }
+.wso2-footer ul { list-style: none; margin: 0; padding: 0; }
+.wso2-footer__inner {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(11.25rem, 1fr)); gap: 2rem;
+  max-width: 80rem; margin: 0 auto; padding: 3rem 2rem 0;
+}
+.wso2-footer a.wso2-footer__logo { color: var(--wso2-text); align-self: start; }
+.wso2-footer__title { margin: 0 0 0.875rem; color: var(--wso2-text); font-size: 0.875rem; font-weight: 700; }
+.wso2-footer__col li { margin: 0 0 0.625rem; }
+.wso2-footer__bottom {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem 1.25rem;
+  width: calc(100% - 4rem); max-width: 76rem; margin: 2.25rem auto 0; padding: 1.25rem 0 1.75rem;
+  border-top: 1px solid var(--wso2-divider); font-size: 0.8125rem;
+}
+.wso2-footer__bottom p { margin: 0; }
+.wso2-footer__bottom ul { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+@media (max-width: 996px) {
+  .wso2-footer__inner { padding: 2.5rem var(--wso2-phone-margin) 0; gap: 1.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wso2-footer__logo { grid-column: 1 / -1; }
+  .wso2-footer__bottom { width: calc(100% - 2 * var(--wso2-phone-margin)); }
+}
+
+/* ---- Landing ----------------------------------------------------------- */
+/* The navy page in both modes: no docs bar, a grid behind a 64px hero, the
+   catalogue in one raised panel, then Learn and Community. */
+html:has(.wso2-landing) .navbar { display: none; }
+.wso2-landing {
+  padding: 0 2rem 6rem; color: var(--wso2-bar-text);
+  background-color: var(--wso2-landing-bg);
+  background-image:
+    radial-gradient(ellipse 60% 50% at 90% 70%, var(--wso2-landing-glow), transparent 70%),
+    linear-gradient(var(--wso2-landing-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wso2-landing-grid) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+}
+.wso2-landing > * { max-width: 64.75rem; margin-left: auto; margin-right: auto; }
+.wso2-landing :focus-visible { outline-color: var(--wso2-bar-focus); }
+.wso2-hero { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 7.5rem 0 3.5rem; text-align: center; }
+.wso2-hero__title {
+  margin: 0; font-family: var(--wso2-font-display); font-size: 4rem; line-height: 1.05; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--wso2-bar-text);
+}
+.wso2-hero__text { max-width: 45rem; margin: 0; color: var(--wso2-bar-text-muted); font-size: 1.0625rem; line-height: 1.6; }
+.wso2-popular { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1.375rem; font-size: 0.875rem; }
+.wso2-popular ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1.375rem; list-style: none; margin: 0; padding: 0; }
+.wso2-popular__label { color: var(--wso2-landing-text-muted); }
+.wso2-popular a {
+  color: var(--wso2-landing-text); text-decoration: underline; text-decoration-color: var(--wso2-landing-underline);
+  text-underline-offset: 4px; transition: var(--wso2-hover-transition);
+}
+.wso2-landing a:hover { color: var(--wso2-landing-hover); }
+.wso2-catalog {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.25rem), 1fr)); gap: 3.5rem;
+  margin-bottom: 4rem; padding: 3.5rem 4rem;
+  background: var(--wso2-landing-panel); border: 1px solid var(--wso2-landing-panel-border);
+  border-radius: var(--wso2-radius-xl); box-shadow: var(--wso2-shadow-landing-panel);
+}
+.wso2-family { display: flex; flex-direction: column; gap: 0.875rem; }
+.wso2-family__title {
+  margin: 0; padding-bottom: 0.875rem; border-bottom: 1px solid var(--wso2-landing-rule);
+  font-family: var(--wso2-font-display); font-size: 1.375rem; line-height: 1.25; font-weight: 700;
+  letter-spacing: -0.01em; color: var(--wso2-bar-text);
+}
+.wso2-family ul { display: flex; flex-direction: column; gap: 0.875rem; list-style: none; margin: 0; padding: 0; }
+.wso2-family a { color: var(--wso2-landing-text); font-size: 0.9375rem; transition: var(--wso2-hover-transition); }
+.wso2-family a:hover { text-decoration: none; }
+.wso2-landing .wso2-external { color: var(--wso2-landing-text-muted); }
+.wso2-landing__columns {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.25rem), 1fr)); gap: 3rem 3.5rem; padding: 0 4rem;
+}
+@media (max-width: 996px) {
+  .wso2-landing { padding: 0 var(--wso2-phone-margin) 4rem; }
+  .wso2-hero { padding: 3.5rem 0 2.5rem; gap: 1.25rem; }
+  .wso2-hero__title { font-size: 2.5rem; }
+  .wso2-catalog { gap: 2.5rem; padding: 2rem 1.5rem; margin-bottom: 3rem; }
+  .wso2-landing__columns { padding: 0 1.5rem; gap: 2.5rem; }
+}

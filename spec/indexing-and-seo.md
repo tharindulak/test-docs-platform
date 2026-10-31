@@ -1,6 +1,6 @@
 # Indexing and SEO
 
-Last checked against code: 2026-10-26
+Last checked against code: 2026-10-27
 
 What search engines and AI crawlers see: canonicals, titles, sitemaps, `noindex` and `robots.txt`. On-site search is in [search.md](search.md).
 
@@ -10,7 +10,7 @@ What search engines and AI crawlers see: canonicals, titles, sitemaps, `noindex`
 
 ## Canonicals
 
-Computed at build time from the `latest` Edition's published page list and redirect map, so a new release needs no rebuild of older versions. [F19] [F11]
+Computed at build time from the `latest` Edition's published page list and redirect map, so a new release needs no rebuild of older versions. The page keeps the canonical and `og:url` it was served with once it runs in the browser. [F19] [F11]
 
 | Page in | Canonical |
 |---|---|

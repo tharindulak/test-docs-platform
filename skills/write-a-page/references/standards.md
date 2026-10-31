@@ -410,6 +410,7 @@ type: how-to
 | `type` | Yes, or from the folder | one of `quick-start`, `tutorial`, `how-to`, `concept`, `reference`, `release-notes` | The page type. May be left out where the skeleton folder sets a default. |
 | `sidebar_label` | No | string | A shorter label for the sidebar, in sentence case. |
 | `sidebar_position` | No | number | Order within the folder's sidebar group. |
+| `sidebar_custom_props` | No | a mapping | Sidebar props. `icon` sets the page's sidebar icon, such as `sidebar_custom_props: { icon: octicons/rocket-16 }`; a folder sets its own in `_category_.yml` as `customProps: { icon: <name> }`. The names are listed in [Add a sidebar icon](https://docs.wso2.com/contribute/guides/add-a-sidebar-icon/#allowed-names), and the sidebar icons check rejects any other. |
 | `editions` | No | `cloud` or `self-hosted` | Limits the page to `cloud` or `self-hosted` (an Edition marker for the whole page). |
 | `selfHostedFrom` | No | an exact version such as `7.4.0`, or `next` | The first self-hosted version that has this page, or `next`. |
 | `cloudCounterpart` | No | string | Self-hosted-only pages (`editions: self-hosted`): the Cloud page that covers the same task, as its path in docs/, such as `guides/cloud-billing`. The page then stays out of Cloud, and the version dropdown maps the two pages to each other. Without it, Cloud shows the page labelled Self-hosted. |

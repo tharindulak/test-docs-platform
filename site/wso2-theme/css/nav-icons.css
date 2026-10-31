@@ -1,0 +1,30 @@
+/* Sidebar icons (Extension points): the inline SVG before a sidebar label
+   (site/src/components/NavIcon). 16px, fitted keeping its shape (a narrow
+   glyph is 14×16), 8px before the label, one grey in light and dark mode
+   (theme.css --wso2-nav-icon-color). It does not change on hover or for the
+   active entry: only the label does. */
+.wso2-nav-icon {
+  display: inline-block;
+  width: 16px;
+  margin-right: 8px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 0;
+}
+
+.wso2-nav-icon svg {
+  display: inline-block;
+  vertical-align: middle;
+  fill: var(--wso2-nav-icon-color);
+}
+
+.wso2-nav-icon svg * {
+  fill: var(--wso2-nav-icon-color);
+}
+
+/* The entries under one with an icon are indented 20px more, as on the
+   Identity Platform docs. */
+.menu .menu__list-item:has(> .menu__list-item-collapsible .wso2-nav-icon) > .menu__list,
+.menu .menu__list-item:has(> .menu__link .wso2-nav-icon) > .menu__list {
+  padding-left: 20px;
+}

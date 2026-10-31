@@ -2,16 +2,15 @@
 // runtime. Every file the bin entries and the Docusaurus site load, by import
 // or by a path built from import.meta.url, must be in the packed list, and the
 // Platform's own working files (spec, tickets, tests, fixtures, the converter)
-// must not be. The packed list comes from npm itself (npm pack --dry-run).
+// must not be. The packed list comes from npm itself (npm pack). The packed
+// package installed and building is test/build/package-files.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { builtinModules } from 'node:module';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadPolicy, publicManifest } from '../lib/manifest.mjs';
+import { pack } from './helpers/pack.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -36,8 +35,12 @@ const READS = [
   'schemas',
   // lib/compose.mjs DEFAULT_NAVIGATION, read by preview, build and check.
   'navigation',
-  // site/docusaurus.config.mjs's static directory; Docusaurus reads the site's package.json.
-  'site/static', 'site/package.json',
+  // Docusaurus reads the site's package.json.
+  'site/package.json',
+  // lib/theme-bundle.mjs: the shared theme's stylesheets, fonts and images in THEME_DIR.
+  'site/wso2-theme',
+  // lib/nav-icons.mjs: the sidebar icons copied into ICONS_DIR.
+  'icons',
 ];
 
 // Folders a shipped module names but no command reads.
@@ -46,7 +49,7 @@ const UNREAD = {
 };
 
 // What a published package never carries.
-const NEVER = ['.scratch/', '.claude/', '.agents/', '.github/', 'spec/', 'test/', 'fixtures/', 'migration/', 'scripts/',
+const NEVER = ['.cache/', '.githooks/', '.scratch/', '.claude/', '.agents/', '.github/', 'spec/', 'test/', 'fixtures/', 'migration/', 'scripts/',
   'skills/', 'standards/contribute/', 'site/.docusaurus/', 'site/build/', 'worker/local.mjs', 'worker/wrangler.jsonc', 'node_modules/'];
 
 const CODE = /\.(mjs|cjs|js|jsx)$/;
@@ -122,18 +125,6 @@ function trace() {
   return { files: [...files].map(rel).sort(), packages, missing };
 }
 
-// The package as npm packs it: its file list and the tarball (never published).
-let cachedPack;
-function pack() {
-  if (cachedPack) return cachedPack;
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-pack-'));
-  const r = spawnSync('npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', dir], { cwd: root, encoding: 'utf8' });
-  assert.equal(r.status, 0, r.stderr);
-  const [info] = JSON.parse(r.stdout);
-  process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
-  cachedPack = { files: new Set(info.files.map((f) => f.path)), tarball: path.join(dir, info.filename) };
-  return cachedPack;
-}
 const packed = () => pack().files;
 const covered = (p) => packed().has(p) || [...packed()].some((f) => f.startsWith(`${p}/`));
 
@@ -152,8 +143,31 @@ test('the package carries nothing the commands don\'t load or read', () => {
   const { files } = trace();
   const loaded = new Set(files);
   const under = (f, p) => f === p || f.startsWith(`${p}/`);
-  const extra = [...packed()].filter((f) => !loaded.has(f) && !READS.some((p) => under(f, p)) && !['package.json', 'README.md'].includes(f));
+  const extra = [...packed()].filter((f) => !loaded.has(f) && !READS.some((p) => under(f, p)) && !['package.json', 'README.md', 'THIRD-PARTY-NOTICES.md'].includes(f));
   assert.deepEqual(extra, []);
+});
+
+test('the third-party notices ship with the icons and fonts they attribute', () => {
+  assert.ok(packed().has('THIRD-PARTY-NOTICES.md'), 'THIRD-PARTY-NOTICES.md is packed');
+  const notices = fs.readFileSync(path.join(root, 'THIRD-PARTY-NOTICES.md'), 'utf8');
+  assert.match(notices, /CC BY 4\.0/, 'Font Awesome\'s licence');
+  assert.match(notices, /@primer\/octicons.*18\.0\.0/, 'the pinned Octicons');
+  for (const f of [...packed()].filter((x) => x.startsWith('icons/'))) {
+    assert.ok(notices.includes(path.basename(f)), `${f} is attributed`);
+  }
+  assert.equal(pkg.dependencies['@primer/octicons'], '18.0.0', 'Octicons are pinned');
+  // The theme's fonts, Inter and Inter Tight, each with its licence beside it.
+  const fonts = [...packed()].filter((x) => x.startsWith('site/wso2-theme/fonts/'));
+  for (const [family, licence] of [['Inter', 'OFL.txt'], ['Inter Tight', 'OFL-inter-tight.txt']]) {
+    const section = notices.split(/^## /m).find((x) => x.startsWith(`${family}\n`)) ?? '';
+    assert.match(section, /SIL Open Font License 1\.1/, `${family}'s licence`);
+    assert.ok(section.includes(licence) && fonts.includes(`site/wso2-theme/fonts/${licence}`), `${family}'s OFL ships with the fonts`);
+  }
+  for (const f of fonts.filter((x) => x.endsWith('.woff2'))) {
+    const [, tight, subset] = /^inter-(tight-)?(.*)-wght-normal\.woff2$/.exec(path.basename(f)) ?? [];
+    const section = notices.split(/^## /m).find((x) => x.startsWith(tight ? 'Inter Tight\n' : 'Inter\n')) ?? '';
+    assert.match(section, new RegExp(`\`${subset}\``), `${f} is attributed`);
+  }
 });
 
 test('every file read by name is packed', () => {
@@ -171,50 +185,4 @@ test('the shipped code imports no devDependency', () => {
 test('the Platform\'s working files are not packed', () => {
   const leaked = [...packed()].filter((f) => NEVER.some((n) => f === n || f.startsWith(n)));
   assert.deepEqual(leaked, []);
-});
-
-// Installed as npx installs it: the package under node_modules/ (here
-// .cache/packed/node_modules/@wso2/docs, so its dependencies resolve from the
-// Platform's own node_modules/). init starts a Doc space and build builds it.
-test('the packed package, installed under node_modules/, starts a Doc space and builds it', { timeout: 900_000 }, (t) => {
-  const installed = path.join(root, '.cache', 'packed', 'node_modules', '@wso2', 'docs');
-  fs.rmSync(installed, { recursive: true, force: true });
-  t.after(() => fs.rmSync(path.join(root, '.cache', 'packed'), { recursive: true, force: true }));
-  fs.mkdirSync(installed, { recursive: true });
-  execFileSync('tar', ['-xzf', pack().tarball, '-C', installed, '--strip-components=1']);
-  const cli = path.join(installed, 'bin', 'wso2-docs.mjs');
-  const env = { ...process.env, GITHUB_ACTIONS: '' };
-  delete env.WSO2_DOCS_CONTENT_REPOS;
-  delete env.WSO2_DOCS_MANIFEST;
-  const docs = (cwd, ...args) => spawnSync(process.execPath, [cli, ...args], { cwd, encoding: 'utf8', env });
-  const git = (dir, ...args) => execFileSync('git', ['-C', dir, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args], { stdio: 'ignore' });
-
-  const help = docs(root, '--help');
-  assert.equal(help.status, 0, help.stderr);
-  assert.match(help.stdout, /^Usage: wso2-docs <command>/);
-
-  // A new Content repo: init writes the Doc space and the repo root files.
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-packed-'));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const repoDir = path.join(dir, 'docs-mcp-hub');
-  fs.mkdirSync(repoDir);
-  git(repoDir, 'init', '-q', '-b', 'main');
-  const init = docs(repoDir, 'init', 'mcp-hub', '--title', 'MCP Hub', '--home', 'api-platform', '--github', 'wso2/docs-mcp-hub', '--cloud');
-  assert.equal(init.status, 0, init.stderr);
-  for (const f of ['README.md', 'CODEOWNERS', '.github/workflows/docs.yml', 'mcp-hub/docspace.yaml', 'mcp-hub/docs/index.mdx']) {
-    assert.ok(fs.existsSync(path.join(repoDir, f)), f);
-  }
-  git(repoDir, 'add', '-A');
-  git(repoDir, 'commit', '-q', '-m', 'Start MCP Hub');
-
-  // Its home section lists it (the section change merged first), as published.
-  const policy = structuredClone(loadPolicy());
-  policy.sections['api-platform'].pending = [{ at: 3, docSpace: 'mcp-hub' }];
-  const published = path.join(dir, 'manifest.json');
-  fs.writeFileSync(published, JSON.stringify({ schema: 1, environment: 'staging', ...publicManifest(policy, { environment: 'staging' }) }));
-  const out = path.join(dir, 'build');
-  const build = docs(repoDir, 'build', 'mcp-hub', '--published', published, '--out', out);
-  assert.equal(build.status, 0, build.stdout.slice(-3000) + build.stderr.slice(-3000));
-  assert.ok(fs.existsSync(path.join(out, 'index.html')), 'the home page');
-  assert.ok(fs.existsSync(path.join(out, 'get-started', 'quick-start', 'index.html')), 'a template page');
 });

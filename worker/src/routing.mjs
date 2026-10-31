@@ -141,3 +141,43 @@ export function feedbackTarget(manifest, page) {
   if (r.type !== 'object' || !r.space) return null;
   return { space: r.space, segment: r.segment, edition: r.edition };
 }
+
+// The shared theme (Releases and deployments: the shared theme). Every page
+// links /_platform/theme/v<major>/theme.css (and its favicons and logo under
+// img/): the live published theme of its Platform major, which the manifest's
+// `theme` names. A published theme is an immutable folder,
+// _releases/_theme/v<major>/<theme id>/, and the CSS fetches its fonts and
+// images from it by id: /_platform/theme/v<major>/<theme id>/<file>.
+// A theme id is <Platform version>.r<run id> (lib/shared-theme.mjs), so it
+// never looks like a theme file or folder name.
+export const THEME_PREFIX = '/_platform/theme/';
+export const THEME_SPACE = '_theme';
+export const THEME_ID = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\.r[0-9A-Za-z-]+$/;
+// The live theme keeps its address across publishes, so browsers keep it 5
+// minutes and may use a stale copy while they fetch the new one; a file by
+// theme id never changes.
+export const THEME_LIVE_CACHE = 'public, max-age=300, stale-while-revalidate=86400';
+export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
+
+export const themeKey = (major, id, rel) => `_releases/${THEME_SPACE}/v${major}/${id}/${rel}`;
+
+// /_platform/theme/v<major>/<rest> ->
+//   { type: 'object', key, cache, major, release, pinned }   by id (pinned) or the live theme
+//   { type: 'miss', major }                                    no live theme for that major, no file
+//   { type: 'bad' }                                            malformed path
+//   null                                                       not a theme path
+export function themeRoute(manifest, pathname) {
+  if (!pathname.startsWith(THEME_PREFIX)) return null;
+  const segs = segmentsOf(pathname);
+  if (!segs) return { type: 'bad' };
+  const [, , majorSeg, ...rest] = segs;
+  const major = /^v(\d+)$/.exec(majorSeg ?? '')?.[1];
+  if (!major || !rest.length || pathname.endsWith('/') || rest.some((s) => s === '..' || s === '.' || s.includes('\\'))) return { type: 'miss', major: major ?? null };
+  if (THEME_ID.test(rest[0])) {
+    if (rest.length < 2) return { type: 'miss', major };
+    return { type: 'object', key: themeKey(major, rest[0], rest.slice(1).join('/')), cache: IMMUTABLE_CACHE, major, release: rest[0], pinned: true };
+  }
+  const live = manifest?.theme?.[`v${major}`]?.release;
+  if (!live) return { type: 'miss', major };
+  return { type: 'object', key: themeKey(major, live, rest.join('/')), cache: THEME_LIVE_CACHE, major, release: live, pinned: false };
+}

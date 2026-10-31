@@ -1,7 +1,8 @@
 # The Platform's own checks: the intake record check on pull requests (a
 # required check, for intake's auto-merging pull requests), unit and
 # end-to-end tests (including the local edge), the workflow linter and a
-# dry-run bundle of the Edge Worker.
+# dry-run bundle of the Edge Worker; on a pull request that changes the theme
+# (site/wso2-theme/), axe on the Sandbox.
 name: CI
 
 on:
@@ -62,3 +63,78 @@ jobs:
         run: |
           npx wrangler deploy --dry-run -c worker/wrangler.jsonc --env staging --outdir "$RUNNER_TEMP/edge-staging"
           npx wrangler deploy --dry-run -c worker/wrangler.jsonc --env production --outdir "$RUNNER_TEMP/edge-production"
+
+  # A theme change goes live without a rebuild, so it is checked before it
+  # merges: axe on Sandbox Cloud pages with the theme, light and dark, at 1280
+  # and 375 px (scripts/theme-axe.mjs). Any violation fails the pull request.
+  theme-axe:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The merge commit and its first parent, the base branch.
+          fetch-depth: 2
+      - name: Does the pull request change the theme?
+        id: changes
+        run: |
+          if git diff --quiet HEAD^1 HEAD -- site/wso2-theme/; then theme=false; else theme=true; fi
+          echo "theme=$theme" >> "$GITHUB_OUTPUT"
+          echo "Changes site/wso2-theme/: $theme"
+      # The Sandbox is private: a pull request from a fork, or a run without
+      # CONTENT_READ_TOKEN, can't check it out. The job then fails saying so,
+      # and a Platform team member runs the check from a branch in this repo.
+      - name: Check out the Sandbox Content repo
+        id: sandbox
+        if: steps.changes.outputs.theme == 'true'
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: wso2/docs-sandbox
+          path: _content/docs-sandbox
+          token: ${{ secrets.CONTENT_READ_TOKEN || github.token }}  # private Content repos (PENDING INFRA)
+          persist-credentials: false
+      - name: Stop when the Sandbox can't be checked out
+        if: steps.changes.outputs.theme == 'true' && steps.sandbox.outcome != 'success'
+        env:
+          FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+          TOKEN: ${{ secrets.CONTENT_READ_TOKEN != '' }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$FORK" = true ]; then
+            why="this pull request comes from a fork, and a fork's run gets no secrets"
+          elif [ "$TOKEN" != true ]; then
+            why="CONTENT_READ_TOKEN is not set for this run"
+          else
+            why="CONTENT_READ_TOKEN can't read it"
+          fi
+          msg="axe on the theme needs the private Sandbox Content repo (wso2/docs-sandbox), and this run can't check it out: $why. The theme change is not checked. A Platform team member must run the check from a branch in $REPO, where CONTENT_READ_TOKEN reads the Sandbox: push the change to a branch there and open the pull request from it."
+          echo "::error title=theme-axe did not run::$msg"
+          printf '### axe on the theme did not run\n\n%s\n' "$msg" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+      - if: steps.changes.outputs.theme == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.changes.outputs.theme == 'true'
+        run: npm ci
+      - name: Build the Landing deployment and Sandbox Cloud
+        if: steps.changes.outputs.theme == 'true'
+        env:
+          # The menus compose from the fixture Content repos, as the build tests do.
+          WSO2_DOCS_CONTENT_REPOS: ${{ github.workspace }}/fixtures/content-repos
+        run: |
+          node bin/wso2-docs.mjs build --landing --out "$RUNNER_TEMP/landing"
+          node bin/wso2-docs.mjs build _content/docs-sandbox/sandbox --edition cloud --out "$RUNNER_TEMP/sandbox"
+      - name: axe on Sandbox pages (light and dark, 1280 and 375 px)
+        if: steps.changes.outputs.theme == 'true'
+        run: node scripts/theme-axe.mjs --landing "$RUNNER_TEMP/landing" --sandbox "$RUNNER_TEMP/sandbox" --config-out "$RUNNER_TEMP/pa11y-theme.json" --screenshots "$RUNNER_TEMP/theme-axe"
+      - name: Keep the screenshots
+        if: always() && steps.changes.outputs.theme == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-axe-screenshots
+          path: ${{ runner.temp }}/theme-axe
+          if-no-files-found: ignore

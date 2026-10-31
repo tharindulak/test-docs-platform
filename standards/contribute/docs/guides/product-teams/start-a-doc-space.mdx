@@ -16,17 +16,20 @@ Start a Doc space with `npx @wso2/docs init <slug>`. The command writes the Doc 
 
 ## Write the directory
 
-1. Open a terminal in the repository's root, on a new branch from `main`. For a new repository, start it first:
+1. Open a terminal in the repository's root, on a new branch from `main`. A new repository is created by the Platform team with a first commit on `main` (see [Onboard a team](../platform-team/onboard-a-team.mdx)). Clone it and make the branch:
 
    ```bash
-   git init -b main docs-agent-platform
+   git clone https://github.com/wso2/docs-agent-platform.git
    cd docs-agent-platform
+   git switch -c add-agent-manager
    ```
+
+   To try `init` before the repository exists, start one locally instead, with a first commit: `git init -b main docs-agent-platform`, then commit a README.
 
 2. Run `init` with the slug, the home section and the Editions:
 
    ```bash
-   npx @wso2/docs init agent-manager --title "Agent Manager" --home agent-platform --cloud --self-hosted 1.0.0
+   npx @wso2/docs init agent-manager --title "Agent Manager" --home agent-platform --team agent-platform-docs --cloud --self-hosted 1.0.0
    ```
 
    | Option | What it sets | Default |
@@ -95,7 +98,7 @@ Merge in this order:
    npx @wso2/docs check agent-manager
    ```
 
-   The last line says `Result: pass`. Until step 1 of the merges is published, the **Doc space manifest** check reports `home-not-listing`.
+   Until step 1 of the merges is published, the **Doc space manifest** check fails, and so does the last line, `Result: fail`: it reports `home-not-listing`, or `unknown-section` while the home section is new, and `duplicate` while the product is still listed as not on WSO2 Docs yet. Every other check passes. Once the section's change is published, the last line says `Result: pass`.
 
 ## Next steps
 

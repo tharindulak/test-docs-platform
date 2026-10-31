@@ -13,12 +13,13 @@ This page lists what each environment's bucket holds, with the fields of each fi
 |---|---|---|
 | `_releases/<doc space>/<segment>/<release>/…` | `publish` | One build of one Docs deployment, never changed |
 | `_releases/…/<release>/_platform/release.json` | `publish`, last | Marks the folder complete |
-| `_platform/state.json` | `flip`, `rollback`, `retire` | Which release each Docs deployment points at |
+| `_releases/_theme/v<major>/<theme id>/…` | `theme publish` | One published shared theme: `theme.css`, `fonts/` and `img/`, never changed. Its `_platform/release.json`, written last, has `kind: "theme"`, `major`, `release`, `publishedAt`, `files`, `bytes`, `platformVersion` and `source`. |
+| `_platform/state.json` | `flip`, `rollback`, `retire`, `theme publish`, `theme rollback` | Which release each Docs deployment points at, and which theme each Platform major does |
 | `_platform/state.lock` | `flip`, `rollback`, `retire`, `manifest`, `redirects`, `gc`, while they run | The state lock: who is writing the state now (`owner`, `command`, `acquiredAt`, `expiresAt`). Absent when no one is. |
 | `_bundles/<sha256>.zip` | `store-bundles`; deleted by `gc-bundles` | Staging only: the Platform's copy of a bundle an intake record names, byte for byte. Never served. |
 | `_platform/composed.json` | `compose --storage` | The last good composed Deployment manifest |
 | `_platform/redirect-table.json` | `redirects` | The table last written to Workers KV, so the next run writes only the difference |
-| `manifest.json` | `flip`, `rollback`, `retire`, `manifest` | The published Deployment manifest |
+| `manifest.json` | `flip`, `rollback`, `retire`, `manifest`, `theme publish`, `theme rollback` | The published Deployment manifest |
 | `sitemap.xml` | The same | The sitemap index |
 | `llms.txt` | The same | The root `llms.txt`, listing every Doc space |
 | `chrome.json` | `flip` or `manifest` with `--chrome` | The runtime chrome content |
@@ -36,6 +37,8 @@ This page lists what each environment's bucket holds, with the fields of each fi
 | `_platform/search-records.json` | The search records the index step reads |
 | `_platform/markdown.json` | The Markdown twins, checked before upload |
 
+A build's own copy of the shared theme, `_platform/theme/`, isn't uploaded: the Edge Worker serves the published theme at `/_platform/theme/v<major>/`.
+
 ## Deployment state
 
 `_platform/state.json`:
@@ -50,6 +53,10 @@ This page lists what each environment's bucket holds, with the fields of each fi
 | `deployments.….edition` | string | The Edition, also for `latest` |
 | `deployments.….deployedAt` | date-time | When it was flipped to |
 | `deployments.….previous` | list | Up to 20 releases it served before, newest first |
+| `theme.v<major>.release` | string | The theme id of the major's live shared theme |
+| `theme.v<major>.platformVersion` | string | The Platform version that published it |
+| `theme.v<major>.deployedAt` | date-time | When the pointer moved to it |
+| `theme.v<major>.previous` | list | Up to 20 themes it pointed at before, newest first |
 
 ```json
 {
@@ -69,6 +76,7 @@ This page lists what each environment's bucket holds, with the fields of each fi
 | A Cloud tag | The same | `identity-platform/cloud-2026.10.26.1` → `cloud-2026.10.26.1` |
 | A rebuild | The deployed release's id, then `.r<run id>` | `1.0.0-docs.1.r9001` |
 | The Landing deployment | `landing-`, the date, then the run id | `landing-2026.10.27.9002` |
+| A published theme | The Platform version, then `.r<run id>` | `1.4.0.r9003` |
 
 ## The two manifests
 
@@ -84,6 +92,7 @@ This page lists what each environment's bucket holds, with the fields of each fi
 | `sources` | Yes: the inputs as read | No |
 | `composedAt` | Yes | No |
 | `environment`, `generatedAt`, `landing` | No | Yes |
+| `theme.v<major>.release` | No | Yes, once a theme is published: the live theme the Edge Worker serves at `/_platform/theme/v<major>/` |
 
 A Doc space whose `environments` leaves out this environment, such as the Sandbox on production, is not in its `manifest.json`.
 

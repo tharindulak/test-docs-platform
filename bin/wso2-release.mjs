@@ -10,7 +10,9 @@ import { DEFAULT_POLICY, loadPolicy } from '../lib/manifest.mjs';
 import { runComposeCommand } from '../lib/compose-command.mjs';
 import { COMPOSED_KEY, defaultContentDir } from '../lib/compose.mjs';
 import { readPlatformPins } from '../lib/platform-pins.mjs';
-import { platformDeploymentsFor, platformReleaseFor } from '../lib/platform-release.mjs';
+import {
+  VERSION_FILES, onlyVersionChanged, platformDeploymentsFor, platformReleaseChanges, platformReleaseFor, previousPlatformRelease,
+} from '../lib/platform-release.mjs';
 import { LOCK_KEY, STATE_WRITERS, readLock, withStateLock } from '../lib/state-lock.mjs';
 import {
   RECORD_DIR, bundlesFor, checkRecordChange, fetchBundle, planFromRecords, readRecord, recordChanges, runIntake,
@@ -22,14 +24,19 @@ import { execFileSync } from 'node:child_process';
 // The version of this Platform checkout (package.json): its major is the one a
 // Platform release rebuilds.
 const PLATFORM_VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+const PLATFORM_MAJOR = Number(PLATFORM_VERSION.split('.')[0]);
 import { openStorage } from '../lib/storage.mjs';
 import yaml from 'js-yaml';
 import { openKv } from '../lib/kv.mjs';
 import { crawl } from '../lib/crawl.mjs';
 import {
   checkBuild, copyRelease, flip, gc, planRelease, policyChanges, publishPreview, publishRelease, publishRuntime,
-  readState, releaseIdFor, releasePrefix, retire, rollback, syncRedirects,
+  readState, releaseIdFor, releasePrefix, retire, rollback, syncRedirects, THEME_SPACE,
 } from '../lib/release.mjs';
+import {
+  baselineConfig, compareA11y, flipTheme, listThemes, liveThemeUrl, publishTheme, rollbackTheme, sharedThemeOf, themeCheckPages, themeIdFor,
+  themePrefix, themeUrlBase,
+} from '../lib/shared-theme.mjs';
 import { COLLECTIONS } from '../lib/search/environments.mjs';
 import {
   checkConsistency, ensureCollection, ensureSearchOnlyKey, exportSearchInputs, indexDeployment, indexReleases, isSearchOnlyParent, readBuild,
@@ -81,12 +88,13 @@ const USAGE = `Usage: wso2-release <command> [options]
   flip      --storage <s> --env <name> --deploy <space>/<segment>=<release> [--deploy ...] [--chrome <file>] [--backwards]
             --backwards goes back to an earlier release (a withdrawal), as a rollback does
   rollback  --storage <s> --env <name> --deployment <space>/<segment> [--to <release>]
+            says so when the release it goes back to was built before the shared theme (its old built-in look)
   retire    --storage <s> --env <name> --deployment <space>/<segment>
             take down a deployment whose Edition the manifest no longer lists (removed, or a Legacy version now)
   manifest  --storage <s> --env <name> [--chrome <file>]      republish runtime files (policy changes)
   redirects --storage <s> --kv <file:path|cloudflare:namespace-id|local:url> [--dry-run]
   gc        --storage <s> [--keep 5] [--dry-run]
-  latest-pages --storage <s> --space <slug> --out <file>     pages.json of the deployed latest twin
+  latest-pages --storage <s> --space <slug> --out <file>     pages.json of the deployed latest twin (redirects.json beside it)
   route-lists --storage <s> --out <dir>                     every deployed pages.json, for docs: link checks
   crawl     --storage <s> --host <url> --deploy <space>/<segment>=<release> [...]   the staging crawl gate
   policy-diff --old <manifest.json>                        Doc spaces a manifest change must rebuild
@@ -98,10 +106,34 @@ const USAGE = `Usage: wso2-release <command> [options]
   platform-changes --base <sha> [--head <sha>] [--github-output <file>]
             whether a push to the Platform's main releases Contribute and the Landing deployment
   platform-release --tag v<major>.<minor>.<patch>        a Platform release tag: its version, major tag and
-            whether that tag moves (only to the newest release of the major); checks it against package.json
+            whether that tag moves (only to the newest release of the major); checks it against package.json.
+            Also the previous Platform release and whether this one rebuilds (rebuild: false when every
+            path changed since then is in site/wso2-theme/ or one no build reads: a theme-only release)
+
+The shared theme (site/wso2-theme/, served by the edge at /_platform/theme/v<major>/; one per Platform major):
+  theme publish  --storage <s> --env <name> [--run-id <n> | --release <id>] [--dir <bundle> [--major <n>] | --out <dir>]
+            [--upload-only] [--github-output <file>]
+            bundle this checkout's theme (lib/theme-bundle.mjs, into --out or a temporary folder) for theme id
+            <Platform version>.r<run id> (run id: GITHUB_RUN_ID, else a UTC timestamp), upload it to
+            _releases/_theme/v<major>/<id>/, then
+            point the major's theme at it and keep the newest 20. --dir publishes a bundle already written
+            for that id. --upload-only stops before the pointer: run it again with that --release to move it
+  theme publish  --storage <production> --from <staging> --env production --release <id> [--major <n>]
+            promotion: copy the tested folder byte for byte, then point production's theme at it
+  theme rollback --storage <s> --env <name> [--major <n>] [--to <id>]   back to the previous (or a named) theme
+  theme list     --storage <s> [--major <n>]                           every published theme; which is live
+  theme check-pages --storage <s> --host <url> [--major <n>] [--content <dir>] [--screenshots <dir>] [--out <file>]
+            [--baseline-out <file>] [--github-output <file>]
+            the theme checks' pa11y-ci config (axe, WCAG 2 AA): one sample page of every live deployment of
+            the major, light and dark, desktop and 375 px, a screenshot each; --baseline-out the same without
+            screenshots, for the run with the live theme; live=<theme id> (empty: none yet) to --github-output
+  theme compare --new <a11y.json> [--old <a11y.json>] [--summary <file>]
+            the axe gate: exits 1 on violations the new theme's run has and the live theme's run (--old)
+            hasn't; without --old (the major's first theme), on every violation. --summary appends Markdown
+  (--major defaults to this Platform's major; publish and rollback wait their turn on the state lock)
 
 Search (Typesense at TYPESENSE_URL with TYPESENSE_ADMIN_KEY; --env picks the collection):
-  search-setup --env <name> [--collection <c>] [--new-key]   collection, analytics rules, search-only parent key
+  search-setup --env <name> [--collection <c>] [--new-key]   collection, analytics rules, stop words, search-only parent key
                                                             (an existing parent is reused; --new-key makes another;
                                                             with TYPESENSE_SEARCH_PARENT_KEY set, that value is the
                                                             parent, made once and never printed: the VM gate's)
@@ -127,6 +159,7 @@ const parseDeploy = (spec) => {
   if (!m) throw new Error(`--deploy "${spec}" must look like <space>/<segment>=<release>`);
   return { space: m[1], segment: m[2], release: m[3] };
 };
+const notice = (m) => console.error(process.env.GITHUB_ACTIONS ? `::notice title=State lock::${m}` : `state lock: ${m}`);
 const need = (o, ...keys) => {
   for (const k of keys) if (o[k] === undefined) throw new Error(`--${k} is required`);
 };
@@ -164,6 +197,8 @@ const warn = (warnings) => warnings?.forEach((w) => console.warn(`warning: ${w}`
 
 async function main(argv) {
   const [command, ...rest] = argv;
+  // wso2-release theme <publish|rollback|list|check-pages> [options]
+  const sub = command === 'theme' && rest[0] && !rest[0].startsWith('-') ? rest.shift() : null;
   if (!command || command === 'help' || command === '--help') {
     console.log(USAGE);
     return 0;
@@ -197,6 +232,9 @@ async function main(argv) {
       work: { type: 'string' }, 'signer-repo': { type: 'string' }, report: { type: 'string' }, branch: { type: 'string' },
       asset: { type: 'string' }, sha256: { type: 'string' }, backwards: { type: 'boolean' },
       plan: { type: 'string' }, copy: { type: 'string' },
+      'run-id': { type: 'string' }, from: { type: 'string' },
+      screenshots: { type: 'string' }, 'upload-only': { type: 'boolean' }, 'baseline-out': { type: 'string' }, new: { type: 'string' },
+      summary: { type: 'string' },
     },
   });
   const storage = () => {
@@ -215,7 +253,8 @@ async function main(argv) {
     }
     return { policy: loadPolicy(DEFAULT_POLICY), from: 'local compose' };
   };
-  const needsPolicy = ['plan', 'flip', 'rollback', 'retire', 'manifest', 'policy-diff', 'search-index', 'search-check', 'intake'].includes(command);
+  const needsPolicy = ['plan', 'flip', 'rollback', 'retire', 'manifest', 'policy-diff', 'search-index', 'search-check', 'intake'].includes(command)
+    || (command === 'theme' && ['publish', 'rollback', 'check-pages'].includes(sub));
   const { policy } = needsPolicy ? await policyFrom() : { policy: null };
   const chrome = o.chrome ? fs.readFileSync(o.chrome, 'utf8') : undefined;
   const search = () => {
@@ -231,7 +270,6 @@ async function main(argv) {
   // bucket's state lock (lib/state-lock.mjs), so no writer cancels or
   // overwrites another. A dry run writes nothing and takes no lock.
   if (STATE_WRITERS.has(command) && !o['dry-run']) {
-    const notice = (m) => console.error(process.env.GITHUB_ACTIONS ? `::notice title=State lock::${m}` : `state lock: ${m}`);
     return withStateLock(storage(), () => run(), { command, log: notice });
   }
   return run();
@@ -365,10 +403,28 @@ async function main(argv) {
       return 0;
     }
     case 'platform-release': {
-      // platform-release.yml: is this tag a release, and does it move v<major>?
+      // platform-release.yml: is this tag a release, does it move v<major>,
+      // and does it rebuild, or only publish the theme?
       need(o, 'tag');
-      const tags = execFileSync('git', ['tag', '--list', 'v*'], { encoding: 'utf8' }).split('\n').filter(Boolean);
-      print(platformReleaseFor(o.tag, PLATFORM_VERSION, tags));
+      const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      const tags = git('tag', '--list', 'v*').split('\n').filter(Boolean);
+      const release = platformReleaseFor(o.tag, PLATFORM_VERSION, tags);
+      const previous = previousPlatformRelease(o.tag, tags);
+      let files = null;
+      try {
+        if (previous) files = git('diff', '--no-renames', '--name-only', previous, o.head ?? o.tag).split('\n').filter(Boolean);
+      } catch {
+        files = null; // the previous release isn't in this clone: rebuild
+      }
+      const versionOnly = (file) => {
+        try {
+          return VERSION_FILES.includes(file) && onlyVersionChanged(git('show', `${previous}:${file}`), git('show', `${o.head ?? o.tag}:${file}`));
+        } catch {
+          return false;
+        }
+      };
+      const { rebuild, themeOnly, outside } = platformReleaseChanges(files, { versionOnly });
+      print({ ...release, previous, rebuild, themeOnly, changed: files?.length ?? null, outside: outside?.slice(0, 50) ?? null });
       return 0;
     }
     case 'platform-changes': {
@@ -414,7 +470,13 @@ async function main(argv) {
       const [space, segment] = o.deployment.split('/');
       const { state, warnings } = await rollback(storage(), { environment: o.env, policy, space, segment, to: o.to });
       warn(warnings);
-      console.log(`${o.env}: ${o.deployment} rolled back to ${state.deployments[o.deployment].release}`);
+      const release = state.deployments[o.deployment].release;
+      console.log(`${o.env}: ${o.deployment} rolled back to ${release}`);
+      // A release built before the shared theme carries its own look.
+      const t = await sharedThemeOf(storage(), { space, segment, release });
+      if (t.shared === false) {
+        console.log(`note: ${o.deployment} ${release} was built before the shared theme (Platform ${t.platformVersion ?? 'unknown'}): it shows its old built-in look, and theme publishes don't reach it until it is rebuilt or released again`);
+      }
       return 0;
     }
     case 'retire': {
@@ -472,7 +534,10 @@ async function main(argv) {
       }
       fs.mkdirSync(path.dirname(path.resolve(o.out)), { recursive: true });
       fs.writeFileSync(o.out, obj.body);
-      console.log(`Wrote ${o.out} from ${o.space}/latest/${d.release}`);
+      // Its page moves too, beside it: an older version follows them to its canonical.
+      const moves = await s.get(`${releasePrefix(o.space, 'latest', d.release)}_platform/redirects.json`);
+      if (moves) fs.writeFileSync(path.join(path.dirname(path.resolve(o.out)), 'redirects.json'), moves.body);
+      console.log(`Wrote ${o.out}${moves ? ' and redirects.json beside it' : ''} from ${o.space}/latest/${d.release}`);
       return 0;
     }
     case 'crawl': {
@@ -523,7 +588,7 @@ async function main(argv) {
       const fixed = process.env.TYPESENSE_SEARCH_PARENT_KEY || undefined;
       if (fixed && o['new-key']) throw new Error('--new-key makes a key of its own; unset TYPESENSE_SEARCH_PARENT_KEY (on the VM, change it in typesense.env)');
       const key = await ensureSearchOnlyKey(client, collection, fixed, { fresh: o['new-key'] });
-      console.log(`${collection}: ${r.created ? 'created' : `exists${r.added.length ? `, added ${r.added.join(', ')}` : ''}`}; analytics rules in place`);
+      console.log(`${collection}: ${r.created ? 'created' : `exists${r.added.length ? `, added ${r.added.join(', ')}` : ''}${r.changed.length ? `, re-added ${r.changed.join(', ')}` : ''}`}; analytics rules and stop words in place`);
       // A parent given by value (the VM's typesense.env) is never printed.
       if (fixed) console.log(`${key.existed ? 'Reusing' : 'Made'} search-only parent key ${key.id} (${fixed.slice(0, 4)}…) from TYPESENSE_SEARCH_PARENT_KEY`);
       else if (key.existed) console.log(`Reusing search-only parent key ${key.id} (${key.value_prefix}…); its value was printed when it was made. Run with --new-key for another.`);
@@ -555,7 +620,8 @@ async function main(argv) {
       if (o.dir) {
         need(o, 'release');
         const { meta, records } = readBuild(path.resolve(o.dir));
-        await ensureCollection(client, collection);
+        const setup = await ensureCollection(client, collection, { update: false });
+        if (setup.behind.length) console.warn(`search: ${collection} lacks ${setup.behind.join(', ')} of the schema; run search-setup`);
         const r = await indexDeployment(client, { collection, records, meta, policy, release: o.release });
         console.log(`search: ${r.docSpace}/${r.edition} upserted ${r.imported} records, deleted ${r.deleted} stale`);
         return 0;
@@ -610,10 +676,133 @@ async function main(argv) {
       } else print(held ?? { free: true });
       return 0;
     }
+    case 'theme':
+      return runTheme(sub, { o, policy, storage });
     default:
       console.error(`Unknown command "${command}"\n\n${USAGE}`);
       return 2;
   }
+  }
+}
+
+// wso2-release theme ...: the shared theme's storage, pointer and checks
+// (lib/shared-theme.mjs). The upload needs no lock (its folder is new and
+// immutable); the pointer move and the theme gc wait their turn on it.
+async function runTheme(sub, { o, policy, storage }) {
+  const locked = (s, command, fn) => withStateLock(s, fn, { command: `theme ${command}`, log: notice });
+  const majorOf = () => Number(o.major ?? PLATFORM_MAJOR);
+  switch (sub) {
+    case 'publish': {
+      need(o, 'env');
+      const s = storage();
+      let major;
+      let release;
+      if (o.from) {
+        // Promotion: the bytes tested on staging are the bytes that ship.
+        need(o, 'release');
+        major = majorOf();
+        release = o.release;
+        const r = await copyRelease(openStorage(o.from), s, { space: THEME_SPACE, segment: `v${major}`, release });
+        console.log(`theme v${major}/${release}: ${r.skipped ? 'already in' : `copied ${r.files} files to`} ${s.name}`);
+      } else {
+        const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+        release = o.release ?? themeIdFor(PLATFORM_VERSION, o['run-id'] ?? process.env.GITHUB_RUN_ID ?? stamp);
+        let dir;
+        const ready = o.release && o.major !== undefined && (await s.get(`${themePrefix(majorOf(), release)}_platform/release.json`));
+        if (ready) {
+          // Already uploaded (an --upload-only run before): only the pointer moves.
+          major = majorOf();
+        } else if (o.dir) {
+          major = majorOf();
+          dir = path.resolve(o.dir);
+        } else {
+          // lib/theme-bundle.mjs writes site/wso2-theme/ as one self-contained bundle.
+          const bundle = await import('../lib/theme-bundle.mjs');
+          major = Number(bundle.themeMajor());
+          if (o.major !== undefined && Number(o.major) !== major) throw new Error(`This checkout's theme is v${major}'s, not v${o.major}'s; publish v${o.major}'s theme from a v${o.major} checkout (its releases/v${o.major} branch)`);
+          dir = path.resolve(o.out ?? fs.mkdtempSync(path.join(os.tmpdir(), 'wso2-theme-')));
+          fs.mkdirSync(dir, { recursive: true });
+          await bundle.writeThemeBundle(dir, { urlBase: themeUrlBase(major, release) });
+        }
+        if (ready) console.log(`${themePrefix(major, release)} is already complete; nothing uploaded`);
+        else {
+          const r = await publishTheme(s, dir, {
+            major, release, platformVersion: PLATFORM_VERSION,
+            source: { repo: process.env.GITHUB_REPOSITORY ?? null, sha: o['source-sha'] ?? process.env.GITHUB_SHA ?? null },
+          });
+          console.log(r.skipped ? `${r.prefix} is already complete; nothing uploaded` : `Published the theme (${r.files} files, ${r.bytes} bytes) to ${r.prefix}`);
+        }
+      }
+      if (o['github-output']) fs.appendFileSync(o['github-output'], `release=${release}\nmajor=${major}\n`);
+      if (o['upload-only']) {
+        console.log(`Uploaded only: point ${o.env}'s theme at it with theme publish --release ${release} --major ${major}`);
+        return 0;
+      }
+      const r = await locked(s, 'publish', async () => {
+        const flipped = await flipTheme(s, { environment: o.env, policy, major, release });
+        const removed = await gc(s, { only: THEME_SPACE });
+        return { ...flipped, removed };
+      });
+      warn(r.warnings);
+      if (!r.kept) console.log(`${o.env}: theme v${major} -> ${release}${r.from && r.from !== release ? ` (was ${r.from})` : ''}; pages load it from ${liveThemeUrl(major)}`);
+      if (r.removed.length) console.log(`Removed older themes: ${r.removed.join(', ')}`);
+      return 0;
+    }
+    case 'rollback': {
+      need(o, 'env');
+      const s = storage();
+      const major = majorOf();
+      const r = await locked(s, 'rollback', () => rollbackTheme(s, { environment: o.env, policy, major, to: o.to }));
+      warn(r.warnings);
+      console.log(`${o.env}: theme v${major} rolled back to ${r.state.theme[`v${major}`].release} (was ${r.from}); readers get it within 5 minutes`);
+      return 0;
+    }
+    case 'list': {
+      const rows = await listThemes(storage(), { major: o.major });
+      if (!rows.length) {
+        console.log('No published theme');
+        return 0;
+      }
+      const table = rows.map((t) => [t.major, t.release, t.live ? 'live' : t.previous ? 'earlier' : t.complete ? '' : 'incomplete',
+        t.publishedAt ?? '', t.platformVersion ?? '', t.source?.sha ? t.source.sha.slice(0, 12) : '']);
+      const head = ['major', 'theme', 'state', 'published', 'platform', 'commit'];
+      const width = head.map((h, i) => Math.max(h.length, ...table.map((r) => r[i].length)));
+      for (const r of [head, ...table]) console.log(r.map((c, i) => (i < r.length - 1 ? c.padEnd(width[i]) : c)).join('  ').trimEnd());
+      return 0;
+    }
+    case 'check-pages': {
+      need(o, 'host');
+      const major = majorOf();
+      const pins = readPlatformPins(policy, o.content ? path.resolve(o.content) : defaultContentDir());
+      const r = await themeCheckPages(storage(), { policy, major, pins, host: o.host, screenshots: o.screenshots ?? 'screenshots' });
+      for (const s of r.skipped) console.error(`theme checks: ${s.deployment} is left out: ${s.pin === null ? `${s.repo}'s docs.yml pins no Platform major` : `${s.repo} pins v${s.pin}`}`);
+      for (const d of r.deployments) console.error(`theme checks: ${d.deployment} (${d.release}) ${d.page}`);
+      if (o.screenshots) fs.mkdirSync(path.resolve(o.screenshots), { recursive: true });
+      const json = `${JSON.stringify(r.config, null, 2)}\n`;
+      if (o.out) fs.writeFileSync(o.out, json);
+      else process.stdout.write(json);
+      if (o['baseline-out']) fs.writeFileSync(o['baseline-out'], `${JSON.stringify(baselineConfig(r.config), null, 2)}\n`);
+      console.error(`theme checks: ${r.live ? `the baseline is the live theme v${major}/${r.live}` : `no live theme for v${major} yet: every violation blocks`}`);
+      if (o['github-output']) fs.appendFileSync(o['github-output'], `live=${r.live ?? ''}\n`);
+      return 0;
+    }
+    case 'compare': {
+      need(o, 'new');
+      const read = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
+      const r = compareA11y(o.old ? read(o.old) : null, read(o.new));
+      const lines = [
+        `axe, ${r.pages} checks: ${r.new} violations with the new theme${r.baseline ? `, ${r.old} with the live theme` : ' (no live theme to compare with: every violation blocks)'}`,
+        `Introduced by the new theme: **${r.introduced.length}**${r.baseline ? `; fixed by it: ${r.fixed}` : ''}${r.unchecked.length ? `; pages not checked: ${r.unchecked.length}` : ''}`,
+        ...r.introduced.slice(0, 50).map((i) => `- \`${i.code}\` at \`${i.selector ?? '?'}\` on ${i.url}`),
+        ...r.unchecked.map((u) => `- not checked: ${u}`),
+      ];
+      console.log(lines.join('\n'));
+      if (o.summary) fs.appendFileSync(o.summary, `${lines.join('\n\n').replace(/\n\n- /g, '\n- ')}\n`);
+      return r.pass ? 0 : 1;
+    }
+    default:
+      console.error(`Unknown theme command "${sub ?? ''}": theme publish, theme rollback, theme list, theme check-pages or theme compare\n\n${USAGE}`);
+      return 2;
   }
 }
 

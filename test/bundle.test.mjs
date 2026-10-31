@@ -159,14 +159,16 @@ test('the Doc space, tag and Edition: from the tag at HEAD, explicit flags win; 
 test('--dry-run packs and checks but writes nothing', () => {
   const repo = stubRepo();
   const out = tmp('out');
-  const before = fs.readdirSync(os.tmpdir()).length;
+  // Only the dry run's own scratch (lib/bundle.mjs): other test files make temporary folders in parallel.
+  const scratch = () => fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith('wso2-docs-bundle-')).sort();
+  const before = scratch();
   const r = makeBundle({ dir: repo, tag: 'identity-server/7.3.0-docs.1', out, dryRun: true, repo: 'x/y' });
   assert.equal(r.result, 'pass');
   assert.equal(r.dryRun, true);
   assert.match(r.sha256, /^[0-9a-f]{64}$/);
   assert.ok(r.bytes > 0 && r.files > 10);
   assert.deepEqual(fs.readdirSync(out), []);
-  assert.ok(fs.readdirSync(os.tmpdir()).length <= before, 'no temporary file is left');
+  assert.deepEqual(scratch().filter((n) => !before.includes(n)), [], 'no temporary file is left');
 });
 
 test('symlinks, references outside the packed directories, script files and code in pages stop the bundle', () => {

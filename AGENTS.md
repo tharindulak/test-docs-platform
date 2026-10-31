@@ -17,16 +17,14 @@ Use only the terms in `GLOSSARY.md`. When a term is added, renamed or redefined,
 
 ## Where things are
 
-- Wayfinder maps and tickets: `.scratch/wso2-doc-space/` (first map) and `.scratch/wso2-docs-navigation/` (navigation map). Older tickets name `/home/jo/workspace/wso2docs` as the tracker; read it as `.scratch/` here.
+- Wayfinder maps and tickets: `.scratch/wso2-doc-space/` (first map) and `.scratch/wso2-docs-navigation/` (navigation map). Older tickets name an earlier tracker folder; read it as `.scratch/` here.
 - The guides people follow: `standards/contribute/docs/get-started/product-teams.mdx` (product teams) and `standards/contribute/docs/get-started/platform-team.mdx` (the Platform team). Read them for how-to steps; the spec holds the rules.
 - Skills: `.claude/skills/` and `.agents/skills/`. Author skills shipped to writers: `skills/`.
 
 ## Working rules
 
 - **Outward-facing actions wait for the user's approval**: no push, no remote repo creation, no PRs or posting, no deploys. Requests carry no personal data.
-- **Stop only processes you started, by their PID.** `pkill` and `killall` reach other agents' runs.
-- **One heavy build at a time**, under `timeout 1500` with `DOCUSAURUS_NO_PERSISTENT_CACHE=1`, in your own worktree under `/home/jo/workspace/docs-platform-wt/`. The main checkout's `site/.docusaurus` is shared, so builds never run there.
-- **Large outputs go under `/home/jo/workspace/docs-platform-wt/_work-<task>/`**, since `/tmp` has a quota.
-- **Leave other people's branches, worktrees and files as they are**; delete only what you created.
-- **Merge to `main` only after the full suite (`npm test`) passes**, and run it again on the merged commit.
-- **End every commit message with** `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+- **Build outside the main checkout**, in a worktree of your own with its own `npm ci`: `site/.docusaurus` is per checkout, and so is the cache in `.cache/wso2-docs/`.
+- **Test as you go with `npm test -- <files>`**, the files your change touches, or `npm run test:fast`: everything but the builds (`test/build/`), as the pre-commit hook runs it. Run the full suite (`npm test`) once, on what gets merged: before you report when you work alone, or on the merged result when several agents' branches merge together, where each of those agents stops at `test:fast` and the `test/build/` files its change touches. A merged tree identical to a tested commit counts as tested. The suite sets its own timeout, cold Docusaurus cache and, on a machine that has one, the build lock.
+- **The Docusaurus cache misses Platform code changes** (`node_modules/.cache`, `site/node_modules/.cache`): delete it after you change `plugins/`, `site/`, `chrome/` or `lib/`, before a build you run by hand.
+- **Rules for this machine** (paths, the build lock, parallel agents, commit trailer) are in `AGENTS.local.md` in the main checkout, `$(git rev-parse --git-common-dir)/..`, when it exists. Read it before you build or commit.

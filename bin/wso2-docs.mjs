@@ -13,13 +13,12 @@
 import { spawnSync, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { UNVERSIONED, inferEditionId, showMarkersFlag } from '../lib/edition.mjs';
+import { UNVERSIONED, showMarkersFlag } from '../lib/edition.mjs';
 import { loadContentRepo } from '../lib/content.mjs';
-import { formatAnnotations, formatText, runCheck } from '../lib/check/index.mjs';
+import { formatAnnotations, formatText, pickEdition, runCheck } from '../lib/check/index.mjs';
 import { repoWords, writeValeConfig } from '../lib/check/lint.mjs';
 import { scaffoldPage } from '../lib/scaffold.mjs';
 import { DEFAULT_POLICY, loadPolicy } from '../lib/manifest.mjs';
@@ -29,6 +28,7 @@ import { typesenseClient } from '../lib/search/typesense.mjs';
 import { runApiCommand } from '../lib/api-commands.mjs';
 import { docSpaceDirs, planMainRelease, planPullRequest, planVersionRelease } from '../lib/content-repo.mjs';
 import { DOCS_WORKFLOW, IMMUTABLE_RELEASES, initDocSpace, initReport, refreshRootFiles } from '../lib/init.mjs';
+import { cacheDir } from '../lib/cache-dir.mjs';
 import { branchCut, formatReport } from '../lib/branch-cut.mjs';
 import { formatBundle, makeBundle } from '../lib/bundle.mjs';
 import { formatIssues } from '../lib/compose.mjs';
@@ -87,7 +87,7 @@ build options:
   --site-url <url>   Canonical host (default https://docs.wso2.com)
   --link-host <url>  Host for docs: links (default: --site-url)
   --base-url <path>  Override /<space>/<edition>/
-  --latest-pages <f> pages.json of the latest Edition, for canonicals
+  --latest-pages <f> pages.json of the latest Edition, for canonicals (its redirects.json beside it, if there, for page moves)
   --deployed <file>  The environment's deployment state (wso2-release status) or a
                      published manifest.json: the menus built into each page list
                      only deployed Doc spaces and this build's (default: the
@@ -213,16 +213,14 @@ function currentBranch(dir) {
   }
 }
 
-function resolveEdition(repo, explicit) {
-  if (repo.docspace.model === 'unversioned') return UNVERSIONED;
-  if (explicit) return explicit;
-  const branch = currentBranch(repo.root);
-  if (!branch) throw new Error('Not a git checkout; pass --edition');
-  return inferEditionId(branch, repo.docspace.model, repo.docspace);
-}
 
+// Run in the site's own folder, as the check's build does: webpack keeps its
+// persistent cache under the nearest package.json's node_modules/.cache, and a
+// Content repo has none, so run from there it would write .cache/ into the
+// repo. Every path passed is absolute.
 function runDocusaurus(args, env) {
   const r = spawnSync(process.execPath, [docusaurusBin, ...args], {
+    cwd: siteDir,
     stdio: 'inherit',
     env: { ...process.env, ...env },
   });
@@ -245,7 +243,7 @@ function runBuild(siteDir, out, env) {
 
 async function check(repo, o, policy) {
   if (o['vale-config']) {
-    const dir = path.join(os.homedir(), '.cache', 'wso2-docs', 'vale', repo.docspace.slug);
+    const dir = cacheDir('vale', repo.docspace.slug);
     fs.mkdirSync(dir, { recursive: true });
     console.log(writeValeConfig(dir, repoWords(repo.root)));
     return 0;
@@ -386,7 +384,7 @@ async function resolvePolicy(repo, o, { log = (m) => console.error(m) } = {}) {
   if (!r.manifest?.docSpaces?.[slug]) {
     throw new Error(`${slug} does not compose with ${source}:\n${formatIssues(r.errors.length ? r.errors : r.issues)}`);
   }
-  const dir = path.join(os.homedir(), '.cache', 'wso2-docs', 'composed');
+  const dir = cacheDir('composed');
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${slug}.json`);
   fs.writeFileSync(file, `${JSON.stringify(r.manifest, null, 2)}\n`);
@@ -421,7 +419,7 @@ async function startLocalSearch(repo, env) {
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  const out = path.join(os.homedir(), '.cache', 'wso2-docs', 'search-build', repo.docspace.slug, env.WSO2_DOCS_EDITION);
+  const out = cacheDir('search-build', repo.docspace.slug, env.WSO2_DOCS_EDITION);
   console.log('Building the Edition once for the search index…');
   const status = runDocusaurus(['build', siteDir, '--out-dir', out], { ...env, WSO2_DOCS_SHOW_MARKERS: '0' });
   if (status !== 0) {
@@ -475,7 +473,7 @@ async function main(argv) {
   };
   if (command === 'build' && o.landing) {
     showMarkersFlag({ showMarkers: o['show-markers'], landing: true });
-    const out = path.resolve(o.out ?? path.join(os.homedir(), '.cache', 'wso2-docs', 'build', '_landing'));
+    const out = path.resolve(o.out ?? cacheDir('build', '_landing'));
     console.log(`Building the Landing deployment → ${out}`);
     return runBuild(siteDir, out, { ...urls, WSO2_DOCS_LANDING: '1' });
   }
@@ -488,7 +486,7 @@ async function main(argv) {
   const policy = o['vale-config'] ? { file: undefined, from: 'none', issues: null } : await resolvePolicy(repo, o);
   if (policy.issues?.length && command !== 'check') console.error(`Compose with ${policy.from}:\n${issueLines(policy.issues)}`);
   if (command === 'check') return check(repo, o, policy);
-  const edition = resolveEdition(repo, o.edition);
+  const edition = pickEdition(repo, o.edition);
   const env = {
     WSO2_DOCS_CONTENT: repo.root,
     WSO2_DOCS_EDITION: edition,
@@ -501,7 +499,7 @@ async function main(argv) {
     case 'build': {
       const asLatest = Boolean(o['as-latest']);
       const markers = showMarkersFlag({ showMarkers: o['show-markers'], env: o.env, asLatest });
-      const out = path.resolve(o.out ?? path.join(os.homedir(), '.cache', 'wso2-docs', 'build', repo.docspace.slug, asLatest ? 'latest' : edition));
+      const out = path.resolve(o.out ?? cacheDir('build', repo.docspace.slug, asLatest ? 'latest' : edition));
       Object.assign(env, {
         WSO2_DOCS_AS_LATEST: asLatest ? '1' : '0',
         WSO2_DOCS_SHOW_MARKERS: markers,

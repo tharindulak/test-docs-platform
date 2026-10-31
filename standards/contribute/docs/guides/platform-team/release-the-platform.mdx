@@ -1,6 +1,6 @@
 ---
 title: Release the Platform
-description: Version and tag the Platform, follow the workflow that publishes it and rebuilds what pins its major, and update Content repositories.
+description: Version and tag the Platform, follow the workflow that publishes it, publishes its theme and rebuilds what pins its major, and update Content repositories.
 type: how-to
 sidebar_position: 9
 ---
@@ -18,7 +18,7 @@ A Platform release ships the Platform's `main` to every Docs deployment and ever
 
 | The release | Version |
 |---|---|
-| Fixes only | Patch: `1.3.1` |
+| Fixes only, such as a theme colour | Patch: `1.3.1` |
 | New things every team gets with no change of theirs, such as a component or a check | Minor: `1.4.0` |
 | A change a Content repository must make, such as a renamed workflow input | Major: `2.0.0` |
 
@@ -50,9 +50,41 @@ In `wso2/docs-platform`, open **Actions** > **Platform release**. The run is nam
 2. Publishes `@wso2/docs@1.4.0` to npm with trusted publishing, so `npx @wso2/docs` runs it. No npm token is involved.
 3. Moves the `v1` tag to `v1.4.0`, when it is the newest `1.x.y` release. `v1` is a tag, not a branch. Content repositories check out and call the Platform at `v1`, so their next run uses the new release.
 4. Makes the GitHub release `v1.4.0`, with notes generated from the merged pull requests. Edit the notes afterwards if you want.
-5. Starts **Release docs** with scope `all` at `v1.4.0`, when `v1` moved.
+5. Starts **Release docs** at `v1.4.0`, when `v1` moved: with scope `theme` for a theme-only release, else with scope `all`. The **Check the tag** step's output says which: `rebuild` is `false` for a theme-only release, and `outside` lists the paths that make it rebuild.
 
-A patch to an older minor, such as `v1.3.2` after `v1.4.0`, is published but moves no tag and rebuilds nothing, so `v1` never goes backwards. Re-running the run is safe: a version already on npm and an existing GitHub release are left as they are.
+A patch to an older minor, such as `v1.3.2` after `v1.4.0`, is published but moves no tag, rebuilds nothing and publishes no theme, so `v1` never goes backwards. Re-running the run is safe: a version already on npm and an existing GitHub release are left as they are.
+
+## Follow the theme
+
+Every Platform release of the newest minor publishes the shared theme, `site/wso2-theme/`, under a theme id such as `1.4.0.r9003`. A theme-only release does nothing else: every change since the previous Platform release is in `site/wso2-theme/`, `spec/`, `test/`, `.scratch/` or the Markdown files at the top of the repository, and `package.json` changed only in its version. Its run is named `Release docs: Platform rebuild theme`.
+
+1. In the **Release docs** run, open the **theme** job. It uploads the theme to staging, points staging's theme at the new one, waits until `<staging-host>` serves it, and runs the contrast check of the theme's colour pairs.
+2. axe doesn't run unless you ask for it: the summary says it was skipped, and gives the command that runs it. The Platform pull request's axe check already ran it on the theme change, the nightly reports run it on production, and a theme rollback takes seconds.
+3. When the contrast check passes, and production is on, the **theme-promote** job copies the same folder to production and points production's theme at it.
+
+### Run axe on the theme
+
+axe runs on the theme only when you ask for it. To gate a tag's theme on axe before it goes live, set the repository variable `THEME_A11Y` to `true` (**Settings** > **Secrets and variables** > **Actions** > **Variables**) before you push the tag, and remove it afterwards: the tag's own run then passes `a11y` on to **Release docs**. Or start a run by hand with **a11y** selected:
+
+- **Release docs** at the tag, with scope `theme`: **Actions** > **Release docs** > **Run workflow**, with the tag, such as `v1.4.0`, under **Use workflow from**. Or run `gh workflow run release.yml --ref v1.4.0 -f scope=theme -f a11y=true`. It publishes the theme again under a new theme id, and rebuilds nothing.
+- **Platform release** at the tag. It runs the release again and passes `a11y` on to **Release docs**. Unless the release is theme-only, that rebuilds every Docs deployment of the major again.
+
+With `a11y` on, the **theme** job runs axe twice on one sample page of every live Docs deployment of the major, in light and dark, at 1280 and 375 px: first with staging's live theme, before the pointer moves, then with the new one.
+
+1. Only violations the new theme introduces block: those the second run finds and the first didn't, on the same element of the same page, mode and width. The summary gives the violations with each theme, the ones introduced and the ones fixed. For the major's first theme there is nothing to compare with, so every violation blocks.
+2. The `theme-checks-<theme id>` artifact holds a screenshot of each page with the new theme, and both axe reports, `a11y.json` and `a11y-live.json`.
+3. The theme is promoted only when both the contrast check and axe pass.
+
+A pushed tag's own run without `THEME_A11Y` has `a11y` off, and makes its theme live on staging. A run by hand after it compares the theme with that same theme, so none of its violations counts as introduced: read the violations with the new theme in the summary, and if one needs fixing, roll the theme back or release a fix.
+
+A failed check leaves production as it is. Staging keeps the new theme: fix it and release again, or roll staging's theme back, as in [Roll back the theme](roll-back-a-release.mdx#roll-back-the-theme).
+
+To publish a theme by hand, such as on [WSO2 Docs running locally](run-it-locally.mdx), run:
+
+```bash
+node bin/wso2-release.mjs theme publish --storage s3://docs-staging --env staging
+node bin/wso2-release.mjs theme list --storage s3://docs-staging
+```
 
 ## Rebuild the Docs deployments
 
@@ -88,9 +120,10 @@ When the release changes `templates/content-repo/`, such as `docs.yml` or the br
 
 ## Verify
 
-1. The **Release docs** run of the release is named `Release docs: Platform rebuild all`, and its summary lists every Docs deployment pinned to the major, with a release id ending `.r<run id>`.
-2. A release folder's `_platform/release.json` has `"platformVersion": "1.4.0"`. The deployment state names the folder: `node bin/wso2-release.mjs status --storage s3://docs-staging`.
-3. `npx @wso2/docs@1.4.0 --help` runs the new version, and `git ls-remote --tags origin v1` names the same commit as `v1.4.0`.
+1. The **Release docs** run of the release is named `Release docs: Platform rebuild all` (or `theme`), and its summary lists every Docs deployment pinned to the major, with a release id ending `.r<run id>`, and the theme's checks.
+2. `curl -sI https://<staging-host>/_platform/theme/v1/theme.css` answers with an `x-docs-theme` header naming the new theme, such as `v1/1.4.0.r9003`.
+3. A release folder's `_platform/release.json` has `"platformVersion": "1.4.0"`. The deployment state names the folder: `node bin/wso2-release.mjs status --storage s3://docs-staging`.
+4. `npx @wso2/docs@1.4.0 --help` runs the new version, and `git ls-remote --tags origin v1` names the same commit as `v1.4.0`.
 
 To rehearse a rebuild locally, plan scope `docspace` against [WSO2 Docs running locally](run-it-locally.mdx), then build, publish and flip each Docs deployment of the plan as a release does:
 
@@ -107,6 +140,10 @@ node bin/wso2-release.mjs plan --scope docspace --space sandbox --rebuild-id 900
 | The npm step fails with a 404 or an authentication error | The trusted publisher on npmjs.com doesn't match: the repository, the workflow file name and the environment `npm` must all match. |
 | Moving the `v1` tag is refused | A tag ruleset protects `v*` tags. Let GitHub Actions bypass it for this repository. |
 | A rebuild fails a check that passed before | The new Platform is stricter, or broke something. The previous release stays live. Fix the Platform, or the page, and release again. |
+| A theme change rebuilt everything | Something outside the theme changed since the previous Platform release: the **Check the tag** output lists it in `outside`. |
+| The theme's axe gate fails (with `a11y` on) | The summary lists each violation the new theme introduced, with its rule, element and page. Fix the theme and release again. Violations the page already had with the live theme don't block. Production keeps its theme until the checks pass. |
+| The axe gate fails on a major's first theme | It has no live theme to compare with, so every violation blocks, including ones the pages had before. Fix them, then release again. |
+| `<staging-host> still serves theme …` | The Edge Worker didn't pick up the new pointer. Check the Edge Worker's deploy, then re-run the **theme** job. |
 | Pages still show the old Platform after the flip | Readers' browsers keep pages for `HTML_MAX_AGE`. Wait for it, or check the `x-docs-release` header. |
 | A build in CI uses old Platform output | Its cache was restored from another Platform commit. Build caches are keyed by the Platform commit: check the cache step's key. |
 | A Docs deployment isn't in the rebuild | If the plan lists it in `skipped`, its Content repository pins another major, or its `docs.yml` has no `PLATFORM_REF: v<n>`: refresh its root files with `init --root-files`. Otherwise its Edition is no longer in its Doc space's manifest. Take it down: see [End an Edition or send it back to its old site](end-an-edition.mdx#send-an-edition-back-to-its-old-site). |

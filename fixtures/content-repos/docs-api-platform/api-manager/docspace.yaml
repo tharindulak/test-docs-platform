@@ -20,9 +20,9 @@ editions:
     branch: api-manager/release/4.7.0
   - id: 4.6.0
     branch: api-manager/release/4.6.0
-legacyVersions:
   - id: 4.5.0
-    url: https://apim.docs.wso2.com/en/4.5.0/
+    branch: api-manager/release/4.5.0
+legacyVersions:
   - id: 4.4.0
     url: https://apim.docs.wso2.com/en/4.4.0/
   - id: 4.3.0

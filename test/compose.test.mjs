@@ -630,7 +630,7 @@ test('the suite\'s default world (fixtures/content-repos/, the Pilot\'s Doc spac
   // Every field the chrome, switching, search and release code read today.
   for (const k of ['displayName', 'family', 'model', 'status', 'latest', 'editions', 'editionNames', 'repo', 'editLinks', 'issues', 'cloud', 'listed']) assert.ok(k in is, k);
   assert.deepEqual({ model: is.model, latest: is.latest, family: is.family, cloud: is.cloud }, { model: 'versions-only', latest: '7.3.0', family: 'Identity Platform', cloud: { in: 'identity-platform' } });
-  assert.deepEqual(is.editions.map((e) => `${e.id}:${e.status}`), ['7.3.0:live', '7.2.0:live', '7.1.0:legacy', '7.0.0:legacy', '6.1.0:legacy', '6.0.0:legacy']);
+  assert.deepEqual(is.editions.map((e) => `${e.id}:${e.status}`), ['7.3.0:live', '7.2.0:live', '7.1.0:live', '7.0.0:legacy', '6.1.0:legacy', '6.0.0:legacy']);
   assert.deepEqual(pub.docSpaces['identity-platform'].editions, [{ id: 'cloud', status: 'live', parts: ['identity-server'] }]);
   assert.equal(pub.docSpaces['identity-platform'].latest, 'cloud');
   // The release pipeline's inputs stay in the composed file: prefixed tags and branches, and where each Doc space is.

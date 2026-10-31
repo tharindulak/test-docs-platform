@@ -70,9 +70,8 @@ export default {
     // Hidden during the Pilot: the Pilot repos are generated.
     editLinks: false,
     issues: { repo: 'wso2/docs-api-platform' },
-    editions: [{ id: '1.2.0' }, { id: '2026.09.24' }],
+    editions: [{ id: '1.2.0' }, { id: '2026.09.24' }, { id: '1.1.0', branch: 'ai-gateway/release/1.1.0' }],
     legacyVersions: [
-      { id: '1.1.0', url: `${LEGACY}ai-gateway/1.1.0/` },
       { id: '1.0.0', url: `${LEGACY}ai-gateway/1.0.0/` },
     ],
   },
@@ -107,6 +106,13 @@ export default {
     'Gateway Artifacts': { folder: 'guides/gateway-artifacts' },
     'Setup and Deployment': { folder: 'deploy-and-operate' },
     Reference: { folder: 'reference' },
+    // 1.1.0's nav: its proxies, then the later folders under older labels
+    // (its Observability uses the Cloud sub-section's entry below).
+    'LLM Proxy': { folder: 'guides/llm-proxy' },
+    'MCP Proxy': { folder: 'guides/mcp-proxy' },
+    'Real-Time AI Streaming': { page: 'guides/streaming-responses', ordered: true },
+    Deployment: { folder: 'deploy-and-operate' },
+    Performance: { folder: 'deploy-and-operate/performance' },
     'About this release': { page: 'release-notes/about-this-release', ordered: true },
     // The Cloud sub-section (main line only).
     LLM: { folder: 'guides/llm' },

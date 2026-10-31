@@ -99,7 +99,8 @@ export function ApiCode({ title, lang, code }) {
         <span>{title}</span>
         <button type="button" className="wso2-api-code__copy" onClick={copy} aria-label={`Copy ${title}`}>{copied ? 'Copied' : 'Copy'}</button>
       </figcaption>
-      <pre className={`wso2-api-code__pre language-${lang}`}><code>{code}</code></pre>
+      {/* Focusable, as Docusaurus code blocks are: a long sample scrolls sideways. */}
+      <pre className={`wso2-api-code__pre language-${lang}`} tabIndex={0}><code>{code}</code></pre>
     </figure>
   );
 }

@@ -9,8 +9,16 @@
 #      release of that major. v1 is a tag, not a branch, as GitHub Actions
 #      refs go: Content repos check out and call the Platform at it;
 #   4. makes the GitHub release, with generated notes;
-#   5. rebuilds the Docs deployments whose Content repo pins that major
-#      (Release docs, scope all, at this tag), when the major's tag moved.
+#   5. when the major's tag moved, publishes the shared theme and rebuilds
+#      the Docs deployments whose Content repo pins that major (Release docs,
+#      scope all, at this tag); or, when every path changed since the
+#      previous Platform release is in site/wso2-theme/ or in one no build
+#      reads (spec/, test/, .scratch/, root Markdown, package.json's
+#      version), only publishes the theme (scope theme): a theme-only
+#      release rebuilds nothing. axe on the theme runs only when asked: set
+#      the repository variable THEME_A11Y to true before pushing the tag, or
+#      run this workflow by hand at the release tag with a11y on; either is
+#      passed on to Release docs.
 # Re-running it is safe: a version already on npm and an existing GitHub
 # release are left as they are.
 # PENDING INFRA: on npmjs.com, @wso2/docs needs a trusted publisher for
@@ -22,6 +30,13 @@ run-name: "Platform release ${{ github.ref_name }}"
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  # By hand, at a release tag: the same release again, with a11y passed on.
+  workflow_dispatch:
+    inputs:
+      a11y:
+        description: Also run axe on the shared theme before Release docs promotes it
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -68,6 +83,8 @@ jobs:
             echo "version=$(jq -r .version "$RUNNER_TEMP/release.json")"
             echo "major-tag=$(jq -r .majorTag "$RUNNER_TEMP/release.json")"
             echo "move-major=$(jq -r .moveMajor "$RUNNER_TEMP/release.json")"
+            echo "rebuild=$(jq -r .rebuild "$RUNNER_TEMP/release.json")"
+            echo "previous=$(jq -r '.previous // "none"' "$RUNNER_TEMP/release.json")"
           } >> "$GITHUB_OUTPUT"
       - name: Publish @wso2/docs to npm
         env:
@@ -89,23 +106,40 @@ jobs:
         run: gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
       # A release made with the workflow token starts no workflow, so the
       # rebuild is dispatched here (workflow_dispatch is the exception).
-      - name: Rebuild the Docs deployments pinned to this major
+      # A theme-only release (rebuild false) publishes the theme alone; any
+      # other publishes it and rebuilds every live deployment of the major.
+      - name: Publish the theme and rebuild the Docs deployments pinned to this major
         if: steps.check.outputs.move-major == 'true'
-        run: gh workflow run release.yml --ref "$TAG" -f scope=all
+        env:
+          REBUILD: ${{ steps.check.outputs.rebuild }}
+          A11Y: ${{ inputs.a11y || vars.THEME_A11Y == 'true' }}
+        run: |
+          scope=all
+          [ "$REBUILD" = "false" ] && scope=theme
+          gh workflow run release.yml --ref "$TAG" -f scope="$scope" -f a11y="$A11Y"
       - name: Summary
         env:
           VERSION: ${{ steps.check.outputs.version }}
           MAJOR_TAG: ${{ steps.check.outputs.major-tag }}
           MOVED: ${{ steps.check.outputs.move-major }}
+          REBUILD: ${{ steps.check.outputs.rebuild }}
+          PREVIOUS: ${{ steps.check.outputs.previous }}
+          A11Y: ${{ inputs.a11y || vars.THEME_A11Y == 'true' }}
         run: |
           {
             echo "## Platform release $TAG"
             echo
             echo "- npm: \`@wso2/docs@$VERSION\`"
-            if [ "$MOVED" = true ]; then
+            if [ "$MOVED" = true ] && [ "$REBUILD" = false ]; then
               echo "- \`$MAJOR_TAG\` now points at $TAG"
-              echo "- Release docs (scope all) dispatched at $TAG"
+              echo "- Theme-only: every change since $PREVIOUS is in \`site/wso2-theme/\` or unbuilt; Release docs (scope theme) dispatched at $TAG, nothing rebuilt"
+            elif [ "$MOVED" = true ]; then
+              echo "- \`$MAJOR_TAG\` now points at $TAG"
+              echo "- Release docs (scope all: the theme and every live deployment of the major) dispatched at $TAG"
             else
               echo "- \`$MAJOR_TAG\` stays on a newer release; nothing rebuilt"
+            fi
+            if [ "$MOVED" = true ]; then
+              echo "- axe on the theme: $([ "$A11Y" = true ] && echo "on" || echo "off (the contrast check gates it; to run axe, set the repository variable THEME_A11Y to true before pushing the tag)")"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

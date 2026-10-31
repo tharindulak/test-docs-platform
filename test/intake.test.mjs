@@ -167,7 +167,7 @@ test('a release counts when its tag, state, asset and Edition pass; older, equal
     ghRelease('api-manager/4.7.0-docs.1', { prerelease: true }),
     ghRelease('api-manager/4.6.0-docs.1', { immutable: false }),
     ghRelease('ai-gateway/2026.09.24-docs.1', { assets: [] }),
-    ghRelease('api-manager/4.5.0-docs.1'),
+    ghRelease('api-manager/4.4.0-docs.1'),
     ghRelease('api-manager/9.9.9-docs.1'),
   ];
   const r = triage({ policy, repo: API, releases, records });
@@ -176,11 +176,11 @@ test('a release counts when its tag, state, asset and Edition pass; older, equal
     ['api-platform', 'cloud', 'api-platform/cloud-2026.10.27.2'],
   ]);
   const problems = Object.fromEntries(r.problems.map((p) => [p.tag, p.message]));
-  assert.deepEqual(Object.keys(problems).sort(), ['ai-gateway/2026.09.24-docs.1', 'api-manager/4.5.0-docs.1', 'api-manager/4.6.0-docs.1', 'api-manager/4.7.0-docs.1', 'api-manager/9.9.9-docs.1']);
+  assert.deepEqual(Object.keys(problems).sort(), ['ai-gateway/2026.09.24-docs.1', 'api-manager/4.4.0-docs.1', 'api-manager/4.6.0-docs.1', 'api-manager/4.7.0-docs.1', 'api-manager/9.9.9-docs.1']);
   assert.match(problems['api-manager/4.7.0-docs.1'], /prerelease/);
   assert.match(problems['api-manager/4.6.0-docs.1'], /immutable/);
   assert.match(problems['ai-gateway/2026.09.24-docs.1'], /exactly one asset, ai-gateway-2026\.09\.24-docs\.1\.docs\.zip/);
-  assert.match(problems['api-manager/4.5.0-docs.1'], /legacy/);
+  assert.match(problems['api-manager/4.4.0-docs.1'], /legacy/);
   assert.match(problems['api-manager/9.9.9-docs.1'], /not in the manifest/);
   assert.equal(r.problems.find((p) => p.tag === 'api-manager/9.9.9-docs.1').slug, 'api-manager');
   // A wrongly named asset, or two.

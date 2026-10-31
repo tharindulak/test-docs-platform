@@ -251,6 +251,16 @@ test('wso2-docs branch-cut --branch (the bot, after a cut made elsewhere) and --
   assert.equal(repo.git('rev-parse', 'branch-cut/ai-gateway/1.1.0^'), repo.git('rev-parse', 'main'));
   assert.equal(repo.git('show', 'branch-cut/ai-gateway/1.1.0:ai-gateway/docs/guides/later.mdx'), 'Added after the cut.');
 
+  // The cleanup branch exists (pushed by the person who cut, before the
+  // release branch): the bot's dry run still plans, so the workflow can read
+  // the cleanup branch's name and find it; a real run is refused.
+  const plan = run(repo, '--branch', 'ai-gateway/release/1.1.0', '--dry-run', '--format', 'json');
+  assert.equal(plan.status, 0, plan.stderr);
+  assert.deepEqual([JSON.parse(plan.stdout).slug, JSON.parse(plan.stdout).version], ['ai-gateway', '1.1.0']);
+  const twice = run(repo, '--branch', 'ai-gateway/release/1.1.0');
+  assert.equal(twice.status, 1);
+  assert.match(twice.stderr, /branch-cut\/ai-gateway\/1\.1\.0 already exists/);
+
   const wrong = run(repo, '--branch', 'feature/x');
   assert.equal(wrong.status, 1);
   assert.match(wrong.stderr, /feature\/x is not a release branch/);

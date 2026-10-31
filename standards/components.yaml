@@ -109,7 +109,7 @@ components:
     use: generated
     what: The searchable grid of the catalog layout, drawn from the page's data file.
     markdownForm: A list of the items shown in the Edition, each with its name linked, its status, its description and its other links. Logos are left out.
-    accessibility: Every item is in the server-rendered list; the search box has a label, the filter chips are buttons with aria-pressed in a labelled group, the result count is announced (role="status"), hidden items leave the reading order, and logos are decorative (alt="", the name is text). Checked by test/build.test.mjs and the nightly axe run.
+    accessibility: Every item is in the server-rendered list; the search box has a label, the filter chips are buttons with aria-pressed in a labelled group, the result count is announced (role="status"), hidden items leave the reading order, and logos are decorative (alt="", the name is text). Checked by test/build/build.test.mjs and the nightly axe run.
     owner: docs-platform
     since: Extension points in the Platform
   - name: ThemedImage
@@ -117,10 +117,17 @@ components:
     what: "An image with one file per colour theme, for screenshots taken in both: readers see the one matching their theme. `light` and `dark` are literal paths (relative ones are bundled like Markdown images), and `alt` describes both. Without `dark`, the light image shows in both themes. The theme's own `sources={{ light: '…', dark: '…' }}` form still works, imported from `@theme/ThemedImage`."
     example: '<ThemedImage light="../../assets/img/flow-light.png" dark="../../assets/img/flow-dark.png" alt="The flow designer with a new HTTP service" />'
     markdownForm: The light image, with its alt text.
-    accessibility: "One `alt` for both images, required like any image's; both are server-rendered and the theme hides the other. The build checks both files exist (test/build.test.mjs)."
+    accessibility: "One `alt` for both images, required like any image's; both are server-rendered and the theme hides the other. The build checks both files exist (test/build/build.test.mjs)."
     owner: docs-platform
     since: Integrator on the proof (Docusaurus-source conversion)
     imports: ['@theme/ThemedImage']
+  - name: NavIcon
+    use: generated
+    what: "A sidebar icon: an icon before a sidebar entry's label, named by the page (`sidebar_custom_props: { icon: <name> }` in front matter) or the folder (`customProps: { icon: <name> }` in `_category_.yml`). The build inlines the icon's SVG, 16px in one grey, at any level of the sidebar; names come from the Platform's list, and the sidebar icons check rejects any other. See Add a sidebar icon."
+    markdownForm: Nothing. Markdown twins and llms.txt keep the label only.
+    accessibility: Decorative. The SVG is aria-hidden and not focusable, so the entry's accessible name is its label; colour never carries meaning. Checked by test/build/build.test.mjs and the axe run.
+    owner: docs-platform
+    since: Sidebar icons (theme from the WSO2 product docs sites)
   - name: Tabs, TabItem, Details, Admonition, CodeBlock, Mermaid, DocCardList, Head, TOCInline
     use: written
     what: The Docusaurus theme components WSO2 content uses (admonitions are usually written with `:::note`).

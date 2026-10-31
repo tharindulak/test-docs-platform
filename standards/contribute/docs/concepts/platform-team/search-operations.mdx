@@ -51,7 +51,7 @@ A rollback or a taken-down Docs deployment always leaves drift. The rollback wor
 | A search-only parent key | Search the one collection | On staging, made on the VM with the admin key and kept beside it. The gate's `search-key` makes it once and scopes browser keys from it. |
 | The upload key and the gate key | Write search files into the VM's incoming folder; run the gate's search verbs | The `staging` environment's `DOCS_SEARCH_UPLOAD_KEY` and `DOCS_SEARCH_GATE_KEY` secrets, in the jobs that run no content code |
 | A scoped browser key | Search, with what the parent embeds, such as an expiry | The `SEARCH_KEY_STAGING` and `SEARCH_KEY_PRODUCTION` variables, baked into every build. Public by design. |
-| The Edge Worker's key, `TYPESENSE_SEARCH_KEY` | Search | A Worker secret, for the MCP endpoint's `search_docs` |
+| The Edge Worker's key, `TYPESENSE_SEARCH_KEY` | Search, until its expiry | A Worker secret, for the MCP endpoint's `search_docs`. Scoped from the same parent as the browser key, but a key of its own, so each changes without the other. |
 
 Every build carries both environments' browser keys and endpoints, and the browser picks one by the host it is served from. So the same bytes work on staging and, once promoted, on production. A host with no key shows search as unavailable instead of searching the wrong index.
 

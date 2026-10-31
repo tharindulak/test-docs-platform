@@ -3,5 +3,30 @@ theme:
   name: material
 extra:
   redoc_theme: light
+  # The theme's sidebar icons (docs-is en/base.yml extra.nav_icons).
+  nav_icons:
+    Home:
+      icon: octicons/home-16
+      level: 1
+    Guides:
+      icon: octicons/book-16
+      level: [1, 2, 3, 4]
+    Setup:
+      icon: octicons/gear-16
+      level: 1
+    Install:
+      icon: octicons/download-16
+      level: 1
+    Add MFA:
+      icon: assets/libs/custom-icons/mcp.svg
+    Connectors:
+      icon: octicons/beaker-16
+      level: 1
+    Sift:
+      icon: assets/images/sift-logo.svg
+      level: 2
+    Overview:
+      icon: octicons/file-16
+      level: 3
 markdown_extensions:
   - admonition

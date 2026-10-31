@@ -17,7 +17,7 @@ Which repos exist, what each holds, and how branches and tags name Docs releases
 
 | Path | Holds |
 |---|---|
-| `site/` | The one Docusaurus site, its theme wraps and components |
+| `site/` | The one Docusaurus site, its theme wraps and components, and the shared theme (`site/wso2-theme/`), which holds the Platform's stylesheets, its components' too |
 | `plugins/`, `lib/` | Remark plugins, build plugins, and the Platform's libraries (compose, release, switching, search, checks) |
 | `bin/` | The CLIs: `wso2-docs` (authors), `wso2-release` (pipeline), `wso2-reports` |
 | `worker/` | The Edge Worker |

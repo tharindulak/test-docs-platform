@@ -58,17 +58,17 @@ With `--records releases`, each planned Docs deployment names the bundle it buil
 | `gc-bundles --storage <s> --records <dir> [--dry-run]` | Deletes the `_bundles/<sha256>.zip` copies no intake record in `--records` names. A missing folder deletes nothing. It takes no state lock. |
 | `plan --scope landing --rebuild-id <id> --storage <s>` | The Landing deployment, built from the Platform alone, under release id `landing-<YYYY.MM.DD>.<id>` |
 | `platform-changes --base <sha> [--head <sha>] [--github-output <file>]` | Whether a change on the Platform's `main` releases Contribute, the Landing deployment, or both. No base: both. |
-| `platform-release --tag v<major>.<minor>.<patch>` | Checks a Platform release tag against `package.json`, and says whether it moves the `v<major>` tag (only to the newest release of the major) |
+| `platform-release --tag v<major>.<minor>.<patch>` | Checks a Platform release tag against `package.json`, and says whether it moves the `v<major>` tag (only to the newest release of the major). It also names the `previous` Platform release and says whether this one rebuilds: `rebuild` is `false`, and `themeOnly` `true`, when every path changed since `previous` is in `site/wso2-theme/` or in one no build reads. `outside` lists the paths that make it rebuild. |
 | `check --dir <build> --space <slug> --segment <seg> --edition <id>` | The structural check of a build before upload |
 | `publish --storage <s> --dir <build> --space <slug> --segment <seg> --edition <id> --tag <tag> [--release <id>] [--source-repo <owner/name>] [--source-sha <sha>]` | Uploads a build to its release folder. A complete folder is never uploaded twice. |
 | `flip --storage <s> --env <name> --deploy <space>/<segment>=<release> [--deploy …] [--chrome <file>] [--backwards]` | Points Docs deployments at releases in one state write, and republishes the runtime files. `--backwards` goes back to an earlier release, as a rollback does: a withdrawn release's way back. |
-| `rollback --storage <s> --env <name> --deployment <space>/<segment> [--to <release>]` | Flips one Docs deployment back to its previous release, or the one named |
+| `rollback --storage <s> --env <name> --deployment <space>/<segment> [--to <release>]` | Flips one Docs deployment back to its previous release, or the one named. It prints a `note:` when that release was built before the shared theme, so it shows its old built-in look. |
 | `retire --storage <s> --env <name> --deployment <space>/<segment>` | Takes down a Docs deployment whose Edition the manifest no longer lists |
 | `manifest --storage <s> --env <name> [--chrome <file>]` | Republishes `manifest.json`, `sitemap.xml` and `llms.txt` (and `chrome.json`) |
 | `redirects --storage <s> --kv <sink> [--dry-run]` | Compiles every live Docs deployment's redirects and writes only what changed |
 | `crawl --storage <s> --host <url> --deploy <space>/<segment>=<release> […]` | The crawl gate. Exits 1 on any failed page or link. |
 | `promote --storage <staging> --to <production> --deploy <space>/<segment>=<release> […]` | Copies release folders byte for byte between buckets |
-| `gc --storage <s> [--keep 5] [--dry-run]` | Deletes all but the newest releases of each Docs deployment, never the live one |
+| `gc --storage <s> [--keep 5] [--dry-run]` | Deletes all but the newest releases of each Docs deployment, and all but the newest 20 published themes of each Platform major, never the live one |
 | `latest-pages --storage <s> --space <slug> --out <file>` | The deployed latest twin's page list, for older versions' canonicals |
 | `route-lists --storage <s> --out <dir>` | Every deployed page list, for `wso2-docs check --routes` |
 | `preview --storage <s> --dir <build> --space <slug> --pr <n> --edition <id>` | Publishes a pull request preview |
@@ -78,6 +78,21 @@ With `--records releases`, each planned Docs deployment names the bundle it buil
 `flip`, `rollback`, `retire`, `manifest`, `redirects` and `gc` take the bucket's state lock while they run, and wait their turn when another command holds it, for up to 45 minutes. A dry run takes no lock. `flip` never moves a Docs deployment to a release published before its live one, unless the Edition is pinned to that release's tag; `rollback` and `flip --backwards` do.
 
 `<segment>` is an Edition id, `latest`, or `_` for an unversioned Doc space and the Landing deployment (`_landing/_`).
+
+## The shared theme
+
+| Command | What it does |
+|---|---|
+| `theme publish --storage <s> --env <name> [--run-id <n> \| --release <id>]` | Bundles the checkout's `site/wso2-theme/` for theme id `<Platform version>.r<run id>`, uploads it to `_releases/_theme/v<major>/<id>/`, points the major's theme at it, and deletes all but the newest 20. The run id is `GITHUB_RUN_ID`, else a UTC timestamp. |
+| `theme publish --storage <s> --env <name> --dir <bundle> --release <id> [--major <n>]` | The same with a bundle already written for that id. Its CSS's `url()`s must start with `/_platform/theme/v<major>/<id>/`. |
+| `theme publish … --upload-only` | Uploads the theme and stops before the pointer moves. `theme publish --release <id> --major <n>` then moves it, with no new upload. |
+| `theme publish --storage <production> --from <staging> --env production --release <id> [--major <n>]` | Promotion: copies the tested folder byte for byte, then points production's theme at it |
+| `theme rollback --storage <s> --env <name> [--major <n>] [--to <id>]` | Points the major's theme back at its previous theme, or the one named |
+| `theme compare --new <a11y.json> [--old <a11y.json>] [--summary <file>]` | The axe gate: exits 1 on violations the new theme's pa11y-ci report has and the live theme's (`--old`) hasn't, matched by rule and element on each page, mode and width, or on a page the new run couldn't check. Without `--old`, every violation blocks. Prints both counts; `--summary` appends them as Markdown. |
+| `theme list --storage <s> [--major <n>]` | Every published theme, newest first: which is `live`, which are `earlier` ones it can go back to |
+| `theme check-pages --storage <s> --host <url> [--major <n>] [--content <dir>] [--screenshots <dir>] [--out <file>] [--baseline-out <file>] [--github-output <file>]` | The pa11y-ci configuration of the theme checks: axe, WCAG 2 AA, on one sample page of every live Docs deployment of the major, in light and dark, at 1280 and 375 px, with a screenshot each. `--baseline-out` writes the same checks without screenshots, for the run with the live theme, and `--github-output` gets `live=<theme id>`, empty when the major has none yet. |
+
+`--major` defaults to this Platform's major. `theme publish` and `theme rollback` take the state lock for the pointer move, as `flip` does, and never move the theme to one published before the live one, except by rollback. Readers get a new theme within 5 minutes, the live theme's cache.
 
 ## Search
 

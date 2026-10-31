@@ -75,7 +75,7 @@ Set the **pool size**.
 Press <kbd>Ctrl</kbd>+<kbd>K</kbd>.<br/>Done.
 `,
   });
-  assert.equal(md, `## Set up
+  assert.equal(md, `## Set up {#set-up}
 
 > **Tip:** Keep the key safe.
 
@@ -227,7 +227,7 @@ title: Shared
 
 test('Cloud: a Self-hosted-only page carries the line under its title', () => {
   const md = twin({ 'page.mdx': '---\ntitle: Install\neditions: self-hosted\n---\n\n# Install\n\nInstall {edition.productName}.\n' }, { edition: 'cloud', vars: cloudVars, additions });
-  assert.equal(md, '# Install\n\n**Self-hosted only.**\n\nInstall WSO2 Identity Server.\n');
+  assert.equal(md, '# Install {#install}\n\n**Self-hosted only.**\n\nInstall WSO2 Identity Server.\n');
 });
 
 test('<Variants> must hold one Cloud and one Self-hosted form', () => {

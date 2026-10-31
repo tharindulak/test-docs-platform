@@ -14,6 +14,7 @@ Source: https://docs.wso2.com/contribute/reference/checks/
 | [Release branch scope](https://docs.wso2.com/contribute/reference/checks/#release-scope) | Blocks | No |
 | [Redirect coverage](https://docs.wso2.com/contribute/reference/checks/#redirects) | Blocks | Yes |
 | [Front matter](https://docs.wso2.com/contribute/reference/checks/#front-matter) | Blocks | No |
+| [Sidebar icons](https://docs.wso2.com/contribute/reference/checks/#nav-icons) | Blocks | No |
 | [Data files](https://docs.wso2.com/contribute/reference/checks/#data-files) | Blocks | No |
 | [Edition markers and variables](https://docs.wso2.com/contribute/reference/checks/#markers) | Blocks | No |
 | [Marker versions](https://docs.wso2.com/contribute/reference/checks/#marker-versions) | Blocks | Yes |
@@ -89,6 +90,15 @@ Every page has a title, a description of at most 160 characters and a page type,
 - **Blocks the pull request**. The Docs release build runs it again.
 
 **How to fix it:** Copy the front matter of the page-type template (`wso2-docs new <type>`), then fill it in.
+
+## Sidebar icons
+
+Every sidebar icon a page names in its front matter (`sidebar_custom_props: { icon: <name> }`) or a folder names in its `_category_.yml` (`customProps: { icon: <name> }`) is on the Platform's list of icons. A build fails on an unknown name too; a preview warns and leaves the icon out.
+
+- **Check ID:** `nav-icons`
+- **Blocks the pull request**. The Docs release build runs it again.
+
+**How to fix it:** Use a name from the list in [Add a sidebar icon](https://docs.wso2.com/contribute/guides/add-a-sidebar-icon/#allowed-names), such as `octicons/rocket-16` or `fontawesome/brands/react`. The message suggests a close name when there is one.
 
 ## Data files
 

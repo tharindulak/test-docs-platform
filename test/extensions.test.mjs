@@ -2,9 +2,9 @@
 // matter (overview cards, catalogs fed by data files), data files and their
 // schemas, team notices and section link entries as the chrome reads them
 // from the published manifest, the component catalogue and the extension
-// proposal form. The builds of both layouts are in test/build.test.mjs, the
-// data-files check's failures in test/check.test.mjs and the compose rules in
-// test/compose.test.mjs.
+// proposal form. The builds of both layouts are in
+// test/build/build.test.mjs, the data-files check's failures in
+// test/build/check.test.mjs and the compose rules in test/compose.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

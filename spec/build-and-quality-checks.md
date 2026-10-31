@@ -20,12 +20,16 @@ How one Docs deployment is built, which checks run where, which block, and who c
 | Content repo pull request | `wso2-docs check` from the Platform's reusable workflow: the blocking checks, then warn-only lint on changed lines; plus the compose check | Required status "preview / checks", set by branch protection on `main` and release branches |
 | Docs release build | `wso2-docs check --release`, the blocking subset | A failure deploys nothing; the previous release stays live |
 | After deploy | The staging crawl gate | Blocks promotion to production |
+| Platform pull request that changes the theme (`site/wso2-theme/`) | axe (pa11y-ci, WCAG 2 AA) on Sandbox Cloud pages with the theme: the home page, a guide with admonitions, a page with code blocks and a reference page, in light and dark at 1280 and 375 px | Any violation, or a page axe can't check, fails `ci.yml`, so the pull request doesn't merge |
 | Nightly and weekly, on production | A full crawl incl. external links, axe on a sample nightly and the whole site weekly, the search consistency check | Report only, posted to Doc space owners |
 
 [F17] [F31]
 
 - **`wso2-docs check` locally runs the same checks as the pull request**, so passing locally means passing there. [F17] [F31]
 - **External links are never checked on pull requests**, only nightly. [F17]
+- **A theme change is checked for accessibility before it merges**, since it goes live without a rebuild. On a Platform pull request that changes `site/wso2-theme/`, `ci.yml` builds Sandbox Cloud and the Landing deployment, serves them together so pages load the theme from the host root as on the edge, and runs axe through `scripts/theme-axe.mjs` with the pa11y-ci version the nightly reports and the theme release use. It blocks on every violation, not only new ones: the Sandbox has none. The theme release's checks still run on every live deployment's sample page. [user decision 2026-10-28 (theme without rebuilding)]
+- **The theme check fails, saying why, when it can't reach the Sandbox.** The Sandbox Content repo is private: on a pull request from a fork (whose run gets no secrets), or without `CONTENT_READ_TOKEN` or with one that can't read it, `ci.yml`'s `theme-axe` job checks out nothing and fails before the build with an error and a run summary that give the reason and say the theme change is not checked: a Platform team member must run the check from a branch in the Platform repo and open the pull request from it. [user decision 2026-10-28 (theme without rebuilding)]
+- **Every axe run is one pa11y-ci, pinned exactly: 5.0.0**, in the nightly reports, the theme release's two runs and the Platform pull request's theme check (`PA11Y_CI` in `scripts/theme-axe.mjs`; a test holds the workflows to it). Its Puppeteer (25) downloads a current Chromium, which has `:has()`, so axe checks the page readers see: the theme uses `:has()`, and pa11y-ci 3.x ran Chromium 91, which hasn't. pa11y-ci 5 needs Node 22.13 or later. Its report is the same `--json` shape `wso2-release theme compare` and the summaries read. [user decision 2026-10-28 (theme without rebuilding)]
 
 ## Blocking and warn-only checks
 
